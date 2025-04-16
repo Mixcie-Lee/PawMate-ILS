@@ -4,7 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.zlayout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
@@ -17,9 +17,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         val dogImages = listOf(
-          R.drawable.dog1,
-            R.drawable.dog2,
-            R.drawable.dog3
+         R.drawable.dog1,
         )
 
         setContent {
@@ -30,7 +28,7 @@ class MainActivity : ComponentActivity() {
                             .fillMaxSize()
                             .padding(innerPadding)
                     ) {
-                        AnimalPager(animalDrawables = dogImages)
+
                     }
                 }
             }
