@@ -2,4 +2,11 @@
 <resources>
 
     <style name="Theme.PawMateILS" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <style name="SplashTheme" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/white</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/logo</item>
+        <item name="windowSplashScreenAnimationDuration">1000 </item>
+        <item name="postSplashScreenTheme">@style/Theme.PawMateILS</item>
+    </style>
 </resources>
