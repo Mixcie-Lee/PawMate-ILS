@@ -7,7 +7,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import com.example.pawmate_ils.ui.theme.PawMateTheme
+import com.example.pawmate_ils.ui.theme.PawMateILSTheme
 
 @Composable
 fun AuthScreen(
@@ -18,7 +18,7 @@ fun AuthScreen(
     var showSellerSignUp by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
-    PawMateTheme {
+    PawMateILSTheme() {
         Surface(
             modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background
