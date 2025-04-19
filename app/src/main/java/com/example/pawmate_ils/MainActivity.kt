@@ -11,13 +11,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.example.pawmate_ils.ui.screens.*
-import com.example.pawmate_ils.PetSwipeScreen
+import com.example.pawmate_ils.ui.screens.LoginScreen
+import com.example.pawmate_ils.ui.screens.SellerSignUpScreen
+import com.example.pawmate_ils.ui.screens.SignUpScreen
+import com.example.pawmate_ils.ui.screens.UserTypeSelectionScreen
 import com.example.pawmate_ils.ui.theme.PawMateILSTheme
-import com.example.pawmate_ils.onboard.OnboardingScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -36,24 +38,17 @@ class MainActivity : ComponentActivity() {
                                 .padding(innerPadding)
                         ) {
                             val navController = rememberNavController()
-                            
-                            NavHost(navController = navController, startDestination = "onboarding") {
-                                composable("onboarding") {
-                                    OnboardingScreen {
-                                        navController.navigate("user_type") {
-                                            popUpTo("onboarding") { inclusive = true }
-                                        }
-                                    }
-                                }
+
+                            NavHost(navController = navController, startDestination = "user_type") {
                                 composable("user_type") {
                                     UserTypeSelectionScreen(navController = navController)
                                 }
                                 composable("signup") {
-                                    SignUpScreen(
+                                    SignUpScreen(,
                                         onSignUpClick = { _, _, _, _ ->
-                                            navController.navigate("swipe")
+                                            navController.navigate("pet_selection")
                                         },
-                                        onLoginClick = { 
+                                        onLoginClick = {
                                             navController.navigate("login")
                                         },
                                         onSellerAuthClick = {
@@ -76,10 +71,8 @@ class MainActivity : ComponentActivity() {
                                 }
                                 composable("seller_signup") {
                                     SellerSignUpScreen(
-                                        onSignUpClick = { businessName, ownerName, _, _, _, _ ->
-                                            navController.navigate("adoption_center") {
-                                                launchSingleTop = true
-                                            }
+                                        onSignUpClick = { _, _, _, _, _, _ ->
+                                            navController.navigate("swipe")
                                         },
                                         onLoginClick = {
                                             navController.navigate("login")
@@ -89,19 +82,10 @@ class MainActivity : ComponentActivity() {
                                         }
                                     )
                                 }
-                                composable("adoption_center") {
-                                    AdoptionCenterDashboard(
-                                        centerName = "Adoption Center",
-                                        onAddPet = { /* TODO: Implement add pet */ },
-                                        onViewPets = { /* TODO: Implement view pets */ },
-                                        onViewApplications = { /* TODO: Implement view applications */ },
-                                        onViewStatistics = { /* TODO: Implement view statistics */ },
-                                        onSettings = { /* TODO: Implement settings */ }
-                                    )
+                                composable("pet_selection") {
+                                    PetSelectionScreen(navController = navController)
                                 }
-                                composable("swipe") {
-                                    PetSwipeScreen(userName = "Alex")
-                                }
+
                             }
                         }
                     }

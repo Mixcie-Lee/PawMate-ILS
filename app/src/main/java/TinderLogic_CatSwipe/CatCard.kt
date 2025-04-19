@@ -1,8 +1,6 @@
-package com.example.pawmate_ils
+package TinderLogic_CatSwipe
 
-import android.R.attr.height
-import android.R.attr.top
-import androidx.compose.animation.core.Animatable
+import  androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -11,7 +9,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CheckboxDefaults.colors
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -29,8 +27,8 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 @Composable
-fun PetCard(
-    pet: Pet,
+fun CatCard(
+    cat: Cat,
     isTopCard: Boolean,
     onSwiped: (String) -> Unit,
 ) {
@@ -44,7 +42,7 @@ fun PetCard(
         .aspectRatio(0.60f)
         .rotate(animatableX.value / 30)
         .clip(RoundedCornerShape(40.dp))
-        .background(Color.LightGray)
+        .background(Color.Black)
 
     if (isTopCard) {
         Box(
@@ -80,25 +78,25 @@ fun PetCard(
             },
             contentAlignment = Alignment.BottomCenter
         ) {
-            PetCardContent(pet)
+            CatCardContent(cat)
         }
     } else {
         Box(
             modifier = cardModifier,
             contentAlignment = Alignment.BottomCenter
         ) {
-            PetCardContent(pet)
+            CatCardContent(cat)
         }
     }
 }
 
 @Composable
-fun PetCardContent(pet: Pet) {
+fun CatCardContent(cat: Cat) {
     Box(modifier = Modifier.fillMaxSize()) {
         // Background image
         Image(
-            painter = painterResource(id = pet.imageRes),
-            contentDescription = pet.name,
+            painter = painterResource(id = cat.imageRes),
+            contentDescription = cat.name,
             modifier = Modifier.fillMaxSize()
                 .height(990.dp)
 
@@ -119,17 +117,17 @@ fun PetCardContent(pet: Pet) {
                     .fillMaxWidth()
             ) {
                 Text(
-                    text = pet.name,
+                    text = cat.name,
                     letterSpacing = 6.sp,
                     fontSize = 30.sp,
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
                 )
-                Text(text = pet.age, fontSize = 16.sp, color = Color.White)
-                Text(text = pet.description, fontSize = 14.sp, color = Color.White)
+                Text(text = cat.age, fontSize = 16.sp, color = Color.White)
+                Text(text = cat.description, fontSize = 14.sp, color = Color.White)
 
                 Button(
-                    onClick = { /* Handle adoption */ },
+                    onClick = { },
                     modifier = Modifier
                         .width(185.dp)
                         .height(60.dp)
@@ -148,4 +146,10 @@ fun PetCardContent(pet: Pet) {
             }
         }
     }
+
+}
+@Preview(showBackground = true)
+@Composable
+fun PreviewCatSwipeScreen() {
+    CatSwipeScreen(userName = "Alice")
 }

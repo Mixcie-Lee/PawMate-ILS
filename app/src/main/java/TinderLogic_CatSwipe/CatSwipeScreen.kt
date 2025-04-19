@@ -1,4 +1,6 @@
-package com.example.pawmate_ils
+package TinderLogic_CatSwipe
+
+
 
 import android.widget.Toast
 import androidx.compose.animation.animateColorAsState
@@ -46,14 +48,14 @@ fun AnimatedWelcomeText(userName: String) {
     )
 }
 @Composable
-fun PetSwipeScreen(userName: String) {
+fun CatSwipeScreen(userName: String) {
     val context = LocalContext.current
-    val petList = remember { PetRepository.getPets() }
-    val cardStack = remember { mutableStateListOf(*petList.toTypedArray()) }
+    val catList = remember { CatRepository.getCats() }
+    val cardStack = remember { mutableStateListOf(*catList.toTypedArray()) }
 
     fun resetCards() {
         cardStack.clear()
-        cardStack.addAll(petList)
+        cardStack.addAll(catList)
     }
 
     Column(
@@ -65,7 +67,7 @@ fun PetSwipeScreen(userName: String) {
         Spacer(modifier = Modifier.height(20.dp))
 
 
-           AnimatedWelcomeText(userName = userName)
+        AnimatedWelcomeText(userName = userName)
 
 
         Spacer(modifier = Modifier.height(90.dp))
@@ -79,18 +81,18 @@ fun PetSwipeScreen(userName: String) {
             if (cardStack.isEmpty()) {
                 // Reset automatically when all cards are swiped
                 LaunchedEffect(Unit) {
-                    Toast.makeText(context, "Process will reset, until you find your fur baby \uD83D\uDC36", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Process will reset, until you find your fur baby \uD83D\uDC31", Toast.LENGTH_SHORT).show()
                     delay(800)
                     resetCards()
 
                 }
             } else {
-                cardStack.asReversed().forEachIndexed { index, pet ->
-                    PetCard(
-                        pet = pet,
+                cardStack.asReversed().forEachIndexed { index, cat ->
+                    CatCard(
+                        cat = cat,
                         isTopCard = index == cardStack.lastIndex,
                         onSwiped = {
-                            cardStack.remove(pet)
+                            cardStack.remove(cat)
                         }
                     )
                 }
