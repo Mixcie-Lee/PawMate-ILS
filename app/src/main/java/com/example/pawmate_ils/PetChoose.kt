@@ -113,7 +113,7 @@ import com.example.pawmate_ils.ui.theme.PawMateILSTheme
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = " ✨ Give a stray their main character moment 🐶🐱 ✨",
+                    text = " ✨ Give a stray their main character moment 🐶🐱 ✨ ",
                     style = TextStyle(
                         fontSize = 18.sp,
                         color = Color.White,

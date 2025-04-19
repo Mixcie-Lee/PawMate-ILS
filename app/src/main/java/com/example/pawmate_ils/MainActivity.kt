@@ -52,7 +52,7 @@ class MainActivity : ComponentActivity() {
                                             navController.navigate("login")
                                         },
                                         onSellerAuthClick = {
-                                            navController.navigate("seller_signup")
+                                            navController.navigate("pet_selection")
                                         }
                                     )
                                 }

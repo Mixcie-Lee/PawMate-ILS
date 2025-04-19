@@ -9,7 +9,6 @@ import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Pets
-import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,12 +22,15 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+
 import com.example.pawmate_ils.ui.theme.PetPink
 import com.example.pawmate_ils.ui.theme.PetPurple
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SignUpScreen(
+    navController: NavController,
     onSignUpClick: (String, String, String, String) -> Unit,
     onLoginClick: () -> Unit,
     onSellerAuthClick: () -> Unit
@@ -94,12 +96,12 @@ fun SignUpScreen(
                 value = name,
                 onValueChange = { name = it },
                 label = { Text("Full Name") },
-                leadingIcon = { 
+                leadingIcon = {
                     Icon(
-                        Icons.Default.Person, 
+                        Icons.Default.Person,
                         contentDescription = "Full Name",
                         tint = PetPink
-                    ) 
+                    )
                 },
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Text,
@@ -118,12 +120,12 @@ fun SignUpScreen(
                 value = email,
                 onValueChange = { email = it },
                 label = { Text("Email") },
-                leadingIcon = { 
+                leadingIcon = {
                     Icon(
-                        Icons.Default.Email, 
+                        Icons.Default.Email,
                         contentDescription = "Email",
                         tint = PetPink
-                    ) 
+                    )
                 },
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Email,
@@ -142,12 +144,12 @@ fun SignUpScreen(
                 value = password,
                 onValueChange = { password = it },
                 label = { Text("Password") },
-                leadingIcon = { 
+                leadingIcon = {
                     Icon(
-                        Icons.Default.Lock, 
+                        Icons.Default.Lock,
                         contentDescription = "Password",
                         tint = PetPink
-                    ) 
+                    )
                 },
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(
@@ -167,12 +169,12 @@ fun SignUpScreen(
                 value = confirmPassword,
                 onValueChange = { confirmPassword = it },
                 label = { Text("Confirm Password") },
-                leadingIcon = { 
+                leadingIcon = {
                     Icon(
-                        Icons.Default.Lock, 
+                        Icons.Default.Lock,
                         contentDescription = "Confirm Password",
                         tint = PetPink
-                    ) 
+                    )
                 },
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(
@@ -208,6 +210,8 @@ fun SignUpScreen(
                     }
                     isLoading = true
                     onSignUpClick(name, email, password, confirmPassword)
+
+
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -262,4 +266,4 @@ fun SignUpScreen(
             }
         }
     }
-} 
+}
