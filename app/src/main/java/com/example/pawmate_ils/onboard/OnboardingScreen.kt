@@ -14,14 +14,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import com.example.pawmate_ils.ui.theme.PetPink
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun OnboardingScreen(onComplete: (String) -> Unit) {
-
+fun OnboardingScreen(onComplete: () -> Unit) {
     val pages = listOf(OnboardingModel.FirstPage, OnboardingModel.SecondPage, OnboardingModel.ThirdPage)
     val pagerState = rememberPagerState(initialPage = 0) { pages.size }
 
@@ -30,7 +29,7 @@ fun OnboardingScreen(onComplete: (String) -> Unit) {
             when (pagerState.currentPage) {
                 0 -> listOf("", "Next")
                 1 -> listOf("Back", "Next")
-                2 -> listOf("Back", "")
+                2 -> listOf("Back", "Get Started")
                 else -> listOf("", "")
             }
         }
@@ -49,9 +48,11 @@ fun OnboardingScreen(onComplete: (String) -> Unit) {
             ) {
                 Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
                     if (buttonState.value[0].isNotEmpty()) {
-                        ButtonUI(text = buttonState.value[0],
+                        ButtonUI(
+                            text = buttonState.value[0],
                             backgroundColor = Color.Transparent,
-                            textColor = Color.Gray) {
+                            textColor = PetPink
+                        ) {
                             scope.launch {
                                 if (pagerState.currentPage > 0) {
                                     pagerState.animateScrollToPage(pagerState.currentPage - 1)
@@ -68,14 +69,14 @@ fun OnboardingScreen(onComplete: (String) -> Unit) {
                 Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
                     ButtonUI(
                         text = buttonState.value[1],
-                        backgroundColor = MaterialTheme.colorScheme.primary,
-                        textColor = MaterialTheme.colorScheme.onPrimary
+                        backgroundColor = PetPink,
+                        textColor = Color.White
                     ) {
                         scope.launch {
                             if (pagerState.currentPage < pages.size - 1) {
                                 pagerState.animateScrollToPage(pagerState.currentPage + 1)
                             } else {
-                                onComplete("Completed")
+                                onComplete()
                             }
                         }
                     }
@@ -85,24 +86,14 @@ fun OnboardingScreen(onComplete: (String) -> Unit) {
         content = { paddingValues ->
             Column(modifier = Modifier.padding(paddingValues)) {
                 HorizontalPager(state = pagerState) { index ->
-                    val page = pages[index]
-                    if (index == 2) {
-                        OnboardChoose(
-                            onboardingModel = page,
-                            onAdopterSelected = { onComplete("Adopter") },
-                            onShelterOwnerSelected = { onComplete("Shelter Owner") }
-                        )
-                    } else {
-                        OnboardingGraphUI(onboardingModel = page)
-                    }
+                    OnboardingGraphUI(onboardingModel = pages[index])
                 }
             }
         }
     )
 }
 
-@Preview(showBackground = true)
 @Composable
-fun OnboardingScreenPreview() {
-    OnboardingScreen { _ -> }
+private fun PreviewOnboardingScreen() {
+    OnboardingScreen {}
 }

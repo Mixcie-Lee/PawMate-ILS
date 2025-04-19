@@ -14,11 +14,10 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.example.pawmate_ils.ui.screens.LoginScreen
-import com.example.pawmate_ils.ui.screens.SellerSignUpScreen
-import com.example.pawmate_ils.ui.screens.SignUpScreen
-import com.example.pawmate_ils.ui.screens.UserTypeSelectionScreen
+import com.example.pawmate_ils.ui.screens.*
+import com.example.pawmate_ils.PetSwipeScreen
 import com.example.pawmate_ils.ui.theme.PawMateILSTheme
+import com.example.pawmate_ils.onboard.OnboardingScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -38,7 +37,14 @@ class MainActivity : ComponentActivity() {
                         ) {
                             val navController = rememberNavController()
                             
-                            NavHost(navController = navController, startDestination = "user_type") {
+                            NavHost(navController = navController, startDestination = "onboarding") {
+                                composable("onboarding") {
+                                    OnboardingScreen {
+                                        navController.navigate("user_type") {
+                                            popUpTo("onboarding") { inclusive = true }
+                                        }
+                                    }
+                                }
                                 composable("user_type") {
                                     UserTypeSelectionScreen(navController = navController)
                                 }
@@ -70,8 +76,10 @@ class MainActivity : ComponentActivity() {
                                 }
                                 composable("seller_signup") {
                                     SellerSignUpScreen(
-                                        onSignUpClick = { _, _, _, _, _, _ ->
-                                            navController.navigate("swipe")
+                                        onSignUpClick = { businessName, ownerName, _, _, _, _ ->
+                                            navController.navigate("adoption_center") {
+                                                launchSingleTop = true
+                                            }
                                         },
                                         onLoginClick = {
                                             navController.navigate("login")
@@ -79,6 +87,16 @@ class MainActivity : ComponentActivity() {
                                         onUserAuthClick = {
                                             navController.navigate("signup")
                                         }
+                                    )
+                                }
+                                composable("adoption_center") {
+                                    AdoptionCenterDashboard(
+                                        centerName = "Adoption Center",
+                                        onAddPet = { /* TODO: Implement add pet */ },
+                                        onViewPets = { /* TODO: Implement view pets */ },
+                                        onViewApplications = { /* TODO: Implement view applications */ },
+                                        onViewStatistics = { /* TODO: Implement view statistics */ },
+                                        onSettings = { /* TODO: Implement settings */ }
                                     )
                                 }
                                 composable("swipe") {
