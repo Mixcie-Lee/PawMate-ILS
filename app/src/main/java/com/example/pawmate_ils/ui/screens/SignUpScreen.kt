@@ -23,6 +23,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 import com.example.pawmate_ils.ui.theme.PetPink
 import com.example.pawmate_ils.ui.theme.PetPurple
@@ -41,6 +44,51 @@ fun SignUpScreen(
     var confirmPassword by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // Use rememberCoroutineScope for navigation
+    val scope = rememberCoroutineScope()
+
+    fun validateForm(): Boolean {
+        if (name.isBlank()) {
+            errorMessage = "Please enter your name"
+            return false
+        }
+        if (email.isBlank() || !email.contains("@")) {
+            errorMessage = "Please enter a valid email"
+            return false
+        }
+        if (password.length < 6) {
+            errorMessage = "Password must be at least 6 characters"
+            return false
+        }
+        if (password != confirmPassword) {
+            errorMessage = "Passwords do not match"
+            return false
+        }
+        return true
+    }
+
+    fun handleSignUp() {
+        if (!validateForm()) return
+        
+        isLoading = true
+        errorMessage = null
+        
+        scope.launch {
+            try {
+                onSignUpClick(name, email, password, confirmPassword)
+                // Ensure UI updates are complete before navigation
+                delay(50)
+                navController.navigate("pet_selection") {
+                    popUpTo("user_type") { inclusive = true }
+                }
+            } catch (e: Exception) {
+                errorMessage = "Sign up failed: ${e.message}"
+            } finally {
+                isLoading = false
+            }
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -199,38 +247,24 @@ fun SignUpScreen(
             }
 
             Button(
-                onClick = {
-                    if (name.isBlank() || email.isBlank() || password.isBlank() || confirmPassword.isBlank()) {
-                        errorMessage = "Please fill in all fields"
-                        return@Button
-                    }
-                    if (password != confirmPassword) {
-                        errorMessage = "Passwords do not match"
-                        return@Button
-                    }
-                    isLoading = true
-                    onSignUpClick(name, email, password, confirmPassword)
-
-
-                },
+                onClick = { handleSignUp() },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 16.dp)
-                    .height(50.dp),
-                enabled = !isLoading,
+                    .height(56.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = PetPink,
                     contentColor = Color.White
-                )
+                ),
+                enabled = !isLoading
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = Color.White
+                        color = Color.White,
+                        modifier = Modifier.size(24.dp)
                     )
                 } else {
                     Text(
-                        "Sign Up",
+                        text = "Sign Up",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
                     )

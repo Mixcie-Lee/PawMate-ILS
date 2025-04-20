@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import com.example.pawmate_ils.PetSelectionScreen
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import androidx.compose.ui.layout.ContentScale
 
 @Composable
 fun PetCard(
@@ -97,9 +98,8 @@ fun PetCardContent(pet: Pet) {
         Image(
             painter = painterResource(id = pet.imageRes),
             contentDescription = pet.name,
-            modifier = Modifier.fillMaxSize()
-                .height(990.dp)
-
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.FillBounds
         )
 
         // Dim overlay behind content, positioned at the bottom

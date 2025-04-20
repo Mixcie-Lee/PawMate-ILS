@@ -56,7 +56,6 @@ dependencies {
     implementation (libs.androidx.animation)
     implementation("androidx.core:core-splashscreen:1.0.1")
     implementation("androidx.compose.material3:material3:1.2.1")
-    //noinspection UseTomlInstead
     implementation("androidx.compose.material:material-icons-extended:1.7.8")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

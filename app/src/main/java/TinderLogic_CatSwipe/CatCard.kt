@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import androidx.compose.ui.layout.ContentScale
 
 @Composable
 fun CatCard(
@@ -97,9 +98,8 @@ fun CatCardContent(cat: Cat) {
         Image(
             painter = painterResource(id = cat.imageRes),
             contentDescription = cat.name,
-            modifier = Modifier.fillMaxSize()
-                .height(990.dp)
-
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.FillBounds
         )
 
         // Dim overlay behind content, positioned at the bottom

@@ -4,19 +4,15 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.navigation.compose.rememberNavController
-
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.snapping.SnapPosition.Center
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
@@ -29,10 +25,12 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 import com.example.pawmate_ils.ui.theme.PawMateILSTheme
+import kotlinx.coroutines.delay
 
 @Composable
-    fun PetSelectionScreen(navController: NavController) {
+fun PetSelectionScreen(navController: NavController) {
     var selectedPet by remember { mutableStateOf<String?>(null) }
 
     Surface(
@@ -53,7 +51,6 @@ import com.example.pawmate_ils.ui.theme.PawMateILSTheme
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(vertical = 32.dp)
-
             )
 
             // Row with Dog and Cat options
@@ -64,11 +61,11 @@ import com.example.pawmate_ils.ui.theme.PawMateILSTheme
                 PetCategoryButton(
                     title = "Dog",
                     baseColor = Color.Transparent, // Light green
-                    imageResId = R.drawable.dog_selection, // Your specific dog image
+                    imageResId = R.drawable.dog_selection,
                     isSelected = selectedPet == "Dog",
                     onClick = {
                         selectedPet = "Dog"
-                        navController.navigate(" PetSwipeScreen")
+                        navController.navigate("pet_swipe")
                     },
                     modifier = Modifier
                         .size(400.dp)
@@ -79,11 +76,11 @@ import com.example.pawmate_ils.ui.theme.PawMateILSTheme
                 PetCategoryButton(
                     title = "Cat",
                     baseColor = Color.Transparent, // Light pink/purple
-                    imageResId = R.drawable.cat_selection, // Your specific cat image
+                    imageResId = R.drawable.cat_selection,
                     isSelected = selectedPet == "Cat",
                     onClick = {
                         selectedPet = "Cat"
-                        navController.navigate(" CatSwipeScreen")
+                        navController.navigate("cat_swipe")
                     },
                     modifier = Modifier
                         .weight(1f)
@@ -100,16 +97,22 @@ import com.example.pawmate_ils.ui.theme.PawMateILSTheme
                 animationSpec = tween(durationMillis = 2500)
             ).value
 
-            LaunchedEffect(Unit) {
-                condition = !condition
+            val alpha = animateFloatAsState(
+                targetValue = if (condition) 1f else 0f,
+                animationSpec = tween(durationMillis = 2500)
+            ).value
 
+            LaunchedEffect(Unit) {
+                while (true) {
+                    condition = !condition
+                    delay(2500) // Match the animation duration
+                }
             }
             Box(
                 modifier = Modifier
                     .height(150.dp)
-                    .width(250.dp)// Set the height of the box
-
-                    .padding(16.dp), // Optional padding inside the box
+                    .width(250.dp)
+                    .padding(16.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -119,16 +122,14 @@ import com.example.pawmate_ils.ui.theme.PawMateILSTheme
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center
-
                     ),
                     modifier = Modifier
                         .padding(16.dp)
                         .offset(y = verticalOffset)
+                        .alpha(alpha)
                 )
             }
         }
-
-
 
         // Bottom dots indicator
         Row(
@@ -150,13 +151,10 @@ import com.example.pawmate_ils.ui.theme.PawMateILSTheme
     }
 }
 
-
-
-
 @Composable
 fun PetCategoryButton(
     title: String,
-    baseColor: Color ,
+    baseColor: Color,
     imageResId: Int,
     isSelected: Boolean,
     onClick: () -> Unit,
@@ -192,7 +190,6 @@ fun PetCategoryButton(
                 .clip(RoundedCornerShape(24.dp))
                 .background(backgroundColor)
                 .clickable(onClick = onClick)
-
         ) {
             // Add the pet image
             Image(
@@ -215,8 +212,6 @@ fun PetCategoryButton(
             fontWeight = FontWeight.Medium,
             color = if (isSelected) Color(0xFFFF007F) else Color.White
         )
-
-
     }
 }
 

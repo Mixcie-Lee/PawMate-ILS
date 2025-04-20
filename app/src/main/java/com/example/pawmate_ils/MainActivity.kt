@@ -11,7 +11,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
-import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -19,6 +18,9 @@ import com.example.pawmate_ils.ui.screens.LoginScreen
 import com.example.pawmate_ils.ui.screens.SellerSignUpScreen
 import com.example.pawmate_ils.ui.screens.SignUpScreen
 import com.example.pawmate_ils.ui.screens.UserTypeSelectionScreen
+import com.example.pawmate_ils.PetSelectionScreen
+import TinderLogic_PetSwipe.PetSwipeScreen
+import TinderLogic_CatSwipe.CatSwipeScreen
 import com.example.pawmate_ils.ui.theme.PawMateILSTheme
 
 class MainActivity : ComponentActivity() {
@@ -38,54 +40,84 @@ class MainActivity : ComponentActivity() {
                                 .padding(innerPadding)
                         ) {
                             val navController = rememberNavController()
-
+                            
                             NavHost(navController = navController, startDestination = "user_type") {
                                 composable("user_type") {
                                     UserTypeSelectionScreen(navController = navController)
                                 }
                                 composable("signup") {
-                                    SignUpScreen(,
+                                    SignUpScreen(
+                                        navController = navController,
                                         onSignUpClick = { _, _, _, _ ->
-                                            navController.navigate("pet_selection")
+                                            navController.navigate("pet_selection") {
+                                                popUpTo("user_type") { inclusive = true }
+                                                launchSingleTop = true
+                                            }
                                         },
                                         onLoginClick = {
-                                            navController.navigate("login")
+                                            navController.navigate("login") {
+                                                launchSingleTop = true
+                                                restoreState = true
+                                            }
                                         },
                                         onSellerAuthClick = {
-                                            navController.navigate("pet_selection")
+                                            navController.navigate("seller_signup") {
+                                                launchSingleTop = true
+                                                restoreState = true
+                                            }
                                         }
                                     )
                                 }
                                 composable("login") {
                                     LoginScreen(
                                         onLoginClick = { _, _ ->
-                                            navController.navigate("swipe")
+                                            navController.navigate("pet_selection") {
+                                                popUpTo("user_type") { inclusive = true }
+                                                launchSingleTop = true
+                                            }
                                         },
                                         onSignUpClick = {
-                                            navController.navigate("signup")
+                                            navController.navigate("signup") {
+                                                launchSingleTop = true
+                                                restoreState = true
+                                            }
                                         },
                                         onSellerAuthClick = {
-                                            navController.navigate("seller_signup")
+                                            navController.navigate("seller_signup") {
+                                                launchSingleTop = true
+                                                restoreState = true
+                                            }
                                         }
                                     )
                                 }
                                 composable("seller_signup") {
                                     SellerSignUpScreen(
                                         onSignUpClick = { _, _, _, _, _, _ ->
-                                            navController.navigate("swipe")
+                                            // Handle successful seller signup (e.g., navigate to seller dashboard)
                                         },
                                         onLoginClick = {
-                                            navController.navigate("login")
+                                            navController.navigate("login") {
+                                                launchSingleTop = true
+                                                restoreState = true
+                                            }
                                         },
                                         onUserAuthClick = {
-                                            navController.navigate("signup")
+                                            navController.navigate("signup") {
+                                                launchSingleTop = true
+                                                restoreState = true
+                                            }
                                         }
                                     )
                                 }
                                 composable("pet_selection") {
                                     PetSelectionScreen(navController = navController)
                                 }
-
+                                composable("pet_swipe") {
+                                    PetSwipeScreen(userName = "User")
+                                }
+                                composable("cat_swipe") {
+                                    CatSwipeScreen(userName = "User")
+                                }
                             }
                         }
                     }

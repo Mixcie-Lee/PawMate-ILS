@@ -51,7 +51,7 @@ fun AuthScreen(
                             navController = navController,
                             onSignUpClick = { name, email, password, confirmPassword ->
                                 onAuthComplete()
-                                navController.navigate("PetSelectionScreen")
+                                navController.navigate("pet_selection")
                             },
                             onLoginClick = { showSignUp = false },
                             onSellerAuthClick = { showSellerAuth = true }
