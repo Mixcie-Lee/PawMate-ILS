@@ -2,6 +2,8 @@ package com.example.pawmate_ils.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -42,6 +44,7 @@ fun SellerSignUpScreen(
     var confirmPassword by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    val scrollState = rememberScrollState()
 
     Box(
         modifier = Modifier
@@ -51,13 +54,16 @@ fun SellerSignUpScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp),
+                .verticalScroll(scrollState)
+                .padding(horizontal = 24.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Top
         ) {
+            Spacer(modifier = Modifier.height(16.dp))
+            
             Box(
                 modifier = Modifier
-                    .size(120.dp)
+                    .size(100.dp)
                     .clip(CircleShape)
                     .background(PetPink.copy(alpha = 0.2f))
                     .padding(16.dp),
@@ -67,15 +73,15 @@ fun SellerSignUpScreen(
                     imageVector = Icons.Default.Store,
                     contentDescription = "PawMate Seller Logo",
                     tint = PetPink,
-                    modifier = Modifier.size(64.dp)
+                    modifier = Modifier.size(48.dp)
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             Text(
                 text = "Become a Seller",
-                style = MaterialTheme.typography.headlineLarge.copy(
+                style = MaterialTheme.typography.headlineMedium.copy(
                     fontWeight = FontWeight.Bold,
                     color = PetPink
                 ),
@@ -91,7 +97,7 @@ fun SellerSignUpScreen(
                 modifier = Modifier.padding(vertical = 8.dp)
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             OutlinedTextField(
                 value = businessName,
@@ -249,17 +255,57 @@ fun SellerSignUpScreen(
 
             Button(
                 onClick = {
-                    if (businessName.isBlank() || ownerName.isBlank() || email.isBlank() || 
-                        phone.isBlank() || password.isBlank() || confirmPassword.isBlank()) {
-                        errorMessage = "Please fill in all fields"
-                        return@Button
+                    // Validate all fields
+                    when {
+                        businessName.isBlank() -> {
+                            errorMessage = "Please enter your business name"
+                            return@Button
+                        }
+                        ownerName.isBlank() -> {
+                            errorMessage = "Please enter your name"
+                            return@Button
+                        }
+                        email.isBlank() -> {
+                            errorMessage = "Please enter your email"
+                            return@Button
+                        }
+                        !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches() -> {
+                            errorMessage = "Please enter a valid email address"
+                            return@Button
+                        }
+                        phone.isBlank() -> {
+                            errorMessage = "Please enter your phone number"
+                            return@Button
+                        }
+                        password.isBlank() -> {
+                            errorMessage = "Please enter a password"
+                            return@Button
+                        }
+                        password.length < 6 -> {
+                            errorMessage = "Password must be at least 6 characters"
+                            return@Button
+                        }
+                        confirmPassword.isBlank() -> {
+                            errorMessage = "Please confirm your password"
+                            return@Button
+                        }
+                        password != confirmPassword -> {
+                            errorMessage = "Passwords do not match"
+                            return@Button
+                        }
+                        else -> {
+                            errorMessage = null
+                            isLoading = true
+                            onSignUpClick(
+                                businessName.trim(),
+                                ownerName.trim(),
+                                email.trim(),
+                                phone.trim(),
+                                password,
+                                confirmPassword
+                            )
+                        }
                     }
-                    if (password != confirmPassword) {
-                        errorMessage = "Passwords do not match"
-                        return@Button
-                    }
-                    isLoading = true
-                    onSignUpClick(businessName, ownerName, email, phone, password, confirmPassword)
                 },
                 modifier = Modifier
                     .fillMaxWidth()

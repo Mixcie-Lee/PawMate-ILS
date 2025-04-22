@@ -1,59 +1,62 @@
 package com.example.pawmate_ils.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Analytics
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Pets
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
 import com.example.pawmate_ils.ui.theme.PetPink
+import com.example.pawmate_ils.ui.models.Application
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdoptionCenterDashboard(
-    centerName: String,
-    onAddPet: () -> Unit,
-    onViewPets: () -> Unit,
-    onViewApplications: () -> Unit,
-    onViewStatistics: () -> Unit,
-    onSettings: () -> Unit
+    navController: NavController,
+    centerName: String
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Dashboard", "Pets", "Applications", "Statistics")
+    val tabs = listOf("Dashboard", "Pets", "Applications", "Analytics")
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
+            TopAppBar(
                 title = {
-                    Text(
-                        text = centerName,
-                        style = MaterialTheme.typography.headlineSmall.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = PetPink
+                    Column {
+                        Text(
+                            text = centerName,
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = PetPink
+                            )
                         )
-                    )
+                        Text(
+                            text = "Welcome back!",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
+                    }
                 },
                 actions = {
-                    IconButton(onClick = onSettings) {
+                    IconButton(onClick = { navController.navigate("settings") }) {
                         Icon(
                             imageVector = Icons.Default.Settings,
                             contentDescription = "Settings"
                         )
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
                 )
             )
@@ -78,8 +81,9 @@ fun AdoptionCenterDashboard(
                         onClick = { 
                             selectedTab = index
                             when (index) {
-                                2 -> onViewApplications()
-                                3 -> onViewStatistics()
+                                1 -> navController.navigate("adoption_center_pets")
+                                2 -> navController.navigate("adoption_center_applications")
+                                3 -> navController.navigate("adoption_center_statistics")
                             }
                         }
                     )
@@ -90,23 +94,12 @@ fun AdoptionCenterDashboard(
         when (selectedTab) {
             0 -> DashboardContent(
                 paddingValues = paddingValues,
-                onAddPet = onAddPet,
-                onViewPets = onViewPets
+                onAddPet = { navController.navigate("add_pet") },
+                onViewPets = { navController.navigate("adoption_center_pets") },
+                onViewApplications = { navController.navigate("adoption_center_applications") }
             )
-            1 -> {
-                Box(modifier = Modifier.padding(paddingValues)) {
-                    Text("Pets tab content coming soon")
-                }
-            }
-            2 -> {
-                Box(modifier = Modifier.padding(paddingValues)) {
-                    Text("Applications tab content coming soon")
-                }
-            }
-            3 -> {
-                Box(modifier = Modifier.padding(paddingValues)) {
-                    Text("Statistics tab content coming soon")
-                }
+            1, 2, 3 -> {
+                // Navigation handled by bottom bar
             }
         }
     }
@@ -116,50 +109,82 @@ fun AdoptionCenterDashboard(
 private fun DashboardContent(
     paddingValues: PaddingValues,
     onAddPet: () -> Unit,
-    onViewPets: () -> Unit
+    onViewPets: () -> Unit,
+    onViewApplications: () -> Unit
 ) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(paddingValues)
-            .padding(16.dp)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // Overview Statistics
         item {
+            Text(
+                text = "Overview",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold
+                ),
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 StatCard(
-                    title = "Total Pets",
+                    title = "Available Pets",
                     value = "24",
                     icon = Icons.Default.Pets,
+                    color = PetPink,
                     modifier = Modifier.weight(1f)
                 )
                 StatCard(
                     title = "Applications",
                     value = "12",
                     icon = Icons.AutoMirrored.Filled.List,
+                    color = Color(0xFF4CAF50),
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                StatCard(
+                    title = "Adoptions",
+                    value = "8",
+                    icon = Icons.Default.Favorite,
+                    color = Color(0xFF2196F3),
+                    modifier = Modifier.weight(1f)
+                )
+                StatCard(
+                    title = "Success Rate",
+                    value = "67%",
+                    icon = Icons.Default.TrendingUp,
+                    color = Color(0xFF9C27B0),
                     modifier = Modifier.weight(1f)
                 )
             }
         }
 
+        // Quick Actions
         item {
             Text(
                 text = "Quick Actions",
-                style = MaterialTheme.typography.titleLarge.copy(
+                style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.Bold
                 ),
-                modifier = Modifier.padding(vertical = 16.dp)
+                modifier = Modifier.padding(vertical = 8.dp)
             )
 
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 QuickActionButton(
                     text = "Add Pet",
@@ -176,23 +201,63 @@ private fun DashboardContent(
             }
         }
 
+        // Recent Applications
         item {
             Text(
                 text = "Recent Applications",
-                style = MaterialTheme.typography.titleLarge.copy(
+                style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.Bold
                 ),
-                modifier = Modifier.padding(vertical = 16.dp)
+                modifier = Modifier.padding(vertical = 8.dp)
             )
         }
 
-        items(listOf("John Doe", "Jane Smith", "Mike Johnson")) { applicant ->
-            ApplicationCard(
-                applicantName = applicant,
-                petName = "Buddy",
-                date = "Today",
-                status = "Pending"
-            )
+        items(3) { index ->
+            val application = when (index) {
+                0 -> Application("John Doe", "Max", "Golden Retriever", "Today", "Pending")
+                1 -> Application("Jane Smith", "Luna", "Siamese Cat", "Yesterday", "Approved")
+                else -> Application("Mike Johnson", "Rocky", "German Shepherd", "2 days ago", "Pending")
+            }
+            ApplicationCard(application, onViewApplications)
+        }
+
+        // Adoption Tips
+        item {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = PetPink.copy(alpha = 0.1f)
+                )
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Lightbulb,
+                        contentDescription = "Tip",
+                        tint = PetPink,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Column {
+                        Text(
+                            text = "Pro Tip",
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = PetPink
+                            )
+                        )
+                        Text(
+                            text = "Regular updates to pet profiles can increase adoption rates by 40%",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -202,13 +267,14 @@ fun StatCard(
     title: String,
     value: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
+    color: Color,
     modifier: Modifier = Modifier
 ) {
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = PetPink.copy(alpha = 0.1f)
+            containerColor = color.copy(alpha = 0.1f)
         )
     ) {
         Column(
@@ -220,7 +286,7 @@ fun StatCard(
             Icon(
                 imageVector = icon,
                 contentDescription = title,
-                tint = PetPink,
+                tint = color,
                 modifier = Modifier.size(24.dp)
             )
             Spacer(modifier = Modifier.height(8.dp))
@@ -228,12 +294,13 @@ fun StatCard(
                 text = value,
                 style = MaterialTheme.typography.headlineMedium.copy(
                     fontWeight = FontWeight.Bold,
-                    color = PetPink
+                    color = color
                 )
             )
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodyMedium
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
             )
         }
     }
@@ -248,78 +315,79 @@ fun QuickActionButton(
 ) {
     Button(
         onClick = onClick,
-        modifier = modifier,
+        modifier = modifier.height(48.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = PetPink
-        )
+        ),
+        contentPadding = PaddingValues(horizontal = 16.dp)
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = text,
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(text)
-        }
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(18.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(text)
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ApplicationCard(
-    applicantName: String,
-    petName: String,
-    date: String,
-    status: String
+    application: Application,
+    onClick: () -> Unit
 ) {
     Card(
+        onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        shape = RoundedCornerShape(12.dp)
+            .padding(vertical = 4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
     ) {
-        Column(
+        Row(
             modifier = Modifier
-                .padding(16.dp)
                 .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            Column {
+                Text(
+                    text = application.applicantName,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold
+                    )
+                )
+                Text(
+                    text = "${application.petName} • ${application.petType}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+                Text(
+                    text = application.date,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                )
+            }
+            
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = when (application.status) {
+                    "Pending" -> Color(0xFFFFA000)
+                    "Approved" -> Color(0xFF4CAF50)
+                    else -> Color(0xFFF44336)
+                }
             ) {
-                Column {
-                    Text(
-                        text = applicantName,
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold
-                        )
+                Text(
+                    text = application.status,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontWeight = FontWeight.Medium
                     )
-                    Text(
-                        text = "Pet: $petName",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = date,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    Text(
-                        text = status,
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            color = when (status) {
-                                "Pending" -> Color(0xFFFFA500)
-                                "Approved" -> Color(0xFF4CAF50)
-                                "Rejected" -> Color(0xFFF44336)
-                                else -> MaterialTheme.colorScheme.onSurface
-                            }
-                        )
-                    )
-                }
+                )
             }
         }
     }
