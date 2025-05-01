@@ -1,10 +1,13 @@
 package TinderLogic_PetSwipe
 
-import  androidx.compose.animation.core.Animatable
+import TinderLogic_CatSwipe.Cat
+import androidx.compose.animation.core.Animatable
+import com.example.pawmate_ils.R
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -19,19 +22,23 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.pawmate_ils.PetSelectionScreen
 import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.IntOffset
+import kotlinx.coroutines.Job
+import kotlin.math.roundToInt
+
 
 @Composable
 fun PetCard(
     pet: Pet,
     isTopCard: Boolean,
     onSwiped: (String) -> Unit,
+    onImageTap: (Pet) -> Unit
 ) {
     val coroutineScope = rememberCoroutineScope()
     var offsetX by remember { mutableStateOf(0f) }
@@ -79,26 +86,40 @@ fun PetCard(
             },
             contentAlignment = Alignment.BottomCenter
         ) {
-            PetCardContent(pet)
+            PetCardContent(pet, onImageTap)
         }
     } else {
         Box(
             modifier = cardModifier,
             contentAlignment = Alignment.BottomCenter
         ) {
-            PetCardContent(pet)
+            PetCardContent(pet, onImageTap)
         }
     }
 }
 
 @Composable
-fun PetCardContent(pet: Pet) {
+fun PetCardContent(pet: Pet, onImageTap: (Pet) -> Unit) {
+    var currentImageIndex by remember { mutableStateOf(0) }
     Box(modifier = Modifier.fillMaxSize()) {
         // Background image
         Image(
-            painter = painterResource(id = pet.imageRes),
+            painter = painterResource(id = if (currentImageIndex == 0) pet.imageRes else pet.subImages[currentImageIndex - 1]),
             contentDescription = pet.name,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onTap = {
+                            // Cycle through subImages
+                            if (currentImageIndex < pet.subImages.size) {
+                                currentImageIndex++
+                            } else {
+                                currentImageIndex = 0 // Reset to main image
+                            }
+                        }
+                    )
+                },
             contentScale = ContentScale.FillBounds
         )
 
@@ -106,15 +127,14 @@ fun PetCardContent(pet: Pet) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .offset(x = 0.dp, y = (10).dp )
+                .offset(x = 0.dp, y = 10.dp)
                 .align(Alignment.BottomCenter) // Place it at the very bottom
                 .background(Color.Black.copy(alpha = 0.5f))
                 .padding(5.dp) // Inner padding for the content
         ) {
             Column(
                 verticalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
                     text = pet.name,
@@ -122,21 +142,13 @@ fun PetCardContent(pet: Pet) {
                     fontSize = 30.sp,
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily(Font(R.font.custom_font))
                 )
-                Text(text = pet.age, fontSize = 16.sp, color = Color.White)
-                Text(text = pet.description, fontSize = 14.sp, color = Color.White)
+                Text(text = pet.age, fontSize = 19.sp, color = Color.White, fontFamily = FontFamily(Font(R.font.custom_font)))
+                Text(text = pet.description, fontSize = 17.sp, color = Color.White, fontFamily = FontFamily(Font(R.font.custom_font)))
+                Text(text = pet.breed, fontSize = 15.sp, color = Color.White, fontFamily = FontFamily(Font(R.font.custom_font)))
 
-                Button(
-                    onClick = { },
-                    modifier = Modifier
-                        .width(185.dp)
-                        .height(60.dp)
-                        .align(Alignment.CenterHorizontally),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFDB7F8E),
-                        contentColor = Color.White
-                    )
-                ) {
+
                     Text(
                         "ADOPT",
                         fontSize = 20.sp,
@@ -146,4 +158,3 @@ fun PetCardContent(pet: Pet) {
             }
         }
     }
-}

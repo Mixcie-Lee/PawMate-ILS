@@ -51,6 +51,7 @@ fun PetSwipeScreen(userName: String) {
     val context = LocalContext.current
     val petList = remember { PetRepository.getPets() }
     val cardStack = remember { mutableStateListOf(*petList.toTypedArray()) }
+    var selectedPet by remember { mutableStateOf<Pet?>(null) }
 
     fun resetCards() {
         cardStack.clear()
@@ -92,6 +93,9 @@ fun PetSwipeScreen(userName: String) {
                         isTopCard = index == cardStack.lastIndex,
                         onSwiped = {
                             cardStack.remove(pet)
+                        },
+                        onImageTap = { tappedPet ->
+                            selectedPet = tappedPet // Set the selected pet
                         }
                     )
                 }

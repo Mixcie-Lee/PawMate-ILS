@@ -10,17 +10,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.example.pawmate_ils.ui.screens.*
-import com.example.pawmate_ils.PetSelectionScreen
+import com.example.pawmate_ils.ui.screens.LoginScreen
+import com.example.pawmate_ils.ui.screens.SellerSignUpScreen
+import com.example.pawmate_ils.ui.screens.SignUpScreen
+import com.example.pawmate_ils.ui.screens.UserTypeSelectionScreen
 import TinderLogic_PetSwipe.PetSwipeScreen
 import TinderLogic_CatSwipe.CatSwipeScreen
 import com.example.pawmate_ils.ui.theme.PawMateILSTheme
-import com.example.pawmate_ils.onboard.OnboardingScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -40,17 +40,7 @@ class MainActivity : ComponentActivity() {
                         ) {
                             val navController = rememberNavController()
                             
-                            NavHost(navController = navController, startDestination = "onboarding") {
-                                composable("onboarding") {
-                                    OnboardingScreen(
-                                        onComplete = {
-                                            navController.navigate("user_type") {
-                                                popUpTo("onboarding") { inclusive = true }
-                                                launchSingleTop = true
-                                            }
-                                        }
-                                    )
-                                }
+                            NavHost(navController = navController, startDestination = "user_type") {
                                 composable("user_type") {
                                     UserTypeSelectionScreen(navController = navController)
                                 }
@@ -70,7 +60,7 @@ class MainActivity : ComponentActivity() {
                                             }
                                         },
                                         onSellerAuthClick = {
-                                            navController.navigate("shelter_owner_signup") {
+                                            navController.navigate("seller_signup") {
                                                 launchSingleTop = true
                                                 restoreState = true
                                             }
@@ -92,23 +82,20 @@ class MainActivity : ComponentActivity() {
                                             }
                                         },
                                         onSellerAuthClick = {
-                                            navController.navigate("shelter_owner_signup") {
+                                            navController.navigate("seller_signup") {
                                                 launchSingleTop = true
                                                 restoreState = true
                                             }
                                         }
                                     )
                                 }
-                                composable("shelter_owner_signup") {
-                                    ShelterOwnerSignUpScreen(
+                                composable("seller_signup") {
+                                    SellerSignUpScreen(
                                         onSignUpClick = { _, _, _, _, _, _ ->
-                                            navController.navigate("adoption_center_dashboard") {
-                                                popUpTo("user_type") { inclusive = true }
-                                                launchSingleTop = true
-                                            }
+                                            // Handle successful seller signup (e.g., navigate to seller dashboard)
                                         },
                                         onLoginClick = {
-                                            navController.navigate("shelter_owner_login") {
+                                            navController.navigate("login") {
                                                 launchSingleTop = true
                                                 restoreState = true
                                             }
@@ -120,63 +107,6 @@ class MainActivity : ComponentActivity() {
                                             }
                                         }
                                     )
-                                }
-                                composable("shelter_owner_login") {
-                                    ShelterOwnerLoginScreen(
-                                        onLoginClick = { _, _ ->
-                                            navController.navigate("adoption_center_dashboard") {
-                                                popUpTo("user_type") { inclusive = true }
-                                                launchSingleTop = true
-                                            }
-                                        },
-                                        onSignUpClick = {
-                                            navController.navigate("shelter_owner_signup") {
-                                                launchSingleTop = true
-                                                restoreState = true
-                                            }
-                                        },
-                                        onUserAuthClick = {
-                                            navController.navigate("login") {
-                                                launchSingleTop = true
-                                                restoreState = true
-                                            }
-                                        }
-                                    )
-                                }
-                                composable("adoption_center_dashboard") {
-                                    AdoptionCenterDashboard(
-                                        navController = navController,
-                                        centerName = "Your Adoption Center"
-                                    )
-                                }
-                                composable("adoption_center_pets") {
-                                    AdoptionCenterPets(
-                                        onBackClick = { navController.navigateUp() },
-                                        onAddPet = { navController.navigate("add_pet") }
-                                    )
-                                }
-                                composable("adoption_center_applications") {
-                                    AdoptionCenterApplications(
-                                        onBackClick = { navController.navigateUp() }
-                                    )
-                                }
-                                composable("add_pet") {
-                                    // TODO: Implement AddPetScreen
-                                    Box(modifier = Modifier.fillMaxSize()) {
-                                        Text("Add Pet Screen Coming Soon!")
-                                    }
-                                }
-                                composable("settings") {
-                                    // TODO: Implement SettingsScreen
-                                    Box(modifier = Modifier.fillMaxSize()) {
-                                        Text("Settings Screen Coming Soon!")
-                                    }
-                                }
-                                composable("adoption_center_statistics") {
-                                    // TODO: Implement StatisticsScreen
-                                    Box(modifier = Modifier.fillMaxSize()) {
-                                        Text("Statistics Screen Coming Soon!")
-                                    }
                                 }
                                 composable("pet_selection") {
                                     PetSelectionScreen(navController = navController)

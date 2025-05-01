@@ -6,5 +6,7 @@ class Cat(
         name: String,
         age: String,
         description: String,
+        breed : String,
         imageRes: Int,
-    ) : Pet(name, age, description, imageRes)
+        subImages: List<Int>
+    ) : Pet(name, age, description, breed, imageRes, subImages)

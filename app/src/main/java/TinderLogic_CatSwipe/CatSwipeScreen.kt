@@ -9,6 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -17,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
+import androidx.compose.ui.tooling.preview.Preview
 
 
 
@@ -52,6 +54,8 @@ fun CatSwipeScreen(userName: String) {
     val context = LocalContext.current
     val catList = remember { CatRepository.getCats() }
     val cardStack = remember { mutableStateListOf(*catList.toTypedArray()) }
+    var selectedCat by remember { mutableStateOf<Cat?>(null) }
+
 
     fun resetCards() {
         cardStack.clear()
@@ -93,10 +97,19 @@ fun CatSwipeScreen(userName: String) {
                         isTopCard = index == cardStack.lastIndex,
                         onSwiped = {
                             cardStack.remove(cat)
+                        },
+                        onImageTap = { tappedCat ->
+                            selectedCat = tappedCat // Set the selected cat
                         }
                     )
                 }
             }
         }
     }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun CatSwipeScreenPreview() {
+    CatSwipeScreen(userName = "Alice")
 }

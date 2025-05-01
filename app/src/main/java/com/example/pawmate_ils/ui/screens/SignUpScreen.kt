@@ -26,7 +26,8 @@ import androidx.navigation.NavController
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import com.example.pawmate_ils.ui.theme.PetPink
 import com.example.pawmate_ils.ui.theme.PetPurple
 
@@ -47,6 +48,7 @@ fun SignUpScreen(
 
     // Use rememberCoroutineScope for navigation
     val scope = rememberCoroutineScope()
+    val scrollState = rememberScrollState()
 
     fun validateForm(): Boolean {
         if (name.isBlank()) {
@@ -97,10 +99,12 @@ fun SignUpScreen(
     ) {
         Column(
             modifier = Modifier
+                .verticalScroll(scrollState)
                 .fillMaxSize()
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
+
         ) {
             Box(
                 modifier = Modifier

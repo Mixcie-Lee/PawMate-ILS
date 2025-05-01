@@ -42,7 +42,7 @@ fun ChooseUI(
 }
 
 
-@Preview
+
 @Composable
 fun Adopter(text: String, function: () -> Unit) {
 
@@ -51,7 +51,7 @@ fun Adopter(text: String, function: () -> Unit) {
 
     }
 }
-@Preview
+
 @Composable
 fun AnimShel(text: String, function: () -> Unit) {
 

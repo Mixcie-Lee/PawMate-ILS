@@ -1,16 +1,19 @@
 package TinderLogic_CatSwipe
 
-import  androidx.compose.animation.core.Animatable
+
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -19,22 +22,27 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.IntOffset
+import com.example.pawmate_ils.R
+import kotlinx.coroutines.Job
+import kotlin.math.roundToInt
+
 
 @Composable
 fun CatCard(
     cat: Cat,
     isTopCard: Boolean,
     onSwiped: (String) -> Unit,
+    onImageTap: (Cat) -> Unit
 ) {
     val coroutineScope = rememberCoroutineScope()
-    var offsetX by remember { mutableStateOf(0f) }
+    var offsetX by remember { mutableFloatStateOf(0f) }
     val animatableX = remember { Animatable(0f) }
 
     val cardModifier = Modifier
@@ -93,12 +101,26 @@ fun CatCard(
 
 @Composable
 fun CatCardContent(cat: Cat) {
+    var currentImageIndex by remember { mutableStateOf(0) }
     Box(modifier = Modifier.fillMaxSize()) {
         // Background image
         Image(
-            painter = painterResource(id = cat.imageRes),
+            painter = painterResource(id = if (currentImageIndex == 0) cat.imageRes else cat.subImages[currentImageIndex - 1]),
             contentDescription = cat.name,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onTap = {
+                            // Cycle through subImages
+                            if (currentImageIndex < cat.subImages.size) {
+                                currentImageIndex++
+                            } else {
+                                currentImageIndex = 0 // Reset to main image
+                            }
+                        }
+                    )
+                },
             contentScale = ContentScale.FillBounds
         )
 
@@ -106,15 +128,14 @@ fun CatCardContent(cat: Cat) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .offset(x = 0.dp, y = (10).dp )
-                .align(Alignment.BottomCenter) // Place it at the very bottom
+                .offset(x = 0.dp, y = 10.dp)
+                .align(Alignment.BottomCenter)
                 .background(Color.Black.copy(alpha = 0.5f))
-                .padding(5.dp) // Inner padding for the content
+                .padding(5.dp)
         ) {
             Column(
                 verticalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
                     text = cat.name,
@@ -122,21 +143,15 @@ fun CatCardContent(cat: Cat) {
                     fontSize = 30.sp,
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily(Font(R.font.custom_font))
                 )
-                Text(text = cat.age, fontSize = 16.sp, color = Color.White)
-                Text(text = cat.description, fontSize = 14.sp, color = Color.White)
 
-                Button(
-                    onClick = { },
-                    modifier = Modifier
-                        .width(185.dp)
-                        .height(60.dp)
-                        .align(Alignment.CenterHorizontally),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFDB7F8E),
-                        contentColor = Color.White
-                    )
-                ) {
+                Text(text = cat.age, fontSize = 19.sp, color = Color.White, fontFamily = FontFamily(Font(R.font.custom_font)))
+
+                Text(text = cat.description, fontSize = 17.sp, color = Color.White, fontFamily = FontFamily(Font(R.font.custom_font)))
+
+                Text(text = cat.breed, fontSize = 15.sp, color = Color.White, fontFamily = FontFamily(Font(R.font.custom_font)))
+
                     Text(
                         "ADOPT",
                         fontSize = 20.sp,
@@ -146,10 +161,3 @@ fun CatCardContent(cat: Cat) {
             }
         }
     }
-
-}
-@Preview(showBackground = true)
-@Composable
-fun PreviewCatSwipeScreen() {
-    CatSwipeScreen(userName = "Alice")
-}
