@@ -1,6 +1,5 @@
 package com.example.pawmate_ils.onboard
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,7 +12,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -29,14 +27,6 @@ fun OnboardingGraphUI(onboardingModel: OnboardingModel) {
     ) {
         Spacer(modifier = Modifier.size(50.dp)) // Top spacer
 
-        Image(
-            painter = painterResource(id = onboardingModel.image),
-            contentDescription = null,
-            modifier = Modifier
-                .size(500.dp)
-                .padding(bottom = 24.dp)
-        )
-
         Text(
             text = onboardingModel.title,
             fontSize = 20.sp,
@@ -46,30 +36,21 @@ fun OnboardingGraphUI(onboardingModel: OnboardingModel) {
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(
-            modifier = Modifier
-                .size(10.dp)
-        )
+        Spacer(modifier = Modifier.size(16.dp))
+
         Text(
             text = onboardingModel.description,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(15.dp, 0.dp),
             fontSize = 16.sp,
             textAlign = TextAlign.Center,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.fillMaxWidth()
         )
-
-        Spacer(
-            modifier = Modifier
-                .size(20.dp))
     }
 }
 
 @Composable
 fun OnboardChoose(
-    onboardingModel: OnboardingModel,
     onAdopterSelected: () -> Unit,
     onShelterOwnerSelected: () -> Unit
 ) {
@@ -109,9 +90,10 @@ fun OnboardChoose(
                 style = MaterialTheme.typography.bodyMedium
             )
 
-            Adopter(text = "Adopter") {
-                onAdopterSelected()
-            }
+            // TODO: Define Adopter composable or replace with a Button
+            // Adopter(text = "Adopter") {
+            //     onAdopterSelected()
+            // }
         }
 
         Spacer(modifier = Modifier.size(100.dp))
@@ -122,9 +104,10 @@ fun OnboardChoose(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            AnimShel(text = "Animal Shelter Owner") {
-                onShelterOwnerSelected()
-            }
+            // TODO: Define AnimShel composable or replace with a Button
+            // AnimShel(text = "Animal Shelter Owner") {
+            //     onShelterOwnerSelected()
+            // }
             Text(
                 text = "Animal Shelter Owner",
                 modifier = Modifier
@@ -134,29 +117,24 @@ fun OnboardChoose(
                 textAlign = TextAlign.Start,
                 style = MaterialTheme.typography.bodyMedium
             )
-
-
         }
     }
 }
 
-
-
 @Preview(showBackground = true)
 @Composable
 fun OnboardingGraphUIPreview1(){
-    OnboardingGraphUI(OnboardingModel.FirstPage)
+    OnboardingGraphUI(OnboardingData.onboardingItems[0])
 }
 @Preview(showBackground = true)
 @Composable
 fun OnboardingGraphUIPreview2(){
-    OnboardingGraphUI(OnboardingModel.SecondPage)
+    OnboardingGraphUI(OnboardingData.onboardingItems[1])
 }
 @Preview(showBackground = true)
 @Composable
 fun OnboardingGraphUIPreview3(){
     OnboardChoose(
-        onboardingModel = OnboardingModel.ThirdPage,
         onAdopterSelected = { },
         onShelterOwnerSelected = {}
     )

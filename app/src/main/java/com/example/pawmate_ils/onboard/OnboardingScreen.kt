@@ -21,7 +21,7 @@ import com.example.pawmate_ils.ui.theme.PetPink
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun OnboardingScreen(onComplete: () -> Unit) {
-    val pages = listOf(OnboardingModel.FirstPage, OnboardingModel.SecondPage, OnboardingModel.ThirdPage)
+    val pages = OnboardingData.onboardingItems
     val pagerState = rememberPagerState(initialPage = 0) { pages.size }
 
     val buttonState = remember {
