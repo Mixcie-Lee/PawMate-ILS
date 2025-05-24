@@ -293,7 +293,7 @@ fun SignUpScreen(
                 modifier = Modifier.padding(top = 8.dp)
             ) {
                 Text(
-                    "Are you a seller? Click here",
+                    "Are you a shelter owner? Click here",
                     color = PetPurple,
                     fontWeight = FontWeight.Bold
                 )
