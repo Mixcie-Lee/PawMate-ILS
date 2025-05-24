@@ -26,7 +26,7 @@ import com.example.pawmate_ils.ui.theme.PetPurple
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SellerLoginScreen(
+fun ShelterOwnerLoginScreen(
     onLoginClick: (String, String) -> Unit,
     onSignUpClick: () -> Unit,
     onUserAuthClick: () -> Unit
@@ -58,7 +58,7 @@ fun SellerLoginScreen(
             ) {
                 Icon(
                     imageVector = Icons.Default.Pets,
-                    contentDescription = "PawMate Seller Logo",
+                    contentDescription = "PawMate Shelter Owner Logo",
                     tint = PetPink,
                     modifier = Modifier.size(64.dp)
                 )
@@ -67,7 +67,7 @@ fun SellerLoginScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                text = "Seller Login",
+                text = "Shelter Owner Login",
                 style = MaterialTheme.typography.headlineLarge.copy(
                     fontWeight = FontWeight.Bold,
                     color = PetPink
@@ -76,7 +76,7 @@ fun SellerLoginScreen(
             )
 
             Text(
-                text = "Welcome back to your seller dashboard",
+                text = "Welcome back to your shelter owner dashboard",
                 style = MaterialTheme.typography.bodyLarge.copy(
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
                 ),
@@ -181,7 +181,7 @@ fun SellerLoginScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    "Don't have a seller account?",
+                    "Don't have a shelter owner account?",
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
                 )
                 TextButton(onClick = onSignUpClick) {

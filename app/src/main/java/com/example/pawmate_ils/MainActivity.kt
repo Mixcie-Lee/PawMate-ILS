@@ -70,7 +70,7 @@ class MainActivity : ComponentActivity() {
                                             }
                                         },
                                         onSellerAuthClick = {
-                                            navController.navigate("seller_signup") {
+                                            navController.navigate("shelter_owner_signup") {
                                                 launchSingleTop = true
                                                 restoreState = true
                                             }
@@ -92,15 +92,15 @@ class MainActivity : ComponentActivity() {
                                             }
                                         },
                                         onSellerAuthClick = {
-                                            navController.navigate("seller_signup") {
+                                            navController.navigate("shelter_owner_signup") {
                                                 launchSingleTop = true
                                                 restoreState = true
                                             }
                                         }
                                     )
                                 }
-                                composable("seller_signup") {
-                                    SellerSignUpScreen(
+                                composable("shelter_owner_signup") {
+                                    ShelterOwnerSignUpScreen(
                                         onSignUpClick = { _, _, _, _, _, _ ->
                                             navController.navigate("adoption_center_dashboard") {
                                                 popUpTo("user_type") { inclusive = true }
@@ -108,7 +108,7 @@ class MainActivity : ComponentActivity() {
                                             }
                                         },
                                         onLoginClick = {
-                                            navController.navigate("seller_login") {
+                                            navController.navigate("shelter_owner_login") {
                                                 launchSingleTop = true
                                                 restoreState = true
                                             }
@@ -121,8 +121,8 @@ class MainActivity : ComponentActivity() {
                                         }
                                     )
                                 }
-                                composable("seller_login") {
-                                    SellerLoginScreen(
+                                composable("shelter_owner_login") {
+                                    ShelterOwnerLoginScreen(
                                         onLoginClick = { _, _ ->
                                             navController.navigate("adoption_center_dashboard") {
                                                 popUpTo("user_type") { inclusive = true }
@@ -130,7 +130,7 @@ class MainActivity : ComponentActivity() {
                                             }
                                         },
                                         onSignUpClick = {
-                                            navController.navigate("seller_signup") {
+                                            navController.navigate("shelter_owner_signup") {
                                                 launchSingleTop = true
                                                 restoreState = true
                                             }

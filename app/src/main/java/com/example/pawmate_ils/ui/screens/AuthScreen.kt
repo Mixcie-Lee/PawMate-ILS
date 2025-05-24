@@ -16,8 +16,8 @@ fun AuthScreen(
 
 ) {
     var showSignUp by remember { mutableStateOf(false) }
-    var showSellerAuth by remember { mutableStateOf(false) }
-    var showSellerSignUp by remember { mutableStateOf(false) }
+    var showShelterOwnerAuth by remember { mutableStateOf(false) }
+    var showShelterOwnerSignUp by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     PawMateILSTheme {
@@ -26,22 +26,22 @@ fun AuthScreen(
             color = MaterialTheme.colorScheme.background
         ) {
             when {
-                showSellerAuth -> {
-                    if (showSellerSignUp) {
-                        SellerSignUpScreen(
+                showShelterOwnerAuth -> {
+                    if (showShelterOwnerSignUp) {
+                        ShelterOwnerSignUpScreen(
                             onSignUpClick = { businessName, ownerName, email, phone, password, confirmPassword ->
                                 onAuthComplete()
                             },
-                            onLoginClick = { showSellerSignUp = false },
-                            onUserAuthClick = { showSellerAuth = false }
+                            onLoginClick = { showShelterOwnerSignUp = false },
+                            onUserAuthClick = { showShelterOwnerAuth = false }
                         )
                     } else {
-                        SellerLoginScreen(
+                        ShelterOwnerLoginScreen(
                             onLoginClick = { email, password ->
                                 onAuthComplete()
                             },
-                            onSignUpClick = { showSellerSignUp = true },
-                            onUserAuthClick = { showSellerAuth = false }
+                            onSignUpClick = { showShelterOwnerSignUp = true },
+                            onUserAuthClick = { showShelterOwnerAuth = false }
                         )
                     }
                 }
@@ -54,7 +54,7 @@ fun AuthScreen(
                                 navController.navigate("pet_selection")
                             },
                             onLoginClick = { showSignUp = false },
-                            onSellerAuthClick = { showSellerAuth = true }
+                            onSellerAuthClick = { showShelterOwnerAuth = true }
                         )
 
                     } else {
@@ -63,7 +63,7 @@ fun AuthScreen(
                                 onAuthComplete()
                             },
                             onSignUpClick = { showSignUp = true },
-                            onSellerAuthClick = { showSellerAuth = true }
+                            onSellerAuthClick = { showShelterOwnerAuth = true }
                         )
                     }
                 }

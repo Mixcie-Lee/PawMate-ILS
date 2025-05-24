@@ -88,7 +88,7 @@ fun UserTypeSelectionScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             Button(
-                onClick = { navController.navigate("seller_signup") },
+                onClick = { navController.navigate("shelter_owner_signup") },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
