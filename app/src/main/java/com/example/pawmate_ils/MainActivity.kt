@@ -15,11 +15,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.pawmate_ils.ui.screens.LoginScreen
-import com.example.pawmate_ils.ui.screens.SellerSignUpScreen
 import com.example.pawmate_ils.ui.screens.SignUpScreen
 import com.example.pawmate_ils.ui.screens.UserTypeSelectionScreen
 import TinderLogic_PetSwipe.PetSwipeScreen
 import TinderLogic_CatSwipe.CatSwipeScreen
+import com.example.pawmate_ils.ui.screens.ShelterOwnerSignUpScreen
 import com.example.pawmate_ils.ui.theme.PawMateILSTheme
 
 class MainActivity : ComponentActivity() {
@@ -90,7 +90,7 @@ class MainActivity : ComponentActivity() {
                                     )
                                 }
                                 composable("seller_signup") {
-                                    SellerSignUpScreen(
+                                    ShelterOwnerSignUpScreen(
                                         onSignUpClick = { _, _, _, _, _, _ ->
                                             // Handle successful seller signup (e.g., navigate to seller dashboard)
                                         },
