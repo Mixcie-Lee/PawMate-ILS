@@ -19,10 +19,14 @@ import com.example.pawmate_ils.ui.screens.SignUpScreen
 import com.example.pawmate_ils.ui.screens.UserTypeSelectionScreen
 import TinderLogic_PetSwipe.PetSwipeScreen
 import TinderLogic_CatSwipe.CatSwipeScreen
+import androidx.activity.viewModels
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.pawmate_ils.SharedViewModel
 import com.example.pawmate_ils.ui.screens.ShelterOwnerSignUpScreen
 import com.example.pawmate_ils.ui.theme.PawMateILSTheme
 
 class MainActivity : ComponentActivity() {
+    private val sharedViewModel : SharedViewModel by viewModels()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -39,7 +43,7 @@ class MainActivity : ComponentActivity() {
                                 .padding(innerPadding)
                         ) {
                             val navController = rememberNavController()
-                            
+
                             NavHost(navController = navController, startDestination = "user_type") {
                                 composable("user_type") {
                                     UserTypeSelectionScreen(navController = navController)
@@ -47,6 +51,7 @@ class MainActivity : ComponentActivity() {
                                 composable("signup") {
                                     SignUpScreen(
                                         navController = navController,
+                                        sharedViewModel = sharedViewModel,
                                         onSignUpClick = { _, _, _, _ ->
                                             navController.navigate("pet_selection") {
                                                 popUpTo("user_type") { inclusive = true }

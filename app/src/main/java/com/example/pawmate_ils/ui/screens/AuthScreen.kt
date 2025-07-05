@@ -7,6 +7,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavController
+import com.example.pawmate_ils.SharedViewModel
 
 import com.example.pawmate_ils.ui.theme.PawMateILSTheme
 
@@ -14,6 +15,7 @@ import com.example.pawmate_ils.ui.theme.PawMateILSTheme
 fun AuthScreen(
      navController: NavController,
     onAuthComplete: () -> Unit,
+     sharedViewModel: SharedViewModel
 
 ) {
     var showSignUp by remember { mutableStateOf(false) }
@@ -50,6 +52,7 @@ fun AuthScreen(
                     if (showSignUp) {
                         SignUpScreen(
                             navController = navController,
+                            sharedViewModel = sharedViewModel,
                             onSignUpClick = { name, email, password, confirmPassword ->
                                 onAuthComplete()
                                 navController.navigate("pet_selection")

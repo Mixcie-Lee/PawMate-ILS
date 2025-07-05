@@ -59,6 +59,8 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended:1.7.8")
     implementation("io.coil-kt:coil-compose:2.4.0")
     implementation("androidx.activity:activity-compose:1.8.0")
+    implementation ("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.0-ALPHA01")
+    implementation ("androidx.compose.runtime:runtime-livedata:1.8.3")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

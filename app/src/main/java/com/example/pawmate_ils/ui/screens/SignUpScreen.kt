@@ -28,6 +28,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
+import com.example.pawmate_ils.SharedViewModel
 import com.example.pawmate_ils.ui.theme.PetPink
 import com.example.pawmate_ils.ui.theme.PetPurple
 
@@ -37,7 +38,9 @@ fun SignUpScreen(
     navController: NavController,
     onSignUpClick: (String, String, String, String) -> Unit,
     onLoginClick: () -> Unit,
-    onSellerAuthClick: () -> Unit
+    onSellerAuthClick: () -> Unit,
+    sharedViewModel: SharedViewModel
+
 ) {
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
@@ -80,6 +83,7 @@ fun SignUpScreen(
             try {
                 onSignUpClick(name, email, password, confirmPassword)
                 // Ensure UI updates are complete before navigation
+                sharedViewModel.username.value = name
                 delay(50)
                 navController.navigate("pet_selection") {
                     popUpTo("user_type") { inclusive = true }

@@ -20,14 +20,19 @@ import androidx.navigation.compose.rememberNavController
 import coil.compose.rememberAsyncImagePainter
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.MutableState
 import androidx.compose.ui.res.painterResource
+import com.example.pawmate_ils.SharedViewModel
 
 @Composable
 fun AdopterHomeScreen(
     navController: NavController,
-    defImage: Int = R.drawable.adopterlogo // Ensure this drawable exists
+    defImage: Int = R.drawable.adopterlogo,
+    sharedViewModel: SharedViewModel
 ) {
     var selectedImageUri = remember { mutableStateOf<Uri?>(null) }
 
@@ -46,6 +51,7 @@ fun AdopterHomeScreen(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
+            .offset(x = 90.dp)
     ) {
         // Circular Image with Click Handler
         Image(
@@ -56,9 +62,8 @@ fun AdopterHomeScreen(
                 .clip(CircleShape) // Makes it circular
                 .clickable { galleryLauncher.launch("image/*") } // Launch image picker
         )
-
-        // Additional UI elements can be added here
-        Text(text = "Welcome to Adopter Home Screen")
+        Spacer(modifier = Modifier.height(20.dp))
+        Text(text = sharedViewModel.username.value)
     }
 }
 
@@ -66,7 +71,14 @@ fun AdopterHomeScreen(
 @Preview(showBackground = true)
 @Composable
 fun AdopterHomeScreenPreview() {
+
+
+    val previewViewModel = SharedViewModel().apply {
+        username.value = "Raym Fowell"
+    }
+
     AdopterHomeScreen(
-        navController = rememberNavController() // Note: Need proper NavController setup
+        navController = rememberNavController(),
+        sharedViewModel = previewViewModel
     )
 }
