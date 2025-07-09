@@ -26,7 +26,7 @@ import com.example.pawmate_ils.ui.screens.ShelterOwnerSignUpScreen
 import com.example.pawmate_ils.ui.theme.PawMateILSTheme
 
 class MainActivity : ComponentActivity() {
-    private val sharedViewModel : SharedViewModel by viewModels()
+    private val SharedViewModel : SharedViewModel by viewModels()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -51,7 +51,7 @@ class MainActivity : ComponentActivity() {
                                 composable("signup") {
                                     SignUpScreen(
                                         navController = navController,
-                                        sharedViewModel = sharedViewModel,
+                                        sharedViewModel = SharedViewModel,
                                         onSignUpClick = { _, _, _, _ ->
                                             navController.navigate("pet_selection") {
                                                 popUpTo("user_type") { inclusive = true }

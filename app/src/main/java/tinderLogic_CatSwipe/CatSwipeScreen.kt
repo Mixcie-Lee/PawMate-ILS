@@ -2,6 +2,8 @@ package TinderLogic_CatSwipe
 
 
 
+import TinderLogic_PetSwipe.AnimatedWelcomeText
+import TinderLogic_PetSwipe.PetSwipeScreen
 import android.widget.Toast
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
@@ -106,6 +108,13 @@ fun CatSwipeScreen(userName: String) {
             }
         }
     }
+}
+
+
+@Preview(showBackground = true)
+@Composable
+fun PreviewAnimatedWelcomeText() {
+    AnimatedWelcomeText(userName = "Alice")
 }
 
 @Preview(showBackground = true)

@@ -8,7 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavController
 import com.example.pawmate_ils.SharedViewModel
-
+import com.example.pawmate_ils.ui.screens.ShelterOwnerSignUpScreen
 import com.example.pawmate_ils.ui.theme.PawMateILSTheme
 
 @Composable
@@ -40,7 +40,7 @@ fun AuthScreen(
                         )
                     } else {
                         ShelterOwnerLoginScreen(
-                            onLoginClick = { email, password ->
+                            onLoginClick = { email,  password ->
                                 onAuthComplete()
                             },
                             onSignUpClick = { showShelterOwnerSignUp = true },

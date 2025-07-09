@@ -26,7 +26,7 @@ fun AdoptionCenterApplications(
     var searchQuery by remember { mutableStateOf("") }
     val applications = remember { 
         mutableStateListOf(
-            Application("John Doe", "Buddy", "Dog", "Today", "Pending"),
+            Application("John doe", "Buddy", "Dog", "Today", "Pending"),
             Application("Jane Smith", "Luna", "Cat", "Yesterday", "Approved"),
             Application("Mike Johnson", "Max", "Dog", "2 days ago", "Rejected")
         )

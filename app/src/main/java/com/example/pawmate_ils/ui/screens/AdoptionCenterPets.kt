@@ -26,9 +26,9 @@ fun AdoptionCenterPets(
     var searchQuery by remember { mutableStateOf("") }
     val pets = remember { 
         mutableStateListOf(
-            Pet("Max", "Dog", "Golden Retriever", "2 years", "Male"),
-            Pet("Luna", "Cat", "Siamese", "1 year", "Female"),
-            Pet("Rocky", "Dog", "German Shepherd", "3 years", "Male")
+            Pet1("Max", "Dog", "Golden Retriever", "2 years", "Male"),
+            Pet1("Luna", "Cat", "Siamese", "1 year", "Female"),
+            Pet1("Rocky", "Dog", "German Shepherd", "3 years", "Male")
         )
     }
 
@@ -80,7 +80,7 @@ fun AdoptionCenterPets(
 }
 
 @Composable
-fun PetCard(pet: Pet) {
+fun PetCard(pet: Pet1) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -128,7 +128,7 @@ fun PetCard(pet: Pet) {
     }
 }
 
-data class Pet(
+data class Pet1(
     val name: String,
     val type: String,
     val breed: String,

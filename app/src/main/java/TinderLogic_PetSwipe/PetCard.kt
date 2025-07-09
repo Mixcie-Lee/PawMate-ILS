@@ -1,6 +1,5 @@
 package TinderLogic_PetSwipe
 
-import TinderLogic_CatSwipe.Cat
 import androidx.compose.animation.core.Animatable
 import com.example.pawmate_ils.R
 import androidx.compose.animation.core.tween

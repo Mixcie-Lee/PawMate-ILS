@@ -20,19 +20,32 @@ import androidx.navigation.compose.rememberNavController
 import coil.compose.rememberAsyncImagePainter
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Card
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.MutableState
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.sp
+import com.example.pawmate_ils.AdopterHomeScreen
 import com.example.pawmate_ils.SharedViewModel
+import androidx.compose.material3.CardDefaults
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.font.FontWeight
+
 
 @Composable
 fun AdopterHomeScreen(
     navController: NavController,
     defImage: Int = R.drawable.adopterlogo,
-    sharedViewModel: SharedViewModel
+    sharedViewModel: SharedViewModel,
+    likedPetsCount : Int
 ) {
     var selectedImageUri = remember { mutableStateOf<Uri?>(null) }
 
@@ -51,7 +64,9 @@ fun AdopterHomeScreen(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
-            .offset(x = 90.dp)
+            .offset(y = 50.dp),
+        horizontalAlignment =  Alignment.CenterHorizontally
+
     ) {
         // Circular Image with Click Handler
         Image(
@@ -63,22 +78,59 @@ fun AdopterHomeScreen(
                 .clickable { galleryLauncher.launch("image/*") } // Launch image picker
         )
         Spacer(modifier = Modifier.height(20.dp))
-        Text(text = sharedViewModel.username.value)
+        Text(
+            modifier =
+            Modifier
+                .offset(x = 5.dp)
+                .size(100.dp),
+
+            text = sharedViewModel.username.value
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+
+//CARD SECTION FOR LIKED PETS
+        Card(
+            modifier = Modifier
+                .padding(16.dp)
+                .width(180.dp)
+                .offset(y = 10.dp)
+                .height(100.dp),
+
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+
+            ) {
+            Text(
+                text = "Liked Pets :",
+                 style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.Bold
+
+            )
+
+        }
+
+
     }
 }
+
+
+
+
+
+
 
 // Preview version without NavController requirement
 @Preview(showBackground = true)
 @Composable
 fun AdopterHomeScreenPreview() {
 
-
     val previewViewModel = SharedViewModel().apply {
         username.value = "Raym Fowell"
     }
 
-    AdopterHomeScreen(
+   AdopterHomeScreen(
         navController = rememberNavController(),
-        sharedViewModel = previewViewModel
+        sharedViewModel = previewViewModel,
+        likedPetsCount = 12
     )
 }
