@@ -37,6 +37,7 @@ android {
     buildFeatures {
         compose = true
     }
+    buildToolsVersion = "35.0.0"
 }
 
 dependencies {
@@ -48,16 +49,18 @@ dependencies {
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
-    implementation(libs.androidx.material3)
+    implementation ("androidx.compose.material3:material3:1.4.0-alpha17")
     implementation(libs.androidx.navigation.fragment.ktx)
     implementation(libs.androidx.navigation.ui.ktx)
     implementation (libs.androidx.navigation.compose)
     implementation (libs.ui)
     implementation (libs.androidx.animation)
+    implementation(platform("androidx.compose:compose-bom:2025.06.01"))
     implementation("androidx.core:core-splashscreen:1.0.1")
-    implementation("androidx.compose.material3:material3:1.3.2")
+    implementation(libs.androidx.material3)
     implementation("androidx.compose.material:material-icons-extended:1.7.8")
     implementation("io.coil-kt:coil-compose:2.4.0")
+    implementation("androidx.compose.compiler:compiler:1.5.15")
     implementation("androidx.activity:activity-compose:1.10.1")
     implementation ("androidx.lifecycle:lifecycle-viewmodel-ktx:2.9.1")
     implementation ("androidx.compose.runtime:runtime-livedata:1.8.3")

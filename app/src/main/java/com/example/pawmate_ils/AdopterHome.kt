@@ -1,5 +1,6 @@
 package com.example.pawmate_ils
 
+import android.annotation.SuppressLint
 import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -28,6 +29,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Message
+import androidx.compose.material.icons.filled.Pets
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.MutableState
@@ -36,10 +42,18 @@ import androidx.compose.ui.unit.sp
 import com.example.pawmate_ils.AdopterHomeScreen
 import com.example.pawmate_ils.SharedViewModel
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.SemanticsProperties.ContentDescription
 import androidx.compose.ui.text.font.FontWeight
 
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdopterHomeScreen(
     navController: NavController,
@@ -106,11 +120,58 @@ fun AdopterHomeScreen(
                 fontWeight = FontWeight.Bold
 
             )
+/* BOTTOM NAV BAR SECTION HERE */
+         val navItemList = listOf(
+             NavItem("Home",Icons.Default.Home),
+             NavItem("Adopt",Icons.Default.Pets),
+             NavItem("Message", Icons.Default.Message)
+
+         )
+     var count = remember { mutableStateOf(0) }
+            var selectedIndex : Int = count.value
+
+
+            Scaffold(
+                modifier = Modifier.fillMaxSize(),
+                bottomBar = {
+                    NavigationBar {
+                        navItemList.forEachIndexed { index, navItem ->
+                            NavigationBarItem(
+                                selected = selectedIndex == index,
+                                onClick = {
+                                    selectedIndex = index
+                                },
+                                icon = {
+                                     Icon(imageVector = navItem.icon, contentDescription = navItem.label )
+                                },
+                                label = {
+                                    Text(text = navItem.label)
+                                }
+
+
+                            )
+                        }
+                    }
+                }
+
+
+            ){innerPadding ->
+                  ContentScreen(modifier = Modifier.padding(innerPadding))
+
+            }
+
+
+
 
         }
 
 
     }
+
+}
+@Composable
+fun ContentScreen(modifier: Modifier){
+
 }
 
 
@@ -120,6 +181,7 @@ fun AdopterHomeScreen(
 
 
 // Preview version without NavController requirement
+@SuppressLint("ViewModelConstructorInComposable")
 @Preview(showBackground = true)
 @Composable
 fun AdopterHomeScreenPreview() {
