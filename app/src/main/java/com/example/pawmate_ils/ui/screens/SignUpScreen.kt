@@ -163,7 +163,7 @@ fun SignUpScreen(
                     keyboardType = KeyboardType.Text,
                     imeAction = ImeAction.Next
                 ),
-                colors = TextFieldDefaults.outlinedTextFieldColors(
+                colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = PetPink,
                     focusedLabelColor = PetPink
                 ),
@@ -187,7 +187,7 @@ fun SignUpScreen(
                     keyboardType = KeyboardType.Email,
                     imeAction = ImeAction.Next
                 ),
-                colors = TextFieldDefaults.outlinedTextFieldColors(
+                colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = PetPink,
                     focusedLabelColor = PetPink
                 ),
@@ -212,7 +212,7 @@ fun SignUpScreen(
                     keyboardType = KeyboardType.Password,
                     imeAction = ImeAction.Next
                 ),
-                colors = TextFieldDefaults.outlinedTextFieldColors(
+                colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = PetPink,
                     focusedLabelColor = PetPink
                 ),
@@ -237,7 +237,7 @@ fun SignUpScreen(
                     keyboardType = KeyboardType.Password,
                     imeAction = ImeAction.Done
                 ),
-                colors = TextFieldDefaults.outlinedTextFieldColors(
+                colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = PetPink,
                     focusedLabelColor = PetPink
                 ),
