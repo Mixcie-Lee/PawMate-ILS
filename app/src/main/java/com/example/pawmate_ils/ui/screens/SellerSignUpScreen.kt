@@ -13,7 +13,6 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Store
 import androidx.compose.material3.*
-import androidx.compose.material3.outlinedTextFieldColors.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -118,7 +117,7 @@ fun ShelterOwnerSignUpScreen(
                     keyboardType = KeyboardType.Text,
                     imeAction = ImeAction.Next
                 ),
-              colors = TextFieldDefaults.outLinedTextFieldColors(
+                colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = PetPink,
                     focusedLabelColor = PetPink
                 ),
@@ -142,7 +141,7 @@ fun ShelterOwnerSignUpScreen(
                     keyboardType = KeyboardType.Text,
                     imeAction = ImeAction.Next
                 ),
-                colors = TextFieldDefaults.outlinedTextFieldColors(
+                colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = PetPink,
                     focusedLabelColor = PetPink
                 ),
@@ -166,7 +165,7 @@ fun ShelterOwnerSignUpScreen(
                     keyboardType = KeyboardType.Email,
                     imeAction = ImeAction.Next
                 ),
-                colors = TextFieldDefaults.outlinedTextFieldColors(
+                colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = PetPink,
                     focusedLabelColor = PetPink
                 ),
@@ -190,7 +189,7 @@ fun ShelterOwnerSignUpScreen(
                     keyboardType = KeyboardType.Phone,
                     imeAction = ImeAction.Next
                 ),
-                colors = TextFieldDefaults.colors(
+                colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = PetPink,
                     focusedLabelColor = PetPink
                 ),
@@ -215,7 +214,7 @@ fun ShelterOwnerSignUpScreen(
                     keyboardType = KeyboardType.Password,
                     imeAction = ImeAction.Next
                 ),
-                colors = TextFieldDefaults.outlinedTextFieldColors(
+                colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = PetPink,
                     focusedLabelColor = PetPink
                 ),
@@ -240,7 +239,7 @@ fun ShelterOwnerSignUpScreen(
                     keyboardType = KeyboardType.Password,
                     imeAction = ImeAction.Done
                 ),
-                colors = TextFieldDefaults.outlinedTextFieldColors(
+                colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = PetPink,
                     focusedLabelColor = PetPink
                 ),
