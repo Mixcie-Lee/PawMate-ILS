@@ -48,8 +48,8 @@ dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
-    implementation(libs.androidx.ui.tooling.preview)
-    implementation ("androidx.compose.material3:material3:1.4.0-alpha17")
+    implementation("androidx.compose.ui:ui-tooling-preview:1.8.3")
+    implementation ("androidx.compose.material3:material3-lint:1.4.0-alpha18")
     implementation(libs.androidx.navigation.fragment.ktx)
     implementation(libs.androidx.navigation.ui.ktx)
     implementation (libs.androidx.navigation.compose)
@@ -69,7 +69,7 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
-    debugImplementation(libs.androidx.ui.tooling)
+    debugImplementation("androidx.compose.ui:ui-tooling:1.8.3")
     debugImplementation(libs.androidx.ui.test.manifest)
 
 }
