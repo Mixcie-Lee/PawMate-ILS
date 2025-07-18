@@ -10,7 +10,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.pawmate_ils"
-        minSdk = 24
+        minSdk = 35
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
@@ -37,7 +37,7 @@ android {
     buildFeatures {
         compose = true
     }
-    buildToolsVersion = "35.0.0"
+    buildToolsVersion = "34.0.0"
 }
 
 dependencies {

@@ -148,11 +148,11 @@ fun PetCardContent(pet: Pet, onImageTap: (Pet) -> Unit) {
                 Text(text = pet.breed, fontSize = 15.sp, color = Color.White, fontFamily = FontFamily(Font(R.font.custom_font)))
 
 
-                    Text(
+                   /*  Text(
                         "ADOPT",
                         fontSize = 20.sp,
                         letterSpacing = 5.sp
-                    )
+                    ) */
                 }
             }
         }
