@@ -1,175 +1,120 @@
 package com.example.pawmate_ils
 
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.material.ripple.rememberRipple
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.pawmate_ils.ui.theme.PawMateILSTheme
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
+// Data class for our swipeable category cards
+data class SwipeableCategory(
+    val id: String,
+    val title: String,
+    val imageResId: Int,
+    val backgroundColor: Color,
+    val navigationRoute: String
+)
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PetSelectionScreen(navController: NavController) {
-    var selectedPet by remember { mutableStateOf<String?>(null) }
+    val categories = remember {
+        listOf(
+            SwipeableCategory("dog", "Dogs", R.drawable.dog_selection, Color(0xFFC8E6C9), "pet_swipe"),
+            SwipeableCategory("cat", "Cats", R.drawable.cat_selection, Color(0xFFFFCDD2), "cat_swipe")
+        )
+    }
+
+    // For this screen, we'll just show the two options clearly.
+    // A full swipe stack for just two categories might be overkill if tapping is the main goal.
+    // We can make them look like cards.
 
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = Color.DarkGray
+        color = Color.DarkGray // Or your desired background
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(16.dp)
+                .offset(y = -80.dp)
+            ,
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center // Center the category choices
         ) {
-            // Title
             Text(
-                text = "What pets would you like to adopt?",
-                fontSize = 28.sp,
+                text = "Choose Your Preference",
+                fontSize = 35.sp,
                 color = Color.White,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(vertical = 32.dp)
+                modifier = Modifier
+                    .padding(bottom = 50.dp)
+                ,
             )
 
-            // Row with Dog and Cat options
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                PetCategoryButton(
-                    title = "Dog",
-                    baseColor = Color.Transparent, // Light green
-                    imageResId = R.drawable.dog_selection,
-                    isSelected = selectedPet == "Dog",
-                    onClick = {
-                        selectedPet = "Dog"
-                        navController.navigate("pet_swipe")
-                    },
-                    modifier = Modifier
-                        .size(400.dp)
-                        .weight(1f)
-                        .padding(8.dp)
-                )
-
-                PetCategoryButton(
-                    title = "Cat",
-                    baseColor = Color.Transparent, // Light pink/purple
-                    imageResId = R.drawable.cat_selection,
-                    isSelected = selectedPet == "Cat",
-                    onClick = {
-                        selectedPet = "Cat"
-                        navController.navigate("cat_swipe")
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(8.dp)
-                )
-            }
-
-            // Footer "not done" text
-            Spacer(modifier = Modifier.weight(1f))
-            var condition by remember { mutableStateOf(true) }
-
-            val verticalOffset = animateDpAsState(
-                targetValue = if (condition) 20.dp else -20.dp,
-                animationSpec = tween(durationMillis = 2500)
-            ).value
-
-            val alpha = animateFloatAsState(
-                targetValue = if (condition) 1f else 0f,
-                animationSpec = tween(durationMillis = 2500)
-            ).value
-
-            LaunchedEffect(Unit) {
-                while (true) {
-                    condition = !condition
-                    delay(2500) // Match the animation duration
+                categories.forEach { category ->
+                    CategoryCard(
+                        category = category,
+                        onClick = { navController.navigate(category.navigationRoute) },
+                        modifier = Modifier
+                            .weight(1f)
+                            .aspectRatio(0.75f) // Make cards taller than wide
+                            .padding(horizontal = 8.dp)
+                    )
                 }
             }
-            Box(
-                modifier = Modifier
-                    .height(150.dp)
-                    .width(250.dp)
-                    .padding(16.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = " ✨ Give a stray their main character moment 🐶🐱 ✨ ",
-                    style = TextStyle(
-                        fontSize = 18.sp,
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center
-                    ),
-                    modifier = Modifier
-                        .padding(16.dp)
-                        .offset(y = verticalOffset)
-                        .alpha(alpha)
-                )
-            }
-        }
 
-        // Bottom dots indicator
-        Row(
-            modifier = Modifier.padding(bottom = 16.dp),
-            horizontalArrangement = Arrangement.Center
-        ) {
-            repeat(5) { index ->
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .padding(horizontal = 4.dp)
-                        .background(
-                            color = if (index == 2) Color.DarkGray else Color.LightGray,
-                            shape = RoundedCornerShape(4.dp)
-                        )
-                )
-            }
+            // You can add your "not done" text or other UI elements here if needed
+            // Footer "not done" text - kept from original if still needed
+            // Spacer(modifier = Modifier.weight(1f))
+            // ... (your existing animation for "not done" text can go here)
         }
     }
 }
 
 @Composable
-fun PetCategoryButton(
-    title: String,
-    baseColor: Color,
-    imageResId: Int,
-    isSelected: Boolean,
+fun CategoryCard(
+    category: SwipeableCategory,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Animate color when selected
-    val backgroundColor by animateColorAsState(
-        targetValue = if (isSelected) baseColor.copy(alpha = 0.7f) else baseColor,
-        animationSpec = tween(durationMillis = 300),
-        label = "backgroundColorAnimation"
-    )
-
-    // Animate scale when selected
-    val scale by animateFloatAsState(
-        targetValue = if (isSelected) 1.05f else 1f,
+    var scale by remember { mutableFloatStateOf(1f) }
+    val animatedScale by animateFloatAsState(
+        targetValue = scale,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessLow
@@ -177,49 +122,62 @@ fun PetCategoryButton(
         label = "scaleAnimation"
     )
 
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
+    Card(
         modifier = modifier
+            .scale(animatedScale)
+            .clip(RoundedCornerShape(24.dp))
+            .clickable(
+                onClick = onClick,
+                indication = ripple(),
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+            )
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        when (event.type) {
+                            androidx.compose.ui.input.pointer.PointerEventType.Press -> scale = 0.95f
+                            androidx.compose.ui.input.pointer.PointerEventType.Release -> scale = 1f
+                            androidx.compose.ui.input.pointer.PointerEventType.Exit -> scale = 1f
+                        }
+                    }
+                }
+            },
+        shape = RoundedCornerShape(24.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
     ) {
-        Box(
-            contentAlignment = Alignment.Center,
+        Column(
             modifier = Modifier
-                .size(250.dp)
-                .width(100.dp)
-                .scale(scale)
-                .clip(RoundedCornerShape(24.dp))
-                .background(backgroundColor)
-                .clickable(onClick = onClick)
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            // Add the pet image
             Image(
-                painter = painterResource(id = imageResId),
-                contentDescription = "$title image",
+                painter = painterResource(id = category.imageResId),
+                contentDescription = category.title,
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
-                    .size(400.dp)
-                    .padding(10.dp)
-                    .clip(RoundedCornerShape(30.dp))
+                    .weight(10f) // Image takes most space
+                    .padding(bottom = 16.dp)
+                    .clip(RoundedCornerShape(16.dp))
+            )
+            Text(
+                text = category.title,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black.copy(alpha = 0.8f), // Adjust text color for contrast
+                textAlign = TextAlign.Center
             )
         }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = title,
-            letterSpacing = 7.sp,
-            fontSize = 30.sp,
-            fontWeight = FontWeight.Medium,
-            color = if (isSelected) Color(0xFFFF007F) else Color.White
-        )
     }
 }
 
-@Preview(showBackground = true)
+
+@Preview(showBackground = true, apiLevel = 34)
 @Composable
 fun PetSelectionScreenPreview() {
-    val mockNavController = rememberNavController() // This creates a dummy navController
-
+    val mockNavController = rememberNavController()
     PawMateILSTheme {
         PetSelectionScreen(navController = mockNavController)
     }

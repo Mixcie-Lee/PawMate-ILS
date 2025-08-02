@@ -110,13 +110,13 @@ fun CatSwipeScreen(userName: String) {
 }
 
 
-@Preview(showBackground = true)
+@Preview(showBackground = true, apiLevel = 34)
 @Composable
 fun PreviewAnimatedWelcomeText() {
     AnimatedWelcomeText(userName = "Alice")
 }
 
-@Preview(showBackground = true)
+@Preview(showBackground = true, apiLevel = 34)
 @Composable
 fun CatSwipeScreenPreview() {
     CatSwipeScreen(userName = "Alice")

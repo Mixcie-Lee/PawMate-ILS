@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.google.gms.google.services)
 }
 
 android {
@@ -37,7 +38,7 @@ android {
     buildFeatures {
         compose = true
     }
-    buildToolsVersion = "34.0.0"
+    buildToolsVersion = "35.0.0"
 }
 
 dependencies {
@@ -64,6 +65,7 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.10.1")
     implementation ("androidx.lifecycle:lifecycle-viewmodel-ktx:2.9.1")
     implementation ("androidx.compose.runtime:runtime-livedata:1.8.3")
+    implementation(libs.firebase.database)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

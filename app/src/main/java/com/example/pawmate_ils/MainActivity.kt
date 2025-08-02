@@ -53,7 +53,7 @@ class MainActivity : ComponentActivity() {
                                         navController = navController,
                                         sharedViewModel = SharedViewModel,
                                         onSignUpClick = { _, _, _, _ ->
-                                            navController.navigate("pet_selection") {
+                                            navController.navigate("AdopterHomeScreen") {
                                                 popUpTo("user_type") { inclusive = true }
                                                 launchSingleTop = true
                                             }
