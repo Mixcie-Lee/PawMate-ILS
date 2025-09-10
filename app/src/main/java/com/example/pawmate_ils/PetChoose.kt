@@ -1,178 +1,203 @@
 package com.example.pawmate_ils
 
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.pawmate_ils.ui.theme.PawMateILSTheme
-import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
+import com.example.pawmate_ils.ui.theme.DarkBrown
 
-// Data class for our swipeable category cards
-data class SwipeableCategory(
-    val id: String,
-    val title: String,
-    val imageResId: Int,
-    val backgroundColor: Color,
-    val navigationRoute: String
-)
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PetSelectionScreen(navController: NavController) {
-    val categories = remember {
-        listOf(
-            SwipeableCategory("dog", "Dogs", R.drawable.dog_selection, Color(0xFFC8E6C9), "pet_swipe"),
-            SwipeableCategory("cat", "Cats", R.drawable.cat_selection, Color(0xFFFFCDD2), "cat_swipe")
-        )
-    }
-
-    // For this screen, we'll just show the two options clearly.
-    // A full swipe stack for just two categories might be overkill if tapping is the main goal.
-    // We can make them look like cards.
+fun PetSelectionScreen(navController: NavController, userName: String = "User") {
+    var selectedPetTypes by remember { mutableStateOf(setOf<String>()) }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = Color.DarkGray // Or your desired background
+        color = Color.White
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp)
-                .offset(y = -80.dp)
-            ,
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center // Center the category choices
-        ) {
-            Text(
-                text = "Choose Your Preference",
-                fontSize = 35.sp,
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .padding(bottom = 50.dp)
-                ,
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceAround,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                categories.forEach { category ->
-                    CategoryCard(
-                        category = category,
-                        onClick = { navController.navigate(category.navigationRoute) },
-                        modifier = Modifier
-                            .weight(1f)
-                            .aspectRatio(0.75f) // Make cards taller than wide
-                            .padding(horizontal = 8.dp)
-                    )
-                }
-            }
-
-            // You can add your "not done" text or other UI elements here if needed
-            // Footer "not done" text - kept from original if still needed
-            // Spacer(modifier = Modifier.weight(1f))
-            // ... (your existing animation for "not done" text can go here)
-        }
-    }
-}
-
-@Composable
-fun CategoryCard(
-    category: SwipeableCategory,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    var scale by remember { mutableFloatStateOf(1f) }
-    val animatedScale by animateFloatAsState(
-        targetValue = scale,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = "scaleAnimation"
-    )
-
-    Card(
-        modifier = modifier
-            .scale(animatedScale)
-            .clip(RoundedCornerShape(24.dp))
-            .clickable(
-                onClick = onClick,
-                indication = ripple(),
-                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-            )
-            .pointerInput(Unit) {
-                awaitPointerEventScope {
-                    while (true) {
-                        val event = awaitPointerEvent()
-                        when (event.type) {
-                            androidx.compose.ui.input.pointer.PointerEventType.Press -> scale = 0.95f
-                            androidx.compose.ui.input.pointer.PointerEventType.Release -> scale = 1f
-                            androidx.compose.ui.input.pointer.PointerEventType.Exit -> scale = 1f
-                        }
-                    }
-                }
-            },
-        shape = RoundedCornerShape(24.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
+                .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Image(
-                painter = painterResource(id = category.imageResId),
-                contentDescription = category.title,
-                contentScale = ContentScale.Fit,
-                modifier = Modifier
-                    .weight(10f) // Image takes most space
-                    .padding(bottom = 16.dp)
-                    .clip(RoundedCornerShape(16.dp))
-            )
             Text(
-                text = category.title,
+                text = "Welcome Back $userName!",
                 fontSize = 24.sp,
+                color = DarkBrown,
                 fontWeight = FontWeight.Bold,
-                color = Color.Black.copy(alpha = 0.8f), // Adjust text color for contrast
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(bottom = 16.dp)
             )
+            
+            Text(
+                text = "What pets would you like to adopt?",
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black,
+                    fontSize = 24.sp
+                ),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(bottom = 48.dp)
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 32.dp)
+                    .padding(bottom = 48.dp),
+                horizontalArrangement = Arrangement.spacedBy(24.dp)
+            ) {
+                Card(
+                    modifier = Modifier
+                        .weight(1f)
+                        .aspectRatio(0.8f),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (selectedPetTypes.contains("dog")) Color(0xFFE0F6FF) else Color(0xFFF5F5F5)
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                    onClick = { 
+                        selectedPetTypes = if (selectedPetTypes.contains("dog")) {
+                            selectedPetTypes - "dog"
+                        } else {
+                            selectedPetTypes + "dog"
+                        }
+                    }
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(64.dp)
+                                .background(
+                                    Color.White.copy(alpha = 0.9f),
+                                    RoundedCornerShape(32.dp)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("🐕", fontSize = 32.sp)
+                        }
+                        
+                        Spacer(modifier = Modifier.height(12.dp))
+                        
+                        Text(
+                            text = "Dogs",
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Black,
+                                fontSize = 20.sp
+                            )
+                        )
+                    }
+                }
+
+                Card(
+                    modifier = Modifier
+                        .weight(1f)
+                        .aspectRatio(0.8f),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (selectedPetTypes.contains("cat")) Color(0xFFFFE4E1) else Color(0xFFF5F5F5)
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                    onClick = { 
+                        selectedPetTypes = if (selectedPetTypes.contains("cat")) {
+                            selectedPetTypes - "cat"
+                        } else {
+                            selectedPetTypes + "cat"
+                        }
+                    }
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(64.dp)
+                                .background(
+                                    Color.White.copy(alpha = 0.9f),
+                                    RoundedCornerShape(32.dp)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("🐱", fontSize = 32.sp)
+                        }
+                        
+                        Spacer(modifier = Modifier.height(12.dp))
+                        
+                        Text(
+                            text = "Cats",
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Black,
+                                fontSize = 20.sp
+                            )
+                        )
+                    }
+                }
+            }
+
+            Button(
+                onClick = {
+                    when {
+                        selectedPetTypes.contains("dog") && selectedPetTypes.contains("cat") -> {
+                            navController.navigate("pet_swipe")
+                        }
+                        selectedPetTypes.contains("dog") -> navController.navigate("pet_swipe")
+                        selectedPetTypes.contains("cat") -> navController.navigate("cat_swipe")
+                        else -> navController.navigate("adopter_home")
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = DarkBrown,
+                    contentColor = Color.White
+                ),
+                shape = RoundedCornerShape(8.dp),
+                enabled = selectedPetTypes.isNotEmpty()
+            ) {
+                Text(
+                    "Continue",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            if (selectedPetTypes.isEmpty()) {
+                Text(
+                    text = "Please select at least one pet type",
+                    color = Color.Gray,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
         }
     }
 }
-
 
 @Preview(showBackground = true, apiLevel = 34)
 @Composable

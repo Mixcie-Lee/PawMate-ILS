@@ -15,7 +15,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.pawmate_ils.ui.theme.PetPink
+import com.example.pawmate_ils.ui.theme.DarkBrown
 import com.example.pawmate_ils.ui.models.Application
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -153,7 +153,7 @@ fun StatusChip(status: String) {
         "Pending" -> Color(0xFFFFA000) to Color.White
         "Approved" -> Color(0xFF4CAF50) to Color.White
         "Rejected" -> Color(0xFFF44336) to Color.White
-        else -> PetPink to Color.White
+        else -> DarkBrown to Color.White
     }
     
     Surface(

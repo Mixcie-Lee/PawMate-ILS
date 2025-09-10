@@ -28,8 +28,7 @@ import kotlinx.coroutines.withContext
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import com.example.pawmate_ils.R
-import com.example.pawmate_ils.ui.theme.PetPink
-import com.example.pawmate_ils.ui.theme.PetPurple
+import com.example.pawmate_ils.ui.theme.DarkBrown
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,14 +61,14 @@ fun LoginScreen(
                 modifier = Modifier
                     .size(120.dp)
                     .clip(CircleShape)
-                    .background(PetPink.copy(alpha = 0.2f))
+                    .background(DarkBrown.copy(alpha = 0.2f))
                     .padding(16.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Pets,
                     contentDescription = "PawMate Logo",
-                    tint = PetPink,
+                    tint = DarkBrown,
                     modifier = Modifier.size(64.dp)
                 )
             }
@@ -80,7 +79,7 @@ fun LoginScreen(
                 text = "PawMate",
                 style = MaterialTheme.typography.headlineLarge.copy(
                     fontWeight = FontWeight.Bold,
-                    color = PetPink
+                    color = DarkBrown
                 ),
                 textAlign = TextAlign.Center
             )
@@ -104,7 +103,7 @@ fun LoginScreen(
                     Icon(
                         Icons.Default.Email, 
                         contentDescription = "Email",
-                        tint = PetPink
+                        tint = DarkBrown
                     ) 
                 },
                 keyboardOptions = KeyboardOptions(
@@ -112,8 +111,8 @@ fun LoginScreen(
                     imeAction = ImeAction.Next
                 ),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = PetPink,
-                    focusedLabelColor = PetPink
+                    focusedBorderColor = DarkBrown,
+                    focusedLabelColor = DarkBrown
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -128,7 +127,7 @@ fun LoginScreen(
                     Icon(
                         Icons.Default.Lock, 
                         contentDescription = "Password",
-                        tint = PetPink
+                        tint = DarkBrown
                     ) 
                 },
                 visualTransformation = PasswordVisualTransformation(),
@@ -137,8 +136,8 @@ fun LoginScreen(
                     imeAction = ImeAction.Done
                 ),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = PetPink,
-                    focusedLabelColor = PetPink
+                    focusedBorderColor = DarkBrown,
+                    focusedLabelColor = DarkBrown
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -168,7 +167,7 @@ fun LoginScreen(
                     .height(50.dp),
                 enabled = !isLoading,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = PetPink,
+                    containerColor = DarkBrown,
                     contentColor = Color.White
                 )
             ) {
@@ -197,7 +196,7 @@ fun LoginScreen(
                 TextButton(onClick = onSignUpClick) {
                     Text(
                         "Sign Up",
-                        color = PetPurple,
+                        color = DarkBrown,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -209,7 +208,7 @@ fun LoginScreen(
             ) {
                 Text(
                     "Are you a shelter owner? Click here",
-                    color = PetPurple,
+                    color = DarkBrown,
                     fontWeight = FontWeight.Bold
                 )
             }

@@ -16,7 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
-import com.example.pawmate_ils.ui.theme.PetPink
+import com.example.pawmate_ils.ui.theme.DarkBrown
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -51,7 +51,7 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                         ButtonUI(
                             text = buttonState.value[0],
                             backgroundColor = Color.Transparent,
-                            textColor = PetPink
+                            textColor = DarkBrown
                         ) {
                             scope.launch {
                                 if (pagerState.currentPage > 0) {
@@ -69,7 +69,7 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                 Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
                     ButtonUI(
                         text = buttonState.value[1],
-                        backgroundColor = PetPink,
+                        backgroundColor = DarkBrown,
                         textColor = Color.White
                     ) {
                         scope.launch {

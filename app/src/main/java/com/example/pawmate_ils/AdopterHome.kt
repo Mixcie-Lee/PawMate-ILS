@@ -54,7 +54,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import coil.compose.rememberAsyncImagePainter
-import com.example.pawmate_ils.ui.theme.PetPink
+import com.example.pawmate_ils.ui.theme.DarkBrown
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -109,7 +109,7 @@ fun AdopterHomeScreen(
             CenterAlignedTopAppBar(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(color = PetPink),
+                    .background(color = DarkBrown),
                 title = {
                     Text(
                         text = "Profile",
@@ -123,7 +123,7 @@ fun AdopterHomeScreen(
                         },
                 
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = PetPink
+                    containerColor = DarkBrown
                 )
             )
 
@@ -131,7 +131,7 @@ fun AdopterHomeScreen(
 
         bottomBar = {
             NavigationBar(
-                modifier = Modifier.background(PetPink)
+                modifier = Modifier.background(DarkBrown)
                     .fillMaxWidth(),
                 )
             {
@@ -145,7 +145,7 @@ fun AdopterHomeScreen(
                             Icon(
                                 imageVector = navItem.icon,
                                 contentDescription = navItem.label,
-                                tint = PetPink
+                                tint = DarkBrown
 
                             )
                         },
@@ -228,7 +228,7 @@ fun AdopterHomeScreen(
                 .width(200.dp)
                 .offset(y = 90.dp)
                 .height(170.dp),
-            colors = CardDefaults.cardColors(containerColor = PetPink),
+            colors = CardDefaults.cardColors(containerColor = DarkBrown),
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
 
             ) {

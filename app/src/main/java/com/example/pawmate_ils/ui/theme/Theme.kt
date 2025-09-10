@@ -19,13 +19,10 @@ private val DarkColorScheme = darkColorScheme(
     tertiary = Pink80
 )
 
-val PetPink = Color(0xFFFF69B4)
-val PetPurple = Color(0xFF9370DB)
-
 private val LightColorScheme = lightColorScheme(
     primary = PetPink,
     secondary = PetPurple,
-    background = Color(0xFFF5F5F5),
+    background = LightGray,
     surface = Color.White,
     onPrimary = Color.White,
     onSecondary = Color.White,

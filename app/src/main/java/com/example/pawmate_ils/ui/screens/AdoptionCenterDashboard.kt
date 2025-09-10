@@ -17,7 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.example.pawmate_ils.ui.theme.PetPink
+import com.example.pawmate_ils.ui.theme.DarkBrown
 import com.example.pawmate_ils.ui.models.Application
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -38,7 +38,7 @@ fun AdoptionCenterDashboard(
                             text = centerName,
                             style = MaterialTheme.typography.titleLarge.copy(
                                 fontWeight = FontWeight.Bold,
-                                color = PetPink
+                                color = DarkBrown
                             )
                         )
                         Text(
@@ -137,7 +137,7 @@ private fun DashboardContent(
                     title = "Available Pets",
                     value = "24",
                     icon = Icons.Default.Pets,
-                    color = PetPink,
+                    color = DarkBrown,
                     modifier = Modifier.weight(1f)
                 )
                 StatCard(
@@ -228,7 +228,7 @@ private fun DashboardContent(
                     .fillMaxWidth()
                     .padding(vertical = 8.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = PetPink.copy(alpha = 0.1f)
+                    containerColor = DarkBrown.copy(alpha = 0.1f)
                 )
             ) {
                 Row(
@@ -239,7 +239,7 @@ private fun DashboardContent(
                     Icon(
                         imageVector = Icons.Default.Lightbulb,
                         contentDescription = "Tip",
-                        tint = PetPink,
+                        tint = DarkBrown,
                         modifier = Modifier.size(24.dp)
                     )
                     Column {
@@ -247,7 +247,7 @@ private fun DashboardContent(
                             text = "Pro Tip",
                             style = MaterialTheme.typography.titleSmall.copy(
                                 fontWeight = FontWeight.Bold,
-                                color = PetPink
+                                color = DarkBrown
                             )
                         )
                         Text(
@@ -317,7 +317,7 @@ fun QuickActionButton(
         onClick = onClick,
         modifier = modifier.height(48.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = PetPink
+            containerColor = DarkBrown
         ),
         contentPadding = PaddingValues(horizontal = 16.dp)
     ) {

@@ -2,17 +2,16 @@ package com.example.pawmate_ils.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -21,12 +20,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.withContext
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import com.example.pawmate_ils.ui.theme.PetPink
-import com.example.pawmate_ils.ui.theme.PetPurple
+import com.example.pawmate_ils.ui.theme.DarkBrown
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShelterOwnerLoginScreen(
@@ -34,178 +28,149 @@ fun ShelterOwnerLoginScreen(
     onSignUpClick: () -> Unit,
     onUserAuthClick: () -> Unit
 ) {
-    var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val scrollState = rememberScrollState()
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(Color.White)
     ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
                 .verticalScroll(scrollState)
-                .padding(24.dp),
+                .fillMaxSize()
+                .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Box(
-                modifier = Modifier
-                    .size(120.dp)
-                    .clip(CircleShape)
-                    .background(PetPink.copy(alpha = 0.2f))
-                    .padding(16.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Pets,
-                    contentDescription = "PawMate Shelter Owner Logo",
-                    tint = PetPink,
-                    modifier = Modifier.size(64.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
+            Spacer(modifier = Modifier.height(80.dp))
+            
             Text(
-                text = "Shelter Owner Login",
-                style = MaterialTheme.typography.headlineLarge.copy(
+                text = "Password",
+                style = MaterialTheme.typography.headlineMedium.copy(
                     fontWeight = FontWeight.Bold,
-                    color = PetPink
-                ),
-                textAlign = TextAlign.Center
-            )
-
-            Text(
-                text = "Welcome back to your shelter owner dashboard",
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+                    color = Color.Black,
+                    fontSize = 28.sp
                 ),
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(vertical = 8.dp)
+                modifier = Modifier.padding(bottom = 32.dp)
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Text(
+                text = "Confirm password",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Medium,
+                    color = Color.Black,
+                    fontSize = 18.sp
+                ),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(bottom = 32.dp)
+            )
 
             OutlinedTextField(
-                value = email,
-                onValueChange = { email = it },
-                label = { Text("Business Email") },
-                leadingIcon = { 
-                    Icon(
-                        Icons.Default.Email, 
-                        contentDescription = "Email",
-                        tint = PetPink
-                    ) 
-                },
+                value = password,
+                onValueChange = { password = it },
+                placeholder = { Text("Password", color = Color.Gray) },
+                visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Email,
+                    keyboardType = KeyboardType.Password,
                     imeAction = ImeAction.Next
                 ),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = PetPink,
-                    focusedLabelColor = PetPink
+                    focusedBorderColor = Color.Gray,
+                    unfocusedBorderColor = Color.LightGray,
+                    cursorColor = Color.Black
                 ),
+                shape = RoundedCornerShape(8.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 16.dp)
             )
 
             OutlinedTextField(
-                value = password,
-                onValueChange = { password = it },
-                label = { Text("Password") },
-                leadingIcon = { 
-                    Icon(
-                        Icons.Default.Lock, 
-                        contentDescription = "Password",
-                        tint = PetPink
-                    ) 
-                },
+                value = confirmPassword,
+                onValueChange = { confirmPassword = it },
+                placeholder = { Text("Confirm Password", color = Color.Gray) },
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Password,
                     imeAction = ImeAction.Done
                 ),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = PetPink,
-                    focusedLabelColor = PetPink
+                    focusedBorderColor = Color.Gray,
+                    unfocusedBorderColor = Color.LightGray,
+                    cursorColor = Color.Black
                 ),
+                shape = RoundedCornerShape(8.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 8.dp)
+                    .padding(bottom = 16.dp)
             )
+
+            Button(
+                onClick = {
+                    when {
+                        password.isBlank() -> {
+                            errorMessage = "Please enter your password"
+                            return@Button
+                        }
+                        confirmPassword.isBlank() -> {
+                            errorMessage = "Please confirm your password"
+                            return@Button
+                        }
+                        password != confirmPassword -> {
+                            errorMessage = "Passwords do not match"
+                            return@Button
+                        }
+                        password.length < 6 -> {
+                            errorMessage = "Password must be at least 6 characters"
+                            return@Button
+                        }
+                        else -> {
+                            errorMessage = null
+                            isLoading = true
+                            onLoginClick(password, confirmPassword)
+                        }
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = DarkBrown,
+                    contentColor = Color.White
+                ),
+                shape = RoundedCornerShape(8.dp),
+                enabled = !isLoading
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = Color.White
+                    )
+                } else {
+                    Text(
+                        "Continue",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
 
             errorMessage?.let {
                 Text(
                     text = it,
                     color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(vertical = 8.dp)
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 16.dp)
                 )
             }
 
-            Button(
-                onClick = {
-                    if (email.isBlank() || password.isBlank()) {
-                        errorMessage = "Please fill in all fields"
-                        return@Button
-                    }
-                    isLoading = true
-                    onLoginClick(email, password)
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 16.dp)
-                    .height(50.dp),
-                enabled = !isLoading,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = PetPink,
-                    contentColor = Color.White
-                )
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = Color.White
-                    )
-                } else {
-                    Text(
-                        "Login",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            Row(
-                modifier = Modifier.padding(top = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    "Don't have a shelter owner account?",
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
-                )
-                TextButton(onClick = onSignUpClick) {
-                    Text(
-                        "Sign Up",
-                        color = PetPurple,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            TextButton(
-                onClick = onUserAuthClick,
-                modifier = Modifier.padding(top = 8.dp)
-            ) {
-                Text(
-                    "Switch to User Login",
-                    color = PetPurple
-                )
-            }
+            Spacer(modifier = Modifier.height(40.dp))
         }
     }
 } 

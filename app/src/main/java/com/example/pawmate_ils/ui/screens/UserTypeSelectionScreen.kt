@@ -2,103 +2,131 @@ package com.example.pawmate_ils.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Pets
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.example.pawmate_ils.ui.theme.PetPink
+import com.example.pawmate_ils.ui.theme.DarkBrown
+import com.example.pawmate_ils.ui.theme.LightGray
 
 @Composable
 fun UserTypeSelectionScreen(
     navController: NavController
 ) {
+    var selectedOption by remember { mutableStateOf<String?>(null) }
+    
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(Color.White)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp),
+                .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Box(
-                modifier = Modifier
-                    .size(120.dp)
-                    .clip(CircleShape)
-                    .background(PetPink.copy(alpha = 0.2f))
-                    .padding(16.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Pets,
-                    contentDescription = "PawMate Logo",
-                    tint = PetPink,
-                    modifier = Modifier.size(64.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
             Text(
-                text = "Join PawMate",
-                style = MaterialTheme.typography.headlineLarge.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = PetPink
-                ),
-                textAlign = TextAlign.Center
-            )
-
-            Text(
-                text = "Please choose to get started!",
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+                text = "Are you a...",
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontWeight = FontWeight.Normal,
+                    color = Color.Black,
+                    fontSize = 24.sp
                 ),
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(vertical = 8.dp)
+                modifier = Modifier.padding(bottom = 48.dp)
             )
 
-            Spacer(modifier = Modifier.height(48.dp))
-
-            Button(
-                onClick = { navController.navigate("signup") },
+            // Adopter Option
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = PetPink
-                )
+                    .padding(bottom = 16.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (selectedOption == "adopter") LightGray else Color.White
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                onClick = { selectedOption = "adopter" }
             ) {
-                Text(
-                    "I'm an Adopter",
-                    style = MaterialTheme.typography.titleMedium
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Adopter?",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Normal,
+                            color = Color.Black,
+                            fontSize = 20.sp
+                        )
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(
-                onClick = { navController.navigate("shelter_owner_signup") },
+            // Animal Shelter Owner Option
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
+                    .padding(bottom = 48.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (selectedOption == "shelter") LightGray else Color.White
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                onClick = { selectedOption = "shelter" }
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Animal Shelter Owner?",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Normal,
+                            color = Color.Black,
+                            fontSize = 20.sp
+                        )
+                    )
+                }
+            }
+
+            // Submit Button
+            Button(
+                onClick = {
+                    when (selectedOption) {
+                        "adopter" -> navController.navigate("signup")
+                        "shelter" -> navController.navigate("seller_signup")
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = PetPink
-                )
+                    containerColor = DarkBrown,
+                    contentColor = Color.White
+                ),
+                shape = RoundedCornerShape(8.dp),
+                enabled = selectedOption != null
             ) {
                 Text(
-                    "I'm a Shelter Owner",
-                    style = MaterialTheme.typography.titleMedium
+                    text = "Submit",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 16.sp
+                    )
                 )
             }
         }

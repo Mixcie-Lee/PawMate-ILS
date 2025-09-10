@@ -15,7 +15,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.pawmate_ils.ui.theme.PetPink
+import com.example.pawmate_ils.ui.theme.DarkBrown
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -118,7 +118,7 @@ fun PetCard(pet: Pet1) {
             
             Row {
                 IconButton(onClick = { /* Edit pet */ }) {
-                    Icon(Icons.Default.Edit, "Edit", tint = PetPink)
+                    Icon(Icons.Default.Edit, "Edit", tint = DarkBrown)
                 }
                 IconButton(onClick = { /* Delete pet */ }) {
                     Icon(Icons.Default.Delete, "Delete", tint = Color.Red)

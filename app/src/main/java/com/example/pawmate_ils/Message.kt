@@ -34,7 +34,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.pawmate_ils.NavItem
 import com.example.pawmate_ils.R
-import com.example.pawmate_ils.ui.theme.PetPink
+import com.example.pawmate_ils.ui.theme.DarkBrown
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,7 +65,7 @@ fun MessageScreen(
            CenterAlignedTopAppBar(
            modifier = Modifier
                .fillMaxWidth()
-               .background(color = PetPink),
+               .background(color = DarkBrown),
                 title = {Text(
                     text = "MESSAGE",
                     color = Color.White,
@@ -73,7 +73,7 @@ fun MessageScreen(
                     fontFamily = custFont
                     ) },
                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                   containerColor = PetPink
+                   containerColor = DarkBrown
                )
            )
 
@@ -92,7 +92,7 @@ fun MessageScreen(
                                Icon(
                                    imageVector = navItem.icon,
                                    contentDescription = navItem.label,
-                                   tint = PetPink
+                                   tint = DarkBrown
                                )
                            },
                             label = {

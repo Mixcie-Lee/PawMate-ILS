@@ -4,19 +4,15 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.Store
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -25,11 +21,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.TextFieldDefaults
-import com.example.pawmate_ils.ui.theme.PetPink
-import com.example.pawmate_ils.ui.theme.PetPurple
+import com.example.pawmate_ils.ui.theme.DarkBrown
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,12 +30,13 @@ fun ShelterOwnerSignUpScreen(
     onLoginClick: () -> Unit,
     onUserAuthClick: () -> Unit
 ) {
-    var businessName by remember { mutableStateOf("") }
-    var ownerName by remember { mutableStateOf("") }
+    var currentStep by remember { mutableStateOf(1) } // 1: Email, 2: About You
     var email by remember { mutableStateOf("") }
-    var phone by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var confirmPassword by remember { mutableStateOf("") }
+    var firstName by remember { mutableStateOf("") }
+    var lastName by remember { mutableStateOf("") }
+    var mobileNumber by remember { mutableStateOf("") }
+    var address by remember { mutableStateOf("") }
+    var age by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val scrollState = rememberScrollState()
@@ -51,315 +44,378 @@ fun ShelterOwnerSignUpScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(Color.White)
     ) {
         Column(
             modifier = Modifier
                 .verticalScroll(scrollState)
                 .fillMaxSize()
-                .verticalScroll(scrollState)
-                .padding(horizontal = 24.dp, vertical = 16.dp),
+                .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Top
+            verticalArrangement = Arrangement.Center
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(80.dp))
             
-            Box(
-                modifier = Modifier
-                    .size(100.dp)
-                    .clip(CircleShape)
-                    .background(PetPink.copy(alpha = 0.2f))
-                    .padding(16.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Store,
-                    contentDescription = "PawMate Shelter Owner Logo",
-                    tint = PetPink,
-                    modifier = Modifier.size(48.dp)
-                )
+            when (currentStep) {
+                1 -> {
+                    // Email Step
+                    Text(
+                        text = "PawMate",
+                        style = MaterialTheme.typography.headlineMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Black,
+                            fontSize = 28.sp
+                        ),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(bottom = 32.dp)
+                    )
+
+                    Text(
+                        text = "Create an account",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Medium,
+                            color = Color.Black,
+                            fontSize = 18.sp
+                        ),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    Text(
+                        text = "Enter your email to sign up for this app",
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            color = Color.Gray,
+                            fontSize = 14.sp
+                        ),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(bottom = 32.dp)
+                    )
+
+                    OutlinedTextField(
+                        value = email,
+                        onValueChange = { email = it },
+                        placeholder = { Text("name@example.com", color = Color.Gray) },
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Email,
+                            imeAction = ImeAction.Next
+                        ),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color.Gray,
+                            unfocusedBorderColor = Color.LightGray,
+                            cursorColor = Color.Black
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp)
+                    )
+
+                    Button(
+                        onClick = {
+                            if (email.isBlank()) {
+                                errorMessage = "Please enter your email"
+                                return@Button
+                            }
+                            if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                                errorMessage = "Please enter a valid email address"
+                                return@Button
+                            }
+                            errorMessage = null
+                            currentStep = 2 // Move to About You step
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = DarkBrown,
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        enabled = !isLoading
+                    ) {
+                        Text(
+                            "Continue",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Text(
+                        text = "or",
+                        color = Color.Gray,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+
+                    // Google Sign In Button
+                    OutlinedButton(
+                        onClick = { /* Handle Google Sign In */ },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = Color.Black
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.LightGray),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                "G",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Red,
+                                modifier = Modifier.padding(end = 8.dp)
+                            )
+                            Text(
+                                "Continue with Google",
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Apple Sign In Button
+                    OutlinedButton(
+                        onClick = { /* Handle Apple Sign In */ },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = Color.Black
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.LightGray),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                "🍎",
+                                fontSize = 18.sp,
+                                modifier = Modifier.padding(end = 8.dp)
+                            )
+                            Text(
+                                "Continue with Apple",
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(32.dp))
+
+                    Row(
+                        modifier = Modifier.padding(bottom = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Already have an account? ",
+                            color = Color.Gray,
+                            fontSize = 14.sp
+                        )
+                        TextButton(
+                            onClick = onLoginClick,
+                            contentPadding = PaddingValues(0.dp)
+                        ) {
+                            Text(
+                                "Log in",
+                                color = Color.Black,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "By clicking continue, you agree to our Terms of Service and Privacy Policy.",
+                        color = Color.Gray,
+                        fontSize = 12.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                }
+                
+                2 -> {
+                    // About You Step
+                    Text(
+                        text = "About you",
+                        style = MaterialTheme.typography.headlineMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Black,
+                            fontSize = 28.sp
+                        ),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(bottom = 32.dp)
+                    )
+
+                    OutlinedTextField(
+                        value = firstName,
+                        onValueChange = { firstName = it },
+                        placeholder = { Text("First name", color = Color.Gray) },
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Text,
+                            imeAction = ImeAction.Next
+                        ),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color.Gray,
+                            unfocusedBorderColor = Color.LightGray,
+                            cursorColor = Color.Black
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp)
+                    )
+
+                    OutlinedTextField(
+                        value = lastName,
+                        onValueChange = { lastName = it },
+                        placeholder = { Text("Last name", color = Color.Gray) },
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Text,
+                            imeAction = ImeAction.Next
+                        ),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color.Gray,
+                            unfocusedBorderColor = Color.LightGray,
+                            cursorColor = Color.Black
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp)
+                    )
+
+                    OutlinedTextField(
+                        value = mobileNumber,
+                        onValueChange = { mobileNumber = it },
+                        placeholder = { Text("Mobile name", color = Color.Gray) },
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Phone,
+                            imeAction = ImeAction.Next
+                        ),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color.Gray,
+                            unfocusedBorderColor = Color.LightGray,
+                            cursorColor = Color.Black
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp)
+                    )
+
+                    OutlinedTextField(
+                        value = address,
+                        onValueChange = { address = it },
+                        placeholder = { Text("Address", color = Color.Gray) },
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Text,
+                            imeAction = ImeAction.Next
+                        ),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color.Gray,
+                            unfocusedBorderColor = Color.LightGray,
+                            cursorColor = Color.Black
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp)
+                    )
+
+                    OutlinedTextField(
+                        value = age,
+                        onValueChange = { age = it },
+                        placeholder = { Text("Age", color = Color.Gray) },
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Number,
+                            imeAction = ImeAction.Done
+                        ),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color.Gray,
+                            unfocusedBorderColor = Color.LightGray,
+                            cursorColor = Color.Black
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp)
+                    )
+
+                    Button(
+                        onClick = {
+                            when {
+                                firstName.isBlank() -> {
+                                    errorMessage = "Please enter your first name"
+                                    return@Button
+                                }
+                                lastName.isBlank() -> {
+                                    errorMessage = "Please enter your last name"
+                                    return@Button
+                                }
+                                mobileNumber.isBlank() -> {
+                                    errorMessage = "Please enter your mobile number"
+                                    return@Button
+                                }
+                                address.isBlank() -> {
+                                    errorMessage = "Please enter your address"
+                                    return@Button
+                                }
+                                age.isBlank() -> {
+                                    errorMessage = "Please enter your age"
+                                    return@Button
+                                }
+                                else -> {
+                                    errorMessage = null
+                                    isLoading = true
+                                    onSignUpClick(email, firstName, lastName, mobileNumber, address, age)
+                                }
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = DarkBrown,
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        enabled = !isLoading
+                    ) {
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = Color.White
+                            )
+                        } else {
+                            Text(
+                                "Continue",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "Become a Shelter Owner",
-                style = MaterialTheme.typography.headlineMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = PetPink
-                ),
-                textAlign = TextAlign.Center
-            )
-
-            Text(
-                text = "Join our community of pet care providers",
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
-                ),
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(vertical = 8.dp)
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            OutlinedTextField(
-                value = businessName,
-                onValueChange = { businessName = it },
-                label = { Text("Business Name") },
-                leadingIcon = { 
-                    Icon(
-                        Icons.Default.Store, 
-                        contentDescription = "Business Name",
-                        tint = PetPink
-                    ) 
-                },
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Text,
-                    imeAction = ImeAction.Next
-                ),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = PetPink,
-                    focusedLabelColor = PetPink
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp)
-            )
-
-            OutlinedTextField(
-                value = ownerName,
-                onValueChange = { ownerName = it },
-                label = { Text("Owner Name") },
-                leadingIcon = { 
-                    Icon(
-                        Icons.Default.Person, 
-                        contentDescription = "Owner Name",
-                        tint = PetPink
-                    ) 
-                },
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Text,
-                    imeAction = ImeAction.Next
-                ),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = PetPink,
-                    focusedLabelColor = PetPink
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp)
-            )
-
-            OutlinedTextField(
-                value = email,
-                onValueChange = { email = it },
-                label = { Text("Business Email") },
-                leadingIcon = { 
-                    Icon(
-                        Icons.Default.Email, 
-                        contentDescription = "Email",
-                        tint = PetPink
-                    ) 
-                },
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Email,
-                    imeAction = ImeAction.Next
-                ),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = PetPink,
-                    focusedLabelColor = PetPink
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp)
-            )
-
-            OutlinedTextField(
-                value = phone,
-                onValueChange = { phone = it },
-                label = { Text("Business Phone") },
-                leadingIcon = { 
-                    Icon(
-                        Icons.Default.Phone, 
-                        contentDescription = "Phone",
-                        tint = PetPink
-                    ) 
-                },
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Phone,
-                    imeAction = ImeAction.Next
-                ),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = PetPink,
-                    focusedLabelColor = PetPink
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp)
-            )
-
-            OutlinedTextField(
-                value = password,
-                onValueChange = { password = it },
-                label = { Text("Password") },
-                leadingIcon = { 
-                    Icon(
-                        Icons.Default.Lock, 
-                        contentDescription = "Password",
-                        tint = PetPink
-                    ) 
-                },
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Password,
-                    imeAction = ImeAction.Next
-                ),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = PetPink,
-                    focusedLabelColor = PetPink
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp)
-            )
-
-            OutlinedTextField(
-                value = confirmPassword,
-                onValueChange = { confirmPassword = it },
-                label = { Text("Confirm Password") },
-                leadingIcon = { 
-                    Icon(
-                        Icons.Default.Lock, 
-                        contentDescription = "Confirm Password",
-                        tint = PetPink
-                    ) 
-                },
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Password,
-                    imeAction = ImeAction.Done
-                ),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = PetPink,
-                    focusedLabelColor = PetPink
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp)
-            )
 
             errorMessage?.let {
                 Text(
                     text = it,
                     color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(vertical = 8.dp)
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 16.dp)
                 )
             }
 
-            Button(
-                onClick = {
-                    // Validate all fields
-                    when {
-                        businessName.isBlank() -> {
-                            errorMessage = "Please enter your business name"
-                            return@Button
-                        }
-                        ownerName.isBlank() -> {
-                            errorMessage = "Please enter your name"
-                            return@Button
-                        }
-                        email.isBlank() -> {
-                            errorMessage = "Please enter your email"
-                            return@Button
-                        }
-                        !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches() -> {
-                            errorMessage = "Please enter a valid email address"
-                            return@Button
-                        }
-                        phone.isBlank() -> {
-                            errorMessage = "Please enter your phone number"
-                            return@Button
-                        }
-                        password.isBlank() -> {
-                            errorMessage = "Please enter a password"
-                            return@Button
-                        }
-                        password.length < 6 -> {
-                            errorMessage = "Password must be at least 6 characters"
-                            return@Button
-                        }
-                        confirmPassword.isBlank() -> {
-                            errorMessage = "Please confirm your password"
-                            return@Button
-                        }
-                        password != confirmPassword -> {
-                            errorMessage = "Passwords do not match"
-                            return@Button
-                        }
-                        else -> {
-                            errorMessage = null
-                            isLoading = true
-                            onSignUpClick(
-                                businessName.trim(),
-                                ownerName.trim(),
-                                email.trim(),
-                                phone.trim(),
-                                password,
-                                confirmPassword
-                            )
-                        }
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 16.dp)
-                    .height(50.dp),
-                enabled = !isLoading,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = PetPink,
-                    contentColor = Color.White
-                )
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = Color.White
-                    )
-                } else {
-                    Text(
-                        "Sign Up",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            Row(
-                modifier = Modifier.padding(top = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    "Already have a shelter owner account?",
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
-                )
-                TextButton(onClick = onLoginClick) {
-                    Text(
-                        "Login",
-                        color = PetPurple,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            TextButton(
-                onClick = onUserAuthClick,
-                modifier = Modifier.padding(top = 8.dp)
-            ) {
-                Text(
-                    "Switch to User Sign Up",
-                    color = PetPurple
-                )
-            }
+            Spacer(modifier = Modifier.height(40.dp))
         }
     }
 } 
