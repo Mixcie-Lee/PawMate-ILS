@@ -23,6 +23,9 @@ import kotlinx.coroutines.launch
 import androidx.compose.foundation.BorderStroke
 import com.example.pawmate_ils.SharedViewModel
 import com.example.pawmate_ils.ui.theme.DarkBrown
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
