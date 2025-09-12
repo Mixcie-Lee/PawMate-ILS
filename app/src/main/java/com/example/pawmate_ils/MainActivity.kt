@@ -34,11 +34,15 @@ import com.example.pawmate_ils.ui.theme.PawMateILSTheme
 import com.example.pawmate_ils.PetSelectionScreen
 import com.example.pawmate_ils.ui.screens.AdopterHomeScreen
 import com.example.pawmate_ils.ui.screens.ProfileSettingsScreen
+import com.google.firebase.Firebase
+import com.google.firebase.FirebaseApp
 
 class MainActivity : ComponentActivity() {
     private val sharedViewModel: SharedViewModel by viewModels()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+      //INITIALIZATION OF FIREBASE
+        FirebaseApp.initializeApp(this)
         
         // EXTREME fullscreen - hide everything
         window.setFlags(
