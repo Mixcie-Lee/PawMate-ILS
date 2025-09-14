@@ -1,41 +1,27 @@
 package com.example.pawmate_ils.Firebase_Utils
+import com.example.pawmate_ils.models.Message
 import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 
-data class ChatMessage(
-    val Id: String = "",
-    val text: String = "",
-    val senderId: String = "",
-    val timestamp: Long = System.currentTimeMillis()
-        )
 class ChatRepository {
-    private val db : FirebaseFirestore = FirebaseFirestore.getInstance()
+    private val chatsRef = FirebaseFirestore.getInstance().collection("chats")
 
-    suspend fun sendMessage(chatId: String, senderId: String, text: String){
-      val messageId = db.collection("chats").document(chatId).collection("messages").document().id
-
-        val message = ChatMessage(
-            Id = messageId,
-            text = text,
-            senderId = senderId,
-        )
-        db.collection("chats")
-            .document(chatId)
-            .collection("messages")
-            .document(messageId)
-            .set(message)
-            .await()
+    fun sendMessage(message: Message) {
+        val chatId = listOf(message.senderId, message.receiverId).sorted().joinToString("_")
+        chatsRef.document(chatId).collection("messages").add(message)
     }
-    fun listenForMessages(chatId: String, onMessagesChanged: (List<ChatMessage>) -> Unit) {
-        db.collection("chats")
-            .document(chatId)
-            .collection("messages")
+
+    fun getMessages(senderId: String, receiverId: String): Flow<List<Message>> = callbackFlow {
+        val chatId = listOf(senderId, receiverId).sorted().joinToString("_")
+        val subscription = chatsRef.document(chatId).collection("messages")
             .orderBy("timestamp")
             .addSnapshotListener { snapshot, _ ->
-                val messages = snapshot?.toObjects(ChatMessage::class.java) ?: emptyList()
-                onMessagesChanged(messages)
+                val messages = snapshot?.toObjects(Message::class.java) ?: emptyList()
+                trySend(messages)
             }
+        awaitClose { subscription.remove() }
     }
-
 }
 
