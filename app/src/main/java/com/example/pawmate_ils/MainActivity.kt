@@ -34,7 +34,6 @@ import com.example.pawmate_ils.ui.theme.PawMateILSTheme
 import com.example.pawmate_ils.PetSelectionScreen
 import com.example.pawmate_ils.ui.screens.AdopterHomeScreen
 import com.example.pawmate_ils.ui.screens.ProfileSettingsScreen
-import com.example.pawmate_ils.ThemeManager
 
 class MainActivity : ComponentActivity() {
     private val sharedViewModel: SharedViewModel by viewModels()
@@ -65,7 +64,7 @@ class MainActivity : ComponentActivity() {
             android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
         )
         setContent {
-            PawMateILSTheme(darkTheme = ThemeManager.isDarkMode) {
+            PawMateILSTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -80,7 +79,7 @@ class MainActivity : ComponentActivity() {
                                     SignUpScreen(
                                         navController = navController,
                                         sharedViewModel = sharedViewModel,
-                                        onSignUpClick = { _, _, _, _, _ ->
+                                        onSignUpClick = { _, _, _, _ ->
                                             navController.navigate("pet_selection") {
                                                 popUpTo("user_type") { inclusive = true }
                                                 launchSingleTop = true

@@ -1,0 +1,9 @@
+package com.example.pawmate_ils.firebase_models
+
+data class Message(
+    val id: String = "",
+    val senderId: String = "",
+    val receiverId: String = "",
+    val content: String = "",
+    val timestamp: Long = System.currentTimeMillis()
+)

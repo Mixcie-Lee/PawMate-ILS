@@ -1,5 +1,6 @@
 package com.example.pawmate_ils.ui.screens
 
+import android.util.Log.e
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -22,14 +23,35 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.pawmate_ils.ui.theme.DarkBrown
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.AuthResult
+import com.example.pawmate_ils.Firebase_Utils.AuthRepository
+import com.example.pawmate_ils.Firebase_Utils.ShelterRepository
+import com.example.pawmate_ils.SharedViewModel
+import com.example.pawmate_ils.firebase_models.AdopterProfile
+import com.google.firebase.firestore.FirebaseFirestore
+import com.example.pawmate_ils.firebase_models.ShelterProfile
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShelterOwnerSignUpScreen(
-    onSignUpClick: (String, String, String, String, String, String) -> Unit,
+    onSignUpClick: (String) -> Unit,
     onLoginClick: () -> Unit,
-    onUserAuthClick: () -> Unit
+    onUserAuthClick: () -> Unit,
+    sharedViewModel : SharedViewModel
 ) {
+    // I COMMENT THE ON SIGN UP CLICK FUNCTION YOU'VE MADE SINCE IT WILL BE HANDLED BY FIREBASE
+    //Firebase Initializations & stuffs related to firebase
+    val AuthRepo = remember { AuthRepository() }
+    val ShelterRepo = remember { ShelterRepository() }
+    val scope = rememberCoroutineScope()
+
+
+
     var currentStep by remember { mutableStateOf(1) } // 1: Email, 2: About You
     var email by remember { mutableStateOf("") }
     var firstName by remember { mutableStateOf("") }
@@ -38,6 +60,7 @@ fun ShelterOwnerSignUpScreen(
     var address by remember { mutableStateOf("") }
     var age by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
+    var password by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val scrollState = rememberScrollState()
 
@@ -376,7 +399,33 @@ fun ShelterOwnerSignUpScreen(
                                 else -> {
                                     errorMessage = null
                                     isLoading = true
-                                    onSignUpClick(email, firstName, lastName, mobileNumber, address, age)
+                                    scope.launch{
+                                        try {
+                                            val uid = AuthRepo.signUpWithEmail(email, password)
+                                            if (uid != null) {
+                                                val shelterProfile = ShelterProfile(
+                                                    id = uid,
+                                                    ShelterName = "$firstName $lastName",
+                                                    role = "shelter",
+                                                    email = email,
+                                                    mobileNumber = mobileNumber,
+                                                    address = address,
+                                                    password = password
+                                                )
+                                                onSignUpClick(shelterProfile.ShelterName)
+                                                sharedViewModel.username.value = shelterProfile.ShelterName
+                                                try{
+                                                    ShelterRepo.createUser(shelterProfile)
+                                                }catch(e: Exception){
+                                                    errorMessage = e.message
+                                                }
+                                            }else{
+                                                errorMessage = "Sign up failed"
+                                            }
+                                        } catch (e: Exception) {
+                                            errorMessage = e.message
+                                        }
+                                    }
                                 }
                             }
                         },

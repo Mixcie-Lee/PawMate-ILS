@@ -37,6 +37,7 @@ fun LoginScreen(
     onSignUpClick: () -> Unit,
     onSellerAuthClick: () -> Unit
 ) {
+
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
