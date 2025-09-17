@@ -83,7 +83,7 @@ class MainActivity : ComponentActivity() {
                                     SignUpScreen(
                                         navController = navController,
                                         sharedViewModel = sharedViewModel,
-                                        onSignUpClick = { _, _, _, _ ->
+                                        onSignUpClick = { AdopterName->
                                             navController.navigate("pet_selection") {
                                                 popUpTo("user_type") { inclusive = true }
                                                 launchSingleTop = true
@@ -127,7 +127,8 @@ class MainActivity : ComponentActivity() {
                                 }
                                 composable("seller_signup") {
                                     ShelterOwnerSignUpScreen(
-                                        onSignUpClick = { _, _, _, _, _, _ ->
+                                        sharedViewModel = sharedViewModel,
+                                        onSignUpClick = { ShelterName ->
                                             navController.navigate("adoption_center_dashboard") {
                                                 popUpTo("user_type") { inclusive = true }
                                                 launchSingleTop = true

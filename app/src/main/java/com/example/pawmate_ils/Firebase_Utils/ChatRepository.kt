@@ -1,5 +1,5 @@
 package com.example.pawmate_ils.Firebase_Utils
-import com.example.pawmate_ils.models.Message
+import com.example.pawmate_ils.firebase_models.Message
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow

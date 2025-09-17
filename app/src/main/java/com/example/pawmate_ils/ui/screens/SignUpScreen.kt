@@ -21,22 +21,27 @@ import androidx.navigation.NavController
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.BorderStroke
+import com.example.pawmate_ils.Firebase_Utils.AdopterRepository
+import com.example.pawmate_ils.Firebase_Utils.AuthRepository
 import com.example.pawmate_ils.SharedViewModel
+import com.example.pawmate_ils.firebase_models.AdopterProfile
 import com.example.pawmate_ils.ui.theme.DarkBrown
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
-
 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SignUpScreen(
     navController: NavController,
-    onSignUpClick: (String, String, String, String) -> Unit,
+    onSignUpClick: (String) -> Unit,
     onLoginClick: () -> Unit,
     onSellerAuthClick: () -> Unit,
     sharedViewModel: SharedViewModel
 ) {
+    //Firebase initializations
+    val AuthRepo =  remember { AuthRepository()}
+    val AdopterRepo = remember { AdopterRepository() }
+
+
     var currentStep by remember { mutableStateOf(1) } // 1: Email, 2: About You
     var email by remember { mutableStateOf("") }
     var firstName by remember { mutableStateOf("") }
@@ -46,6 +51,7 @@ fun SignUpScreen(
     var age by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var password by remember { mutableStateOf("") }
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
 
@@ -386,13 +392,32 @@ fun SignUpScreen(
                                     isLoading = true
                                     scope.launch {
                                         try {
-                                            onSignUpClick(firstName, email, lastName, mobileNumber)
-                                            sharedViewModel.username.value = firstName
-                                            delay(50)
-                                            navController.navigate("pet_selection") {
-                                                popUpTo("user_type") { inclusive = true }
-                                            }
-                                        } catch (e: Exception) {
+                                            val uid = AuthRepo.signUpWithEmail(email, password)
+                                             if(uid != null) {
+                                                 val profile = AdopterProfile(
+                                                     id = uid,
+                                                     AdopterName = "$firstName $lastName",
+                                                     email = email,
+                                                     role = "adopter",
+                                                     mobileNumber = mobileNumber,
+                                                     address = address,
+                                                     password = password
+                                                 )
+
+                                                 //save to firestore
+                                                 AdopterRepo.createUser(profile)
+                                                 //saves the name of user
+                                                 sharedViewModel.username.value = profile.AdopterName
+                                                 //pupunta to sa pet selection, pero pinag iisipan kopa if punta mona sa adopter profile bago pet selection
+                                                 delay(50)
+                                                 navController.navigate("pet_selection") {
+                                                     popUpTo("user_type") { inclusive = true }
+                                                 }
+                                             }else{
+                                                 errorMessage = "Sign up failed"
+                                             }
+
+                                        }catch (e: Exception) {
                                             errorMessage = "Sign up failed: ${e.message}"
                                         } finally {
                                             isLoading = false

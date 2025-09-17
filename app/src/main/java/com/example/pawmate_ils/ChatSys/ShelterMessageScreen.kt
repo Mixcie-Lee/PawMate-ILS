@@ -8,7 +8,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import com.example.pawmate_ils.Firebase_Utils.ChatRepository
-import com.example.pawmate_ils.models.Message
+import com.example.pawmate_ils.firebase_models.Message
 
 @Composable
 fun ShelterMessageScreen(

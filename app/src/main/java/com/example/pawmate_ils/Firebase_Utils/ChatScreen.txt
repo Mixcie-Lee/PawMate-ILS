@@ -35,6 +35,7 @@ import com.example.pawmate_ils.ui.theme.DarkBrown
 fun ChatScreen(
 
 ) {
+                          WALA PA TO HEHEHE :)))
 
     data class ChatMessage(
         val id: String =  "",

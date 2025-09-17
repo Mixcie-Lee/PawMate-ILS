@@ -1,4 +1,4 @@
-package com.example.pawmate_ils.models
+package com.example.pawmate_ils.firebase_models
 
 data class Message(
     val id: String = "",
