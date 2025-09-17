@@ -9,6 +9,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,6 +22,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.pawmate_ils.R
+import com.example.pawmate_ils.GemManager
+import com.example.pawmate_ils.GemPackage
 
 data class AdoptedPet(
     val name: String,
@@ -33,6 +36,8 @@ data class AdoptedPet(
 @Composable
 fun AdopterHomeScreen(navController: NavController) {
     var currentPetIndex by remember { mutableStateOf(0) }
+    var showGemDialog by remember { mutableStateOf(false) }
+    val gemCount by remember { mutableStateOf(GemManager.gemCount) }
     
     val adoptedPets = listOf(
         AdoptedPet("Max", "Golden Retriever", "bla bla bla bla bla bla", R.drawable.dog1),
@@ -45,6 +50,7 @@ fun AdopterHomeScreen(navController: NavController) {
         color = Color.White
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
+            // Settings button
             IconButton(
                 onClick = { navController.navigate("profile_settings") },
                 modifier = Modifier
@@ -57,6 +63,51 @@ fun AdopterHomeScreen(navController: NavController) {
                     tint = Color.Gray,
                     modifier = Modifier.size(24.dp)
                 )
+            }
+            
+            // Gem display with + button
+            Row(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Card(
+                    modifier = Modifier.padding(end = 8.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF6B4423)),
+                    shape = RoundedCornerShape(20.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "💎",
+                            fontSize = 16.sp,
+                            modifier = Modifier.padding(end = 4.dp)
+                        )
+                        Text(
+                            text = gemCount.toString(),
+                            color = Color.White,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+                
+                FloatingActionButton(
+                    onClick = { showGemDialog = true },
+                    modifier = Modifier.size(32.dp),
+                    containerColor = Color(0xFF6B4423),
+                    contentColor = Color.White,
+                    elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 2.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Buy Gems",
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
             }
             
             Column(
@@ -203,6 +254,88 @@ fun AdopterHomeScreen(navController: NavController) {
                     }
                 }
             }
+            
+            // Gem Purchase Dialog
+            if (showGemDialog) {
+                GemPurchaseDialog(
+                    onDismiss = { showGemDialog = false },
+                    onPurchase = { packageType ->
+                        GemManager.purchaseGems(packageType)
+                        showGemDialog = false
+                    }
+                )
+            }
         }
     }
+}
+
+@Composable
+fun GemPurchaseDialog(
+    onDismiss: () -> Unit,
+    onPurchase: (GemPackage) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "💎 Buy Gems",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF6B4423)
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    text = "Choose a gem package to continue swiping:",
+                    fontSize = 16.sp,
+                    color = Color.Gray,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+                
+                GemPackage.values().forEach { packageType ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5)),
+                        onClick = { onPurchase(packageType) }
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = "${packageType.gemAmount} gems",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Perfect for ${packageType.gemAmount} likes",
+                                    fontSize = 12.sp,
+                                    color = Color.Gray
+                                )
+                            }
+                            Text(
+                                text = packageType.price,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF6B4423)
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+        dismissButton = null
+    )
 }

@@ -29,6 +29,8 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.pawmate_ils.R
 import com.example.pawmate_ils.ui.theme.DarkBrown
+import com.example.pawmate_ils.GemManager
+import com.example.pawmate_ils.GemPackage
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -43,12 +45,14 @@ data class DogData(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PetSwipeScreen(navController: NavController) {
-    var currentDogIndex by remember { mutableStateOf(0) }
-    var likedDogs by remember { mutableStateOf(mutableListOf<String>()) }
+    var currentDogIndex by remember { mutableIntStateOf(0) }
+    val likedDogs = remember { mutableListOf<String>() }
     
-    var offsetX by remember(currentDogIndex) { mutableStateOf(0f) }
-    var rotation by remember(currentDogIndex) { mutableStateOf(0f) }
+    var offsetX by remember(currentDogIndex) { mutableFloatStateOf(0f) }
+    var rotation by remember(currentDogIndex) { mutableFloatStateOf(0f) }
     var isDragging by remember { mutableStateOf(false) }
+    var showGemDialog by remember { mutableStateOf(false) }
+    var gemCount by remember { mutableIntStateOf(GemManager.gemCount) }
     
     val scope = rememberCoroutineScope()
     
@@ -67,7 +71,15 @@ fun PetSwipeScreen(navController: NavController) {
         if (isDragging || currentDogIndex >= dogs.size) return
         
         if (direction > 0) {
-            likedDogs.add(dogs[currentDogIndex].name)
+            // Swiping right (like) - consume a gem
+            if (GemManager.consumeGem()) {
+                likedDogs.add(dogs[currentDogIndex].name)
+                gemCount = GemManager.gemCount // Update local count
+            } else {
+                // No gems left, show purchase dialog
+                showGemDialog = true
+                return
+            }
         }
         
         val nextIndex = currentDogIndex + 1
@@ -236,12 +248,44 @@ fun PetSwipeScreen(navController: NavController) {
                     modifier = Modifier.padding(top = 40.dp, bottom = 8.dp)
                 )
                 
-                Text(
-                    text = "${currentDogIndex + 1} of ${dogs.size}",
-                    fontSize = 14.sp,
-                    color = Color.Gray,
-                    modifier = Modifier.padding(bottom = 20.dp)
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "${currentDogIndex + 1} of ${dogs.size}",
+                        fontSize = 14.sp,
+                        color = Color.Gray
+                    )
+                    
+                    // Gem Counter
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = DarkBrown),
+                        shape = RoundedCornerShape(20.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "💎",
+                                fontSize = 16.sp,
+                                modifier = Modifier.padding(end = 4.dp)
+                            )
+                            Text(
+                                text = gemCount.toString(),
+                                color = Color.White,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(20.dp))
                 
                 // Dog Cards Stack
         Box(
@@ -280,7 +324,7 @@ fun PetSwipeScreen(navController: NavController) {
                                 if (abs(offsetX) > 150f) {
                                     // Swipe right = like, swipe left = pass
                                     swipeCard(if (offsetX > 0) 1f else -1f)
-                                } else {
+            } else {
                                     // Reset position if not swiped far enough
                                     resetCardPosition()
                                 }
@@ -322,7 +366,11 @@ fun PetSwipeScreen(navController: NavController) {
                     FloatingActionButton(
                         onClick = { 
                             if (!isDragging) {
-                                swipeCard(1f)
+                                if (GemManager.gemCount > 0) {
+                                    swipeCard(1f)
+                                } else {
+                                    showGemDialog = true
+                                }
                             }
                         },
                         modifier = Modifier.size(64.dp),
@@ -371,6 +419,18 @@ fun PetSwipeScreen(navController: NavController) {
                     )
                 }
             }
+        }
+        
+        // Gem Purchase Dialog
+        if (showGemDialog) {
+            GemPurchaseDialog(
+                onDismiss = { showGemDialog = false },
+                onPurchase = { packageType ->
+                    GemManager.purchaseGems(packageType)
+                    gemCount = GemManager.gemCount // Update local count
+                    showGemDialog = false
+                }
+            )
         }
     }
 }
@@ -483,6 +543,75 @@ fun SwipeableDogCard(
             }
         }
     }
+}
+
+@Composable
+fun GemPurchaseDialog(
+    onDismiss: () -> Unit,
+    onPurchase: (GemPackage) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "💎 Out of Gems!",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = DarkBrown
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    text = "You need gems to like pets!",
+                    fontSize = 16.sp,
+                    color = Color.Gray,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+                
+                Text(
+                    text = "Choose a gem package:",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+                
+                GemPackage.entries.forEach { packageType ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "${packageType.gemAmount} gems",
+                            fontSize = 14.sp
+                        )
+                        Text(
+                            text = packageType.price,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = DarkBrown
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onPurchase(GemPackage.SMALL) },
+                colors = ButtonDefaults.buttonColors(containerColor = DarkBrown)
+            ) {
+                Text("Buy 5 Gems")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
 @Preview(showBackground = true, apiLevel = 34)

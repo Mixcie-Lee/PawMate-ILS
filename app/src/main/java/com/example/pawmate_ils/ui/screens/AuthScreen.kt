@@ -5,10 +5,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavController
 import com.example.pawmate_ils.SharedViewModel
-import com.example.pawmate_ils.ui.screens.ShelterOwnerSignUpScreen
 import com.example.pawmate_ils.ui.theme.PawMateILSTheme
 
 @Composable
@@ -21,7 +19,6 @@ fun AuthScreen(
     var showSignUp by remember { mutableStateOf(false) }
     var showShelterOwnerAuth by remember { mutableStateOf(false) }
     var showShelterOwnerSignUp by remember { mutableStateOf(false) }
-    val context = LocalContext.current
 
     PawMateILSTheme {
         Surface(
@@ -32,7 +29,7 @@ fun AuthScreen(
                 showShelterOwnerAuth -> {
                     if (showShelterOwnerSignUp) {
                         ShelterOwnerSignUpScreen(
-                            onSignUpClick = { businessName, ownerName, email, phone, password, confirmPassword ->
+                            onSignUpClick = { _, _, _, _, _, _ ->
                                 onAuthComplete()
                             },
                             onLoginClick = { showShelterOwnerSignUp = false },
@@ -40,7 +37,7 @@ fun AuthScreen(
                         )
                     } else {
                         ShelterOwnerLoginScreen(
-                            onLoginClick = { email,  password ->
+                            onLoginClick = { _, _ ->
                                 onAuthComplete()
                             },
                             onSignUpClick = { showShelterOwnerSignUp = true },
@@ -53,7 +50,7 @@ fun AuthScreen(
                         SignUpScreen(
                             navController = navController,
                             sharedViewModel = sharedViewModel,
-                            onSignUpClick = { name, email, password, confirmPassword ->
+                            onSignUpClick = { _, _, _, _, _ ->
                                 onAuthComplete()
                                 navController.navigate("pet_selection")
                             },
@@ -63,7 +60,7 @@ fun AuthScreen(
 
                     } else {
                         LoginScreen(
-                            onLoginClick = { email, password ->
+                            onLoginClick = { _, _ ->
                                 onAuthComplete()
                             },
                             onSignUpClick = { showSignUp = true },

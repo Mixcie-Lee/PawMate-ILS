@@ -21,13 +21,25 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.pawmate_ils.ui.theme.DarkBrown
+import com.example.pawmate_ils.ThemeManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileSettingsScreen(navController: NavController) {
+    var isDarkMode by remember { mutableStateOf(ThemeManager.isDarkMode) }
+    
+    // Update local state when theme changes
+    LaunchedEffect(Unit) {
+        isDarkMode = ThemeManager.isDarkMode
+    }
+    val backgroundColor = if (isDarkMode) Color(0xFF121212) else Color(0xFFF5F5F5)
+    val cardColor = if (isDarkMode) Color(0xFF1E1E1E) else Color.White
+    val textColor = if (isDarkMode) Color.White else Color.Black
+    val secondaryTextColor = if (isDarkMode) Color.Gray else Color.Gray
+    
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = Color(0xFFF5F5F5)
+        color = backgroundColor
     ) {
         Column(
             modifier = Modifier.fillMaxSize()
@@ -38,7 +50,7 @@ fun ProfileSettingsScreen(navController: NavController) {
                         text = "Profile",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color.Black
+                        color = textColor
                     )
                 },
                 navigationIcon = {
@@ -46,12 +58,12 @@ fun ProfileSettingsScreen(navController: NavController) {
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color.Black
+                            tint = textColor
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFFF5F5F5)
+                    containerColor = backgroundColor
                 )
             )
 
@@ -65,7 +77,7 @@ fun ProfileSettingsScreen(navController: NavController) {
                         .fillMaxWidth()
                         .padding(bottom = 24.dp),
                     shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(containerColor = cardColor),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
                     Row(
@@ -98,12 +110,12 @@ fun ProfileSettingsScreen(navController: NavController) {
                                 text = "Rodian Gargoles",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = Color.Black
+                                color = textColor
                             )
                             Text(
                                 text = "description",
                                 fontSize = 12.sp,
-                                color = Color.Gray
+                                color = secondaryTextColor
                             )
                         }
                         
@@ -121,7 +133,7 @@ fun ProfileSettingsScreen(navController: NavController) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(containerColor = cardColor),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
                     Column(
@@ -130,46 +142,62 @@ fun ProfileSettingsScreen(navController: NavController) {
                         SettingsItem(
                             label = "Notifications",
                             hasSwitch = true,
-                            isEnabled = true
+                            isEnabled = true,
+                            textColor = textColor,
+                            secondaryTextColor = secondaryTextColor
                         )
                         
-                        Divider(color = Color.LightGray.copy(alpha = 0.5f))
+                        Divider(color = if (isDarkMode) Color.Gray.copy(alpha = 0.3f) else Color.LightGray.copy(alpha = 0.5f))
                         
                         SettingsItem(
                             label = "Privacy",
                             hasSwitch = true,
-                            isEnabled = false
+                            isEnabled = false,
+                            textColor = textColor,
+                            secondaryTextColor = secondaryTextColor
                         )
                         
-                        Divider(color = Color.LightGray.copy(alpha = 0.5f))
+                        Divider(color = if (isDarkMode) Color.Gray.copy(alpha = 0.3f) else Color.LightGray.copy(alpha = 0.5f))
                         
                         SettingsItem(
                             label = "Dark Mode",
                             hasSwitch = true,
-                            isEnabled = true
+                            isEnabled = isDarkMode,
+                            textColor = textColor,
+                            secondaryTextColor = secondaryTextColor,
+                            onToggle = { 
+                                ThemeManager.toggleDarkMode()
+                                isDarkMode = ThemeManager.isDarkMode
+                            }
                         )
                         
-                        Divider(color = Color.LightGray.copy(alpha = 0.5f))
+                        Divider(color = if (isDarkMode) Color.Gray.copy(alpha = 0.3f) else Color.LightGray.copy(alpha = 0.5f))
                         
                         SettingsItem(
                             label = "Account Settings",
                             hasSwitch = false,
+                            textColor = textColor,
+                            secondaryTextColor = secondaryTextColor,
                             onClick = { }
                         )
                         
-                        Divider(color = Color.LightGray.copy(alpha = 0.5f))
+                        Divider(color = if (isDarkMode) Color.Gray.copy(alpha = 0.3f) else Color.LightGray.copy(alpha = 0.5f))
                         
                         SettingsItem(
                             label = "Help & Support",
                             hasSwitch = false,
+                            textColor = textColor,
+                            secondaryTextColor = secondaryTextColor,
                             onClick = { }
                         )
                         
-                        Divider(color = Color.LightGray.copy(alpha = 0.5f))
+                        Divider(color = if (isDarkMode) Color.Gray.copy(alpha = 0.3f) else Color.LightGray.copy(alpha = 0.5f))
                         
                         SettingsItem(
                             label = "About",
                             hasSwitch = false,
+                            textColor = textColor,
+                            secondaryTextColor = secondaryTextColor,
                             onClick = { }
                         )
                     }
@@ -184,7 +212,10 @@ fun SettingsItem(
     label: String,
     hasSwitch: Boolean,
     isEnabled: Boolean = false,
-    onClick: (() -> Unit)? = null
+    textColor: Color = Color.Black,
+    secondaryTextColor: Color = Color.Gray,
+    onClick: (() -> Unit)? = null,
+    onToggle: (() -> Unit)? = null
 ) {
     var switchState by remember { mutableStateOf(isEnabled) }
     
@@ -204,14 +235,17 @@ fun SettingsItem(
         Text(
             text = label,
             fontSize = 16.sp,
-            color = Color.Black,
+            color = textColor,
             modifier = Modifier.weight(1f)
         )
         
         if (hasSwitch) {
             Switch(
                 checked = switchState,
-                onCheckedChange = { switchState = it },
+                onCheckedChange = { 
+                    switchState = it
+                    onToggle?.invoke()
+                },
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = Color.White,
                     checkedTrackColor = DarkBrown,
@@ -223,7 +257,7 @@ fun SettingsItem(
             Icon(
                 imageVector = Icons.Default.ArrowForward,
                 contentDescription = "Navigate",
-                tint = Color.Gray,
+                tint = secondaryTextColor,
                 modifier = Modifier.size(20.dp)
             )
         }
