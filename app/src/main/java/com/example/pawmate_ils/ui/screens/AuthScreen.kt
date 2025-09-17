@@ -29,11 +29,12 @@ fun AuthScreen(
                 showShelterOwnerAuth -> {
                     if (showShelterOwnerSignUp) {
                         ShelterOwnerSignUpScreen(
-                            onSignUpClick = { _, _, _, _, _, _ ->
+                            onSignUpClick = { _ ->
                                 onAuthComplete()
                             },
                             onLoginClick = { showShelterOwnerSignUp = false },
-                            onUserAuthClick = { showShelterOwnerAuth = false }
+                            onUserAuthClick = { showShelterOwnerAuth = false },
+                            sharedViewModel = sharedViewModel
                         )
                     } else {
                         ShelterOwnerLoginScreen(
@@ -49,13 +50,13 @@ fun AuthScreen(
                     if (showSignUp) {
                         SignUpScreen(
                             navController = navController,
-                            sharedViewModel = sharedViewModel,
-                            onSignUpClick = { _, _, _, _, _ ->
+                            onSignUpClick = { _, _, _, _ ->
                                 onAuthComplete()
                                 navController.navigate("pet_selection")
                             },
                             onLoginClick = { showSignUp = false },
-                            onSellerAuthClick = { showShelterOwnerAuth = true }
+                            onSellerAuthClick = { showShelterOwnerAuth = true },
+                            sharedViewModel = sharedViewModel
                         )
 
                     } else {

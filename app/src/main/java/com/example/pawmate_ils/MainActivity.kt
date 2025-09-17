@@ -78,7 +78,6 @@ class MainActivity : ComponentActivity() {
                                 composable("signup") {
                                     SignUpScreen(
                                         navController = navController,
-                                        sharedViewModel = sharedViewModel,
                                         onSignUpClick = { _, _, _, _ ->
                                             navController.navigate("pet_selection") {
                                                 popUpTo("user_type") { inclusive = true }
@@ -96,7 +95,8 @@ class MainActivity : ComponentActivity() {
                                                 launchSingleTop = true
                                                 restoreState = true
                                             }
-                                        }
+                                        },
+                                        sharedViewModel = sharedViewModel
                                     )
                                 }
                                 composable("login") {
@@ -123,7 +123,7 @@ class MainActivity : ComponentActivity() {
                                 }
                                 composable("seller_signup") {
                                     ShelterOwnerSignUpScreen(
-                                        onSignUpClick = { _, _, _, _, _, _ ->
+                                        onSignUpClick = { _ ->
                                             navController.navigate("adoption_center_dashboard") {
                                                 popUpTo("user_type") { inclusive = true }
                                                 launchSingleTop = true
@@ -140,7 +140,8 @@ class MainActivity : ComponentActivity() {
                                                 launchSingleTop = true
                                                 restoreState = true
                                             }
-                                        }
+                                        },
+                                        sharedViewModel = sharedViewModel
                                     )
                                 }
                                 composable("seller_login") {
