@@ -23,6 +23,14 @@ import kotlinx.coroutines.launch
 import androidx.compose.foundation.BorderStroke
 import com.example.pawmate_ils.SharedViewModel
 import com.example.pawmate_ils.ui.theme.DarkBrown
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.AuthResult
+import com.example.pawmate_ils.Firebase_Utils.AuthRepository
+import com.example.pawmate_ils.Firebase_Utils.AdopterRepository
+import com.example.pawmate_ils.Firebase_Utils.ShelterRepository
+import com.example.pawmate_ils.firebase_models.AdopterProfile
+import com.google.firebase.firestore.FirebaseFirestore
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,6 +41,12 @@ fun SignUpScreen(
     onSellerAuthClick: () -> Unit,
     sharedViewModel: SharedViewModel
 ) {
+    //FIREBASE INITIALIZATION
+    val AuthRepo = remember { AuthRepository() }
+    val AdopterRepo = remember { AdopterRepository() }
+
+
+
     var currentStep by remember { mutableStateOf(1) } // 1: Email, 2: About You
     var email by remember { mutableStateOf("") }
     var firstName by remember { mutableStateOf("") }
@@ -40,6 +54,7 @@ fun SignUpScreen(
     var mobileNumber by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
     var age by remember { mutableStateOf("") }
+    var password by remember {mutableStateOf(" ")} //MOCK UP LANG TO GA, PERO I NEED YOU TO ADD PASSWORD AS WELL SA SIGN UP FOR AUTHENTICATION
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val scrollState = rememberScrollState()
@@ -382,6 +397,25 @@ fun SignUpScreen(
                                     isLoading = true
                                     scope.launch {
                                         try {
+                                            //this is for firebase, please think before you let AI do its fix
+                                            val uid = AuthRepo.signUpWithEmail(email, password)
+                                            if(uid != null){
+                                                val adopterProfile = AdopterProfile (
+                                                    id = uid,
+                                                    AdopterName = "$firstName $lastName" ,
+                                                    email = email,
+                                                    mobileNumber = mobileNumber,
+                                                    address = address,
+                                                    role = "adopter",
+                                                    password = password
+                                                )
+                                                try{
+                                                    AdopterRepo.createUser(adopterProfile)
+                                                }catch(e: Exception){
+                                                    errorMessage = e.message
+                                                }
+                                            }
+
                                             onSignUpClick(firstName, email, lastName, mobileNumber)
                                             sharedViewModel.username.value = firstName
                                             delay(50)

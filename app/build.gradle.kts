@@ -11,7 +11,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.pawmate_ils"
-        minSdk = 35
+        minSdk = 31
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"

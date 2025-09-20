@@ -28,7 +28,6 @@ import com.google.firebase.auth.AuthResult
 import com.example.pawmate_ils.Firebase_Utils.AuthRepository
 import com.example.pawmate_ils.Firebase_Utils.ShelterRepository
 import com.example.pawmate_ils.SharedViewModel
-import com.example.pawmate_ils.firebase_models.AdopterProfile
 import com.google.firebase.firestore.FirebaseFirestore
 import com.example.pawmate_ils.firebase_models.ShelterProfile
 import kotlinx.coroutines.delay
