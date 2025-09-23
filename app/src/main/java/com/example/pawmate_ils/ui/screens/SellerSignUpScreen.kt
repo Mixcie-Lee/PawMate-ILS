@@ -1,55 +1,50 @@
 package com.example.pawmate_ils.ui.screens
 
-import android.util.Log.e
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
+import com.example.pawmate_ils.Firebase_Utils.Auth2ViewModel
+import com.example.pawmate_ils.Firebase_Utils.FirestoreRepository
 import com.example.pawmate_ils.ui.theme.DarkBrown
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.AuthResult
-import com.example.pawmate_ils.Firebase_Utils.AuthRepository
-import com.example.pawmate_ils.Firebase_Utils.ShelterRepository
 import com.example.pawmate_ils.SharedViewModel
-import com.google.firebase.firestore.FirebaseFirestore
-import com.example.pawmate_ils.firebase_models.ShelterProfile
+import com.example.pawmate_ils.firebase_models.User
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShelterOwnerSignUpScreen(
-    onSignUpClick: (String) -> Unit,
+    navController: NavController,
+    onSignUpClick: (String, String, String, String) -> Unit,
     onLoginClick: () -> Unit,
     onUserAuthClick: () -> Unit,
     sharedViewModel : SharedViewModel
 ) {
     // I COMMENT THE ON SIGN UP CLICK FUNCTION YOU'VE MADE SINCE IT WILL BE HANDLED BY FIREBASE
     //Firebase Initializations & stuffs related to firebase
-    val AuthRepo = remember { AuthRepository() }
-    val ShelterRepo = remember { ShelterRepository() }
     val scope = rememberCoroutineScope()
-
-
+    val Auth2ViewModel : Auth2ViewModel = viewModel()
+    val authState  = Auth2ViewModel.authState.observeAsState()
+    val firestoreRepo = remember { FirestoreRepository() }
 
     var currentStep by remember { mutableStateOf(1) } // 1: Email, 2: About You
     var email by remember { mutableStateOf("") }
@@ -77,7 +72,7 @@ fun ShelterOwnerSignUpScreen(
             verticalArrangement = Arrangement.Center
         ) {
             Spacer(modifier = Modifier.height(80.dp))
-            
+
             when (currentStep) {
                 1 -> {
                     // Email Step
@@ -116,9 +111,27 @@ fun ShelterOwnerSignUpScreen(
                     OutlinedTextField(
                         value = email,
                         onValueChange = { email = it },
-                        placeholder = { Text("name@example.com", color = Color.Gray) },
+                        placeholder = { Text("name@example.com", color = Color.Black) },
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Email,
+                            imeAction = ImeAction.Next
+                        ),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color.Gray,
+                            unfocusedBorderColor = Color.LightGray,
+                            cursorColor = Color.Black
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp)
+                    )
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = { password = it },
+                        placeholder = { Text("password", color = Color.Black) },
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
                             imeAction = ImeAction.Next
                         ),
                         colors = OutlinedTextFieldDefaults.colors(
@@ -143,7 +156,8 @@ fun ShelterOwnerSignUpScreen(
                                 return@Button
                             }
                             errorMessage = null
-                            currentStep = 2 // Move to About You step
+                            Auth2ViewModel.signUp(email, password)
+                                currentStep = 2 // Move to About You step
                         },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -263,7 +277,7 @@ fun ShelterOwnerSignUpScreen(
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
                 }
-                
+
                 2 -> {
                     // About You Step
                     Text(
@@ -399,34 +413,46 @@ fun ShelterOwnerSignUpScreen(
                                     errorMessage = null
                                     isLoading = true
                                     scope.launch{
+                                        //STORING DATA AFTER AUTHENTICATING IN THE STEP 1
+                                        /*Please do not delete this, kahit duplicated sya from auth screen kailangan sya para
+                                         makapag input ng data sa firestore. Di kasi nagana pag walang ganto sa auth screen or kapag wala
+                                         naman ganto dito. So kailangan meron ganto sa authscreen at dito.
+                                        */
+                                        val uid = FirebaseAuth.getInstance().currentUser?.uid
+                                        if (uid == null) {
+                                            // user not signed in (maybe Auth step failed)
+                                            errorMessage =
+                                                "User not signed in. Please complete Step 1."
+                                            isLoading = false
+                                            return@launch
+                                        }
+                                        val user = User(
+                                            id = uid,
+                                            name = "$firstName $lastName",
+                                            email = email,
+                                            MobileNumber = mobileNumber,
+                                            Address = address,
+                                            Age = age,
+                                            role = "shelter" //
+                                        )
                                         try {
-                                            val uid = AuthRepo.signUpWithEmail(email, password)
-                                            if (uid != null) {
-                                                val shelterProfile = ShelterProfile(
-                                                    id = uid,
-                                                    ShelterName = "$firstName $lastName",
-                                                    role = "shelter",
-                                                    email = email,
-                                                    mobileNumber = mobileNumber,
-                                                    address = address,
-                                                    password = password
-                                                )
-                                                onSignUpClick(shelterProfile.ShelterName)
-                                                sharedViewModel.username.value = shelterProfile.ShelterName
-                                                try{
-                                                    ShelterRepo.createUser(shelterProfile)
-                                                }catch(e: Exception){
-                                                    errorMessage = e.message
-                                                }
-                                            }else{
-                                                errorMessage = "Sign up failed"
+                                            firestoreRepo.addUser(user)
+                                            sharedViewModel.username.value = "$firstName, $lastName"
+                                            onSignUpClick(firstName, email, lastName, mobileNumber)
+                                            delay(1)
+                                            navController.navigate("adoption_center_dashboard") {
+                                                popUpTo("user_type") { inclusive = true }
                                             }
-                                        } catch (e: Exception) {
-                                            errorMessage = e.message
+                                        } catch (e: Exception){
+                                            errorMessage = e.message ?: "Failed to save user data"
+                                        }finally{
+                                            isLoading = false
+                                        }
+
                                         }
                                     }
                                 }
-                            }
+
                         },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -446,7 +472,7 @@ fun ShelterOwnerSignUpScreen(
                         } else {
                             Text(
                                 "Continue",
-                                fontSize = 16.sp,
+                                fontSize = 20.sp,
                                 fontWeight = FontWeight.Medium
                             )
                         }
@@ -466,4 +492,4 @@ fun ShelterOwnerSignUpScreen(
             Spacer(modifier = Modifier.height(40.dp))
         }
     }
-} 
+}

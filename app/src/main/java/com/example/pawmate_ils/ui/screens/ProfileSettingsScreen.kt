@@ -22,10 +22,13 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.pawmate_ils.ui.theme.DarkBrown
 import com.example.pawmate_ils.ThemeManager
+import androidx.lifecycle.viewmodel.compose.viewModel
+
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileSettingsScreen(navController: NavController) {
+fun ProfileSettingsScreen(navController: NavController, username: String = "User") {
     var isDarkMode by remember { mutableStateOf(ThemeManager.isDarkMode) }
     
     // Update local state when theme changes
@@ -107,7 +110,7 @@ fun ProfileSettingsScreen(navController: NavController) {
                             modifier = Modifier.weight(1f)
                         ) {
                             Text(
-                                text = "Rodian Gargoles",
+                                text = username,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = textColor

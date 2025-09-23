@@ -21,15 +21,14 @@ import androidx.navigation.NavController
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.runtime.livedata.observeAsState
+import com.example.pawmate_ils.Firebase_Utils.AuthViewModel
 import com.example.pawmate_ils.SharedViewModel
-import com.example.pawmate_ils.ui.theme.DarkBrown
+import com.example.pawmate_ils.Firebase_Utils.FirestoreRepository
+import com.example.pawmate_ils.firebase_models.User
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.AuthResult
-import com.example.pawmate_ils.Firebase_Utils.AuthRepository
-import com.example.pawmate_ils.Firebase_Utils.AdopterRepository
-import com.example.pawmate_ils.Firebase_Utils.ShelterRepository
-import com.example.pawmate_ils.firebase_models.AdopterProfile
-import com.google.firebase.firestore.FirebaseFirestore
+import com.example.pawmate_ils.ui.theme.DarkBrown
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -39,22 +38,23 @@ fun SignUpScreen(
     onSignUpClick: (String, String, String, String) -> Unit,
     onLoginClick: () -> Unit,
     onSellerAuthClick: () -> Unit,
-    sharedViewModel: SharedViewModel
-) {
-    //FIREBASE INITIALIZATION
-    val AuthRepo = remember { AuthRepository() }
-    val AdopterRepo = remember { AdopterRepository() }
+    sharedViewModel: SharedViewModel,
 
+) {
+    //FIREBASE AUTHENTICATION
+    val AuthViewModel : AuthViewModel = viewModel()
+   val authState  = AuthViewModel.authState.observeAsState()
+    val firestoreRepo = remember { FirestoreRepository() }
 
 
     var currentStep by remember { mutableStateOf(1) } // 1: Email, 2: About You
     var email by remember { mutableStateOf("") }
+    var password by remember {mutableStateOf(" ")} //MOCK UP LANG TO GA, PERO I NEED YOU TO ADD PASSWORD AS WELL SA SIGN UP FOR AUTHENTICATION
     var firstName by remember { mutableStateOf("") }
     var lastName by remember { mutableStateOf("") }
     var mobileNumber by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
     var age by remember { mutableStateOf("") }
-    var password by remember {mutableStateOf(" ")} //MOCK UP LANG TO GA, PERO I NEED YOU TO ADD PASSWORD AS WELL SA SIGN UP FOR AUTHENTICATION
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val scrollState = rememberScrollState()
@@ -74,7 +74,7 @@ fun SignUpScreen(
             verticalArrangement = Arrangement.Center
         ) {
             Spacer(modifier = Modifier.height(80.dp))
-            
+
             when (currentStep) {
                 1 -> {
                     // Email Step
@@ -128,11 +128,33 @@ fun SignUpScreen(
                             .fillMaxWidth()
                             .padding(bottom = 16.dp)
                     )
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = { password = it },
+                        placeholder = { Text("password", color = Color.Black) },
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Text,
+                            imeAction = ImeAction.Next
+                        ),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color.Gray,
+                            unfocusedBorderColor = Color.LightGray,
+                            cursorColor = Color.Black
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp)
+                    )
 
-                    Button(
+                    Button( //THIS IS THE BUTTON THAT HANDLES SIGN UPP!!
                         onClick = {
                             if (email.isBlank()) {
                                 errorMessage = "Please enter your email"
+                                return@Button
+                            }
+                            if(password.isBlank()){
+                                errorMessage = "Please enter password"
                                 return@Button
                             }
                             if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
@@ -140,7 +162,9 @@ fun SignUpScreen(
                                 return@Button
                             }
                             errorMessage = null
+                            AuthViewModel.signUp(email, password)
                             currentStep = 2 // Move to About You step
+
                         },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -260,7 +284,7 @@ fun SignUpScreen(
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
                 }
-                
+
                 2 -> {
                     // About You Step
                     Text(
@@ -376,57 +400,63 @@ fun SignUpScreen(
                                     errorMessage = "Please enter your first name"
                                     return@Button
                                 }
+
                                 lastName.isBlank() -> {
                                     errorMessage = "Please enter your last name"
                                     return@Button
                                 }
+
                                 mobileNumber.isBlank() -> {
                                     errorMessage = "Please enter your mobile number"
                                     return@Button
                                 }
+
                                 address.isBlank() -> {
                                     errorMessage = "Please enter your address"
                                     return@Button
                                 }
+
                                 age.isBlank() -> {
                                     errorMessage = "Please enter your age"
                                     return@Button
                                 }
+
                                 else -> {
                                     errorMessage = null
                                     isLoading = true
                                     scope.launch {
+                                        val uid = FirebaseAuth.getInstance().currentUser?.uid
+                                        if (uid == null) {
+                                            // user not signed in (maybe Auth step failed)
+                                            errorMessage =
+                                                "User not signed in. Please complete Step 1."
+                                            isLoading = false
+                                            return@launch
+                                        }
+                                        val user = User(
+                                            id = uid,
+                                            name = "$firstName $lastName",
+                                            email = email,
+                                            MobileNumber = mobileNumber,
+                                            Address = address,
+                                            Age = age,
+                                            role = "adopter" // <-- or "shelter" depending on selection
+                                        )
                                         try {
-                                            //this is for firebase, please think before you let AI do its fix
-                                            val uid = AuthRepo.signUpWithEmail(email, password)
-                                            if(uid != null){
-                                                val adopterProfile = AdopterProfile (
-                                                    id = uid,
-                                                    AdopterName = "$firstName $lastName" ,
-                                                    email = email,
-                                                    mobileNumber = mobileNumber,
-                                                    address = address,
-                                                    role = "adopter",
-                                                    password = password
-                                                )
-                                                try{
-                                                    AdopterRepo.createUser(adopterProfile)
-                                                }catch(e: Exception){
-                                                    errorMessage = e.message
-                                                }
-                                            }
-
+                                            firestoreRepo.addUser(user)
                                             onSignUpClick(firstName, email, lastName, mobileNumber)
-                                            sharedViewModel.username.value = firstName
+                                            sharedViewModel.username.value = "$firstName, $lastName"
                                             delay(50)
                                             navController.navigate("pet_selection") {
                                                 popUpTo("user_type") { inclusive = true }
                                             }
-                                        } catch (e: Exception) {
-                                            errorMessage = "Sign up failed: ${e.message}"
-                                        } finally {
+                                        } catch (e: Exception){
+                                            errorMessage = e.message ?: "Failed to save user data"
+                                        }finally{
                                             isLoading = false
                                         }
+
+
                                     }
                                 }
                             }

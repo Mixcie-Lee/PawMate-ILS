@@ -1,5 +1,6 @@
 package com.example.pawmate_ils.ui.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -12,15 +13,20 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.pawmate_ils.Firebase_Utils.AuthState
+import com.example.pawmate_ils.Firebase_Utils.AuthViewModel
 import com.example.pawmate_ils.R
 import com.example.pawmate_ils.GemManager
 import com.example.pawmate_ils.GemPackage
@@ -34,10 +40,23 @@ data class AdoptedPet(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AdopterHomeScreen(navController: NavController) {
+fun AdopterHomeScreen(navController: NavController, ) {
     var currentPetIndex by remember { mutableStateOf(0) }
     var showGemDialog by remember { mutableStateOf(false) }
     val gemCount by remember { mutableStateOf(GemManager.gemCount) }
+
+    //FIREBASE AUTH INITIALIZATION
+    val AuthViewModel : AuthViewModel = viewModel()
+    val authState = AuthViewModel.authState.observeAsState()
+    val context = LocalContext.current
+
+   /* LaunchedEffect(authState.value) {
+        when (authState.value) {
+            is AuthState.Unauthenticated -> navController.navigate("login")
+            is AuthState.Error -> Toast.makeText(context,( authState.value as AuthState.Error).message, Toast.LENGTH_SHORT).show()
+            else -> Unit
+        }
+    }*/
     
     val adoptedPets = listOf(
         AdoptedPet("Max", "Golden Retriever", "bla bla bla bla bla bla", R.drawable.dog1),

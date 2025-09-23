@@ -5,9 +5,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -17,10 +19,25 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.pawmate_ils.ui.theme.PawMateILSTheme
 import com.example.pawmate_ils.ui.theme.DarkBrown
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.pawmate_ils.Firebase_Utils.AuthState
+import com.example.pawmate_ils.Firebase_Utils.AuthViewModel
+
 
 @Composable
 fun PetSelectionScreen(navController: NavController, userName: String = "User") {
     var selectedPetTypes by remember { mutableStateOf(setOf<String>()) }
+  //firebase initialization for auth
+    val AuthViewModel : AuthViewModel = viewModel()
+    val authState = AuthViewModel.authState.observeAsState()
+    val context = LocalContext.current
+
+    LaunchedEffect(authState.value) {
+        when (authState.value) {
+            is AuthState.Unauthenticated -> navController.navigate("login")
+            else -> Unit
+        }
+    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
