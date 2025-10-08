@@ -33,7 +33,7 @@ fun UserTypeSelectionScreen(
     val AuthViewModel : AuthViewModel = viewModel()
     val authState  = AuthViewModel.authState.observeAsState()
     val context = LocalContext.current
-    /*LaunchedEffect(authState.value) {
+    LaunchedEffect(authState.value) {
         when(authState.value){
             is AuthState.Authenticated -> {
                 val userId = FirebaseAuth.getInstance().currentUser?.uid
@@ -56,7 +56,7 @@ fun UserTypeSelectionScreen(
             else -> Unit
         }
     }
-    */
+
 
 
 

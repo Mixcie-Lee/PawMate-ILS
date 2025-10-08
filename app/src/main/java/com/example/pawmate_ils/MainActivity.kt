@@ -98,7 +98,6 @@ class MainActivity : ComponentActivity() {
                     LaunchedEffect(Unit) {
                         val currentUser = auth.currentUser
                         if (currentUser != null) {
-                            // Authenticated, fetch role
                             try {
                                 val snapshot = db.collection("users").document(currentUser.uid).get().await()
                                 val role = snapshot.getString("role")
@@ -241,7 +240,9 @@ class MainActivity : ComponentActivity() {
                                 PetSwipeScreen(navController = navController)
                             }
                             composable("cat_swipe") {
-                                CatSwipeScreen(navController = navController)
+                                CatSwipeScreen(
+                                    userName = sharedViewModel.username.value ?: "User"
+                                )
                             }
                             composable("adopter_home") {
                                 AdopterHomeScreen(navController = navController)

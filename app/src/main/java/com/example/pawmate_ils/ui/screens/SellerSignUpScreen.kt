@@ -1,5 +1,7 @@
 package com.example.pawmate_ils.ui.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -12,6 +14,7 @@ import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -25,6 +28,8 @@ import com.example.pawmate_ils.Firebase_Utils.FirestoreRepository
 import com.example.pawmate_ils.ui.theme.DarkBrown
 import com.example.pawmate_ils.SharedViewModel
 import com.example.pawmate_ils.firebase_models.User
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -41,6 +46,7 @@ fun ShelterOwnerSignUpScreen(
 ) {
     // I COMMENT THE ON SIGN UP CLICK FUNCTION YOU'VE MADE SINCE IT WILL BE HANDLED BY FIREBASE
     //Firebase Initializations & stuffs related to firebase
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val Auth2ViewModel : Auth2ViewModel = viewModel()
     val authState  = Auth2ViewModel.authState.observeAsState()
@@ -57,6 +63,33 @@ fun ShelterOwnerSignUpScreen(
     var password by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val scrollState = rememberScrollState()
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+        try {
+            val account = task.getResult(ApiException::class.java)
+            val idToken = account?.idToken
+            if (idToken == null) {
+                errorMessage = "Failed to get Google ID Token."
+                return@rememberLauncherForActivityResult
+            }
+
+            // Attempt Firebase sign-up with Google
+            Auth2ViewModel.signUpWithGoogle(idToken) { success ->
+                println("Google SignIn success: $success")
+                if (success) {
+                    currentStep = 2
+                } else {
+                    errorMessage = "Google Sign-In failed. Try again."
+                }
+            }
+
+        } catch (e: ApiException) {
+            errorMessage = "Google sign in failed: ${e.message}"
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -187,7 +220,10 @@ fun ShelterOwnerSignUpScreen(
 
                     // Google Sign In Button
                     OutlinedButton(
-                        onClick = { /* Handle Google Sign In */ },
+                        onClick = { /* Handle Google Sign In */
+                            val gsoClient = getGoogleSignInClient(context)
+                            launcher.launch(gsoClient.signInIntent)
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(48.dp),

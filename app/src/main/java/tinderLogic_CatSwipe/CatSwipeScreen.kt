@@ -19,11 +19,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import androidx.compose.ui.tooling.preview.Preview
-
+import androidx.navigation.NavController
 
 
 @Composable
-fun AnimatedWelcomeText(userName: String) {
+fun AnimatedWelcomeText(
+    userName: String,
+    navController: NavController.Companion
+) {
+
     var isPink by remember { mutableStateOf(true) }
 
     val animatedColor by animateColorAsState(
@@ -71,7 +75,10 @@ fun CatSwipeScreen(userName: String) {
         Spacer(modifier = Modifier.height(20.dp))
 
 
-        AnimatedWelcomeText(userName = userName)
+        AnimatedWelcomeText(
+            navController = NavController,
+            userName = userName
+        )
 
 
         Spacer(modifier = Modifier.height(90.dp))

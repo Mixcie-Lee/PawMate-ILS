@@ -1,5 +1,9 @@
 package com.example.pawmate_ils.ui.screens
 
+import android.content.Context
+import android.util.Log.e
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -22,6 +26,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.ui.platform.LocalContext
 import com.example.pawmate_ils.Firebase_Utils.AuthViewModel
 import com.example.pawmate_ils.SharedViewModel
 import com.example.pawmate_ils.Firebase_Utils.FirestoreRepository
@@ -29,7 +34,12 @@ import com.example.pawmate_ils.firebase_models.User
 import com.google.firebase.auth.FirebaseAuth
 import com.example.pawmate_ils.ui.theme.DarkBrown
 import androidx.lifecycle.viewmodel.compose.viewModel
-
+import com.example.pawmate_ils.R
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInClient
+import com.google.android.gms.common.api.ApiException
+import com.google.firebase.auth.GoogleAuthProvider
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,10 +52,10 @@ fun SignUpScreen(
 
 ) {
     //FIREBASE AUTHENTICATION
+    val context = LocalContext.current
     val AuthViewModel : AuthViewModel = viewModel()
-   val authState  = AuthViewModel.authState.observeAsState()
+    val authState  = AuthViewModel.authState.observeAsState()
     val firestoreRepo = remember { FirestoreRepository() }
-
 
     var currentStep by remember { mutableStateOf(1) } // 1: Email, 2: About You
     var email by remember { mutableStateOf("") }
@@ -60,6 +70,33 @@ fun SignUpScreen(
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
 
+    //GOOGLE SIGN-UP/SIGN-IN HANDLER
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+        try {
+            val account = task.getResult(ApiException::class.java)
+            val idToken = account?.idToken
+            if (idToken == null) {
+                errorMessage = "Failed to get Google ID Token."
+                return@rememberLauncherForActivityResult
+            }
+
+            // Attempt Firebase sign-up with Google
+            AuthViewModel.signUpWithGoogle(idToken) { success ->
+                println("Google SignIn success: $success")
+                if (success) {
+                    currentStep = 2
+                } else {
+                    errorMessage = "Google Sign-In failed. Try again."
+                }
+            }
+
+        } catch (e: ApiException) {
+            errorMessage = "Google sign in failed: ${e.message}"
+        }
+    }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -147,7 +184,7 @@ fun SignUpScreen(
                             .padding(bottom = 16.dp)
                     )
 
-                    Button( //THIS IS THE BUTTON THAT HANDLES SIGN UPP!!
+                    Button( //THIS IS THE BUTTON THAT HANDLES SIGN UPP FOR EMAILS!!
                         onClick = {
                             if (email.isBlank()) {
                                 errorMessage = "Please enter your email"
@@ -192,9 +229,13 @@ fun SignUpScreen(
                         modifier = Modifier.padding(vertical = 8.dp)
                     )
 
-                    // Google Sign In Button
-                    OutlinedButton(
-                        onClick = { /* Handle Google Sign In */ },
+                    // Google Sign Up Button
+                    OutlinedButton( // BUTTON FOR GOOGLE SIGN UP
+                        onClick = {
+                        /* Handle Google Sign In */
+                             val gsoClient = getGoogleSignInClient(context)
+                            launcher.launch(gsoClient.signInIntent)
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(48.dp),
@@ -499,4 +540,12 @@ fun SignUpScreen(
             Spacer(modifier = Modifier.height(40.dp))
         }
     }
+
+}
+fun getGoogleSignInClient(context: Context): GoogleSignInClient {
+    val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+        .requestIdToken(context.getString(R.string.default_web_client_id))
+        .requestEmail()
+        .build()
+    return GoogleSignIn.getClient(context, gso)
 }
