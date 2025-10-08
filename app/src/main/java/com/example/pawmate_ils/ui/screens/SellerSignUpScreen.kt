@@ -215,35 +215,6 @@ fun ShelterOwnerSignUpScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Apple Sign In Button
-                    OutlinedButton(
-                        onClick = { /* Handle Apple Sign In */ },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = Color.Black
-                        ),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.LightGray),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Text(
-                                "🍎",
-                                fontSize = 18.sp,
-                                modifier = Modifier.padding(end = 8.dp)
-                            )
-                            Text(
-                                "Continue with Apple",
-                                fontSize = 14.sp
-                            )
-                        }
-                    }
 
                     Spacer(modifier = Modifier.height(32.dp))
 

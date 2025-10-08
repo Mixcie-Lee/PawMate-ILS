@@ -23,6 +23,13 @@ import androidx.navigation.NavController
 import com.example.pawmate_ils.ui.theme.DarkBrown
 import com.example.pawmate_ils.ThemeManager
 import androidx.lifecycle.viewmodel.compose.viewModel
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import coil.compose.rememberAsyncImagePainter
+import com.example.pawmate_ils.SettingsManager
+import androidx.compose.ui.platform.LocalContext
 
 
 
@@ -30,6 +37,19 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 @Composable
 fun ProfileSettingsScreen(navController: NavController, username: String = "User") {
     var isDarkMode by remember { mutableStateOf(ThemeManager.isDarkMode) }
+    val context = LocalContext.current
+    val settings = remember { SettingsManager(context) }
+    var notificationsEnabled by remember { mutableStateOf(settings.isNotificationsEnabled()) }
+    var privacyEnabled by remember { mutableStateOf(settings.isPrivacyEnabled()) }
+    var editableName by remember { mutableStateOf(settings.getUsername()) }
+    var profilePhotoUri by remember { mutableStateOf(settings.getProfilePhotoUri()?.let { Uri.parse(it) }) }
+    val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) {
+            profilePhotoUri = uri
+            settings.setProfilePhotoUri(uri.toString())
+        }
+    }
+    
     
     // Update local state when theme changes
     LaunchedEffect(Unit) {
@@ -93,15 +113,26 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                             modifier = Modifier
                                 .size(60.dp)
                                 .clip(CircleShape)
-                                .background(Color.LightGray),
+                                .background(Color.LightGray)
+                                .clickable { imagePicker.launch("image/*") },
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Person,
-                                contentDescription = "Profile",
-                                tint = Color.Gray,
-                                modifier = Modifier.size(32.dp)
-                            )
+                            if (profilePhotoUri != null) {
+                                Image(
+                                    painter = rememberAsyncImagePainter(profilePhotoUri),
+                                    contentDescription = "Profile Photo",
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clip(CircleShape)
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Person,
+                                    contentDescription = "Profile",
+                                    tint = Color.Gray,
+                                    modifier = Modifier.size(32.dp)
+                                )
+                            }
                         }
                         
                         Spacer(modifier = Modifier.width(16.dp))
@@ -109,11 +140,17 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                         Column(
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text(
-                                text = username,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = textColor
+                            OutlinedTextField(
+                                value = editableName,
+                                onValueChange = { editableName = it },
+                                singleLine = true,
+                                textStyle = LocalTextStyle.current.copy(color = textColor, fontSize = 16.sp),
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = DarkBrown,
+                                    unfocusedBorderColor = Color.Gray.copy(alpha = 0.4f),
+                                    cursorColor = DarkBrown
+                                )
                             )
                             Text(
                                 text = "description",
@@ -122,7 +159,7 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                             )
                         }
                         
-                        IconButton(onClick = { }) {
+                        IconButton(onClick = { settings.setUsername(editableName) }) {
                             Icon(
                                 imageVector = Icons.Default.Edit,
                                 contentDescription = "Edit",
@@ -145,9 +182,13 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                         SettingsItem(
                             label = "Notifications",
                             hasSwitch = true,
-                            isEnabled = true,
+                            isEnabled = notificationsEnabled,
                             textColor = textColor,
-                            secondaryTextColor = secondaryTextColor
+                            secondaryTextColor = secondaryTextColor,
+                            onToggle = {
+                                notificationsEnabled = !notificationsEnabled
+                                settings.setNotificationsEnabled(notificationsEnabled)
+                            }
                         )
                         
                         Divider(color = if (isDarkMode) Color.Gray.copy(alpha = 0.3f) else Color.LightGray.copy(alpha = 0.5f))
@@ -155,9 +196,13 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                         SettingsItem(
                             label = "Privacy",
                             hasSwitch = true,
-                            isEnabled = false,
+                            isEnabled = privacyEnabled,
                             textColor = textColor,
-                            secondaryTextColor = secondaryTextColor
+                            secondaryTextColor = secondaryTextColor,
+                            onToggle = {
+                                privacyEnabled = !privacyEnabled
+                                settings.setPrivacyEnabled(privacyEnabled)
+                            }
                         )
                         
                         Divider(color = if (isDarkMode) Color.Gray.copy(alpha = 0.3f) else Color.LightGray.copy(alpha = 0.5f))
@@ -181,7 +226,7 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                             hasSwitch = false,
                             textColor = textColor,
                             secondaryTextColor = secondaryTextColor,
-                            onClick = { }
+                            onClick = { navController.navigate("account_settings") }
                         )
                         
                         Divider(color = if (isDarkMode) Color.Gray.copy(alpha = 0.3f) else Color.LightGray.copy(alpha = 0.5f))
@@ -191,7 +236,7 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                             hasSwitch = false,
                             textColor = textColor,
                             secondaryTextColor = secondaryTextColor,
-                            onClick = { }
+                            onClick = { navController.navigate("help_support") }
                         )
                         
                         Divider(color = if (isDarkMode) Color.Gray.copy(alpha = 0.3f) else Color.LightGray.copy(alpha = 0.5f))
@@ -201,7 +246,7 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                             hasSwitch = false,
                             textColor = textColor,
                             secondaryTextColor = secondaryTextColor,
-                            onClick = { }
+                            onClick = { navController.navigate("about_app") }
                         )
                     }
                 }

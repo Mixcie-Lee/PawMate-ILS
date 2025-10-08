@@ -18,6 +18,10 @@ object OnboardingData {
         OnboardingModel(
             title = "For Pet Adopters & Families",
             description = "Discover a wide variety of pets waiting for a forever home. Browse detailed profiles, learn about each animal's story, and connect directly with shelters. PawMate is here to help you find the perfect companion and make adoption a rewarding experience."
+        ),
+        OnboardingModel(
+            title = "Terms & Privacy",
+            description = "By using PawMate, you agree to our Terms of Service and Privacy Policy. We are committed to protecting your privacy and ensuring a safe, secure environment for all users. Your data is encrypted and never shared without your consent."
         )
     )
 }

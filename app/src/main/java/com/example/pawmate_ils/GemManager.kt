@@ -41,8 +41,8 @@ class GemManager {
 }
 
 enum class GemPackage(val gemAmount: Int, val price: String) {
-    SMALL(5, "$0.99"),
-    MEDIUM(15, "$2.99"),
-    LARGE(30, "$4.99"),
-    MEGA(60, "$8.99")
+    SMALL(5, "₱49"),
+    MEDIUM(15, "₱149"),
+    LARGE(30, "₱249"),
+    MEGA(60, "₱449")
 }

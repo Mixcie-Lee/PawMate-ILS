@@ -22,7 +22,6 @@ import com.example.pawmate_ils.ui.screens.LoginScreen
 import com.example.pawmate_ils.ui.screens.SignUpScreen
 import com.example.pawmate_ils.ui.screens.UserTypeSelectionScreen
 import TinderLogic_PetSwipe.PetSwipeScreen
-import TinderLogic_CatSwipe.CatSwipeScreen
 import android.view.View
 import android.view.WindowManager
 import androidx.activity.viewModels
@@ -32,15 +31,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.pawmate_ils.SharedViewModel
+import com.example.pawmate_ils.ThemeManager
 import com.example.pawmate_ils.ui.screens.ShelterOwnerSignUpScreen
 import com.example.pawmate_ils.ui.screens.ShelterOwnerLoginScreen
 import com.example.pawmate_ils.ui.screens.AdoptionCenterDashboard
 import com.example.pawmate_ils.ui.screens.AdoptionCenterApplications
 import com.example.pawmate_ils.ui.screens.AdoptionCenterPets
 import com.example.pawmate_ils.ui.theme.PawMateILSTheme
-import com.example.pawmate_ils.PetSelectionScreen
-import com.example.pawmate_ils.ui.screens.AdopterHomeScreen
+import TinderLogic_PetSwipe.AdopterLikeScreen
 import com.example.pawmate_ils.ui.screens.ProfileSettingsScreen
+import com.example.pawmate_ils.ui.screens.AccountSettingsScreen
+import com.example.pawmate_ils.onboard.OnboardingScreen
+import com.example.pawmate_ils.onboard.OnboardingUtil
 import com.google.firebase.Firebase
 import com.google.firebase.app
 import com.google.firebase.auth.FirebaseAuth
@@ -75,7 +77,7 @@ class MainActivity : ComponentActivity() {
                         View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                 )
         setContent {
-            PawMateILSTheme {
+            PawMateILSTheme(darkTheme = ThemeManager.isDarkMode) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -87,34 +89,62 @@ class MainActivity : ComponentActivity() {
                     val auth: FirebaseAuth = FirebaseAuth.getInstance()
                     val db: FirebaseFirestore = FirebaseFirestore.getInstance()
                     val context = LocalContext.current
-                    val navController =
-                        rememberNavController()//DITO KO NILAGAY, PARA PASOK SA SCOPE YUNG CODE KO DITO SA
-                    //LAUNCHED EFFECT :D
-                    var startDestination = "user_type" //nilagay koto pang determine ng start destination ng app
-                        //if authenticated si user go sila sa respective destination page and wil bypass the user type but if not
-                        // they will undergo user_type composable
-
-
+                    val navController = rememberNavController()
+                    val onboardingUtil = OnboardingUtil(context)
+                    
+                    // Determine start destination synchronously
+                    val startDestination = remember {
+                        // Reset onboarding for testing - this forces onboarding to show
+                        context.getSharedPreferences("onboarding", android.content.Context.MODE_PRIVATE)
+                            .edit()
+                            .putBoolean("completed", false)
+                            .apply()
+                        
+                        val isCompleted = onboardingUtil.isOnboardingCompleted()
+                        if (!isCompleted) {
+                            "onboarding"
+                        } else {
+                            "user_type"
+                        }
+                    }
+                    
+                    // Handle authenticated user navigation after NavHost is created
                     LaunchedEffect(Unit) {
-                        val currentUser = auth.currentUser
-                        if (currentUser != null) {
-                            // Authenticated, fetch role
-                            try {
-                                val snapshot = db.collection("users").document(currentUser.uid).get().await()
-                                val role = snapshot.getString("role")
-                                startDestination = when (role) {
-                                    "adopter" -> "pet_selection"
-                                    "shelter" -> "adoption_center_dashboard"
-                                    else -> "user_type"
+                        if (onboardingUtil.isOnboardingCompleted()) {
+                            val currentUser = auth.currentUser
+                            if (currentUser != null) {
+                                try {
+                                    val snapshot = db.collection("users").document(currentUser.uid).get().await()
+                                    val role = snapshot.getString("role")
+                                    val destination = when (role) {
+                                        "adopter" -> "pet_swipe"
+                                        "shelter" -> "adoption_center_dashboard"
+                                        else -> "user_type"
+                                    }
+                                    if (destination != "user_type") {
+                                        navController.navigate(destination) {
+                                            popUpTo("user_type") { inclusive = true }
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    // Stay on user_type if there's an error
                                 }
-                            } catch (e: Exception) {
-                                startDestination = "user_type" // fallback
                             }
                         }
                     }
 
 
                         NavHost(navController = navController, startDestination = startDestination) {
+                            composable("onboarding") {
+                                OnboardingScreen(
+                                    onComplete = {
+                                        onboardingUtil.setOnboardingCompleted()
+                                        navController.navigate("user_type") {
+                                            popUpTo("onboarding") { inclusive = true }
+                                        }
+                                    }
+                                )
+                            }
                             composable("user_type") {
                                 UserTypeSelectionScreen(navController = navController)
                             }
@@ -123,7 +153,7 @@ class MainActivity : ComponentActivity() {
                                     navController = navController,
 
                                     onSignUpClick = { _, _, _, _ ->
-                                        navController.navigate("pet_selection") {
+                                        navController.navigate("pet_swipe") {
                                             popUpTo("user_type") { inclusive = true }
                                             launchSingleTop = true
                                         }
@@ -146,7 +176,7 @@ class MainActivity : ComponentActivity() {
                             composable("login") {
                                 LoginScreen(
                                     onLoginClick = { _, _ ->
-                                        navController.navigate("pet_selection") {
+                                        navController.navigate("pet_swipe") {
                                             popUpTo("user_type") { inclusive = true }
                                             launchSingleTop = true
                                         }
@@ -231,20 +261,11 @@ class MainActivity : ComponentActivity() {
                             composable("adoption_center_statistics") { Text("Statistics - Coming Soon") }
                             composable("settings") { Text("Settings - Coming Soon") }
                             composable("add_pet") { Text("Add Pet - Coming Soon") }
-                            composable("pet_selection") {
-                                PetSelectionScreen(
-                                    navController = navController,
-                                    userName = sharedViewModel.username.value ?: "User"
-                                )
-                            }
                             composable("pet_swipe") {
                                 PetSwipeScreen(navController = navController)
                             }
-                            composable("cat_swipe") {
-                                CatSwipeScreen(navController = navController)
-                            }
                             composable("adopter_home") {
-                                AdopterHomeScreen(navController = navController)
+                                AdopterLikeScreen(navController = navController)
                             }
                             composable("profile_settings") {
                                 ProfileSettingsScreen(
@@ -253,6 +274,9 @@ class MainActivity : ComponentActivity() {
                                 )
 
                             }
+                            composable("account_settings") { AccountSettingsScreen(navController = navController) }
+                            composable("help_support") { Text("Help & Support - Coming Soon") }
+                            composable("about_app") { Text("About - Coming Soon") }
                         }
                     }
                 }
