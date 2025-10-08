@@ -4,6 +4,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
 
 class AuthViewModel : ViewModel() {
@@ -28,7 +29,7 @@ class AuthViewModel : ViewModel() {
         }
     }
 
-    fun signUp(email: String, password: String) {
+    fun signUp(email: String, password: String) { //HANDLES EMAIL SIGN UP
         _authState.value = AuthState.Loading
         auth.createUserWithEmailAndPassword(email, password)
             .addOnCompleteListener { task ->
@@ -40,7 +41,7 @@ class AuthViewModel : ViewModel() {
             }
     }
 
-    fun signIn(email: String, password: String) {
+    fun signIn(email: String, password: String) { //HANDLES EMAIL SIGN-IN / LOGIN
         _authState.value = AuthState.Loading
         auth.signInWithEmailAndPassword(email, password)
             .addOnCompleteListener { task ->
@@ -48,6 +49,20 @@ class AuthViewModel : ViewModel() {
                     _authState.value = AuthState.Authenticated
                 } else {
                     _authState.value = AuthState.Error(task.exception?.message ?: "Sign-in failed")
+                }
+            }
+    }
+    fun signUpWithGoogle(idToken: String, onResult: (Boolean) -> Unit){ //HANDLES GOOGLE SIGN-UP AND SIGN IN/LOGIN
+        _authState.value = AuthState.Loading
+        val credential = GoogleAuthProvider.getCredential(idToken, null)
+        auth.signInWithCredential(credential)
+            .addOnCompleteListener { task ->
+                if(task.isSuccessful){
+                    _authState.value = AuthState.Authenticated
+                    onResult(true)
+                }else{
+                    _authState.value = AuthState.Error(task.exception?.message ?: "Sign-up failed")
+                   onResult(false)
                 }
             }
     }
