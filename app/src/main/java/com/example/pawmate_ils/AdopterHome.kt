@@ -109,7 +109,7 @@ fun AdopterHomeScreen(
             CenterAlignedTopAppBar(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(color = DarkBrown),
+                    .background(color = Color(0xFFFFB6C1)),
                 title = {
                     Text(
                         text = "Profile",
@@ -123,7 +123,7 @@ fun AdopterHomeScreen(
                         },
                 
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = DarkBrown
+                    containerColor = Color(0xFFFFB6C1)
                 )
             )
 
@@ -131,7 +131,7 @@ fun AdopterHomeScreen(
 
         bottomBar = {
             NavigationBar(
-                modifier = Modifier.background(DarkBrown)
+                modifier = Modifier.background(Color(0xFFFFB6C1))
                     .fillMaxWidth(),
                 )
             {
@@ -145,7 +145,7 @@ fun AdopterHomeScreen(
                             Icon(
                                 imageVector = navItem.icon,
                                 contentDescription = navItem.label,
-                                tint = DarkBrown
+                                tint = Color(0xFFFFB6C1)
 
                             )
                         },
@@ -228,7 +228,7 @@ fun AdopterHomeScreen(
                 .width(200.dp)
                 .offset(y = 90.dp)
                 .height(170.dp),
-            colors = CardDefaults.cardColors(containerColor = DarkBrown),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFB6C1)),
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
 
             ) {

@@ -118,7 +118,7 @@ fun PetCard(pet: Pet1) {
             
             Row {
                 IconButton(onClick = { /* Edit pet */ }) {
-                    Icon(Icons.Default.Edit, "Edit", tint = DarkBrown)
+                    Icon(Icons.Default.Edit, "Edit", tint = Color(0xFFFFB6C1))
                 }
                 IconButton(onClick = { /* Delete pet */ }) {
                     Icon(Icons.Default.Delete, "Delete", tint = Color.Red)

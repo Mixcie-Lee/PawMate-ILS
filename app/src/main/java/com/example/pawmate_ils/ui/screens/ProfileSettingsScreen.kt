@@ -10,6 +10,9 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -51,14 +55,15 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
     }
     
     
-    // Update local state when theme changes
     LaunchedEffect(Unit) {
         isDarkMode = ThemeManager.isDarkMode
     }
-    val backgroundColor = if (isDarkMode) Color(0xFF121212) else Color(0xFFF5F5F5)
-    val cardColor = if (isDarkMode) Color(0xFF1E1E1E) else Color.White
+    val backgroundColor = if (isDarkMode) Color(0xFF1A1A1A) else Color(0xFFFFF0F5)
+    val cardColor = if (isDarkMode) Color(0xFF2A2A2A) else Color.White
     val textColor = if (isDarkMode) Color.White else Color.Black
     val secondaryTextColor = if (isDarkMode) Color.Gray else Color.Gray
+    val primaryColor = if (isDarkMode) Color(0xFFFF9999) else Color(0xFFFFB6C1)
+    val accentColor = if (isDarkMode) Color(0xFFB39DDB) else Color(0xFFDDA0DD)
     
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -95,157 +100,302 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                     .fillMaxSize()
                     .padding(16.dp)
             ) {
-                Card(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 24.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = cardColor),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                        .padding(bottom = 32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Row(
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                            .size(100.dp)
+                            .clip(CircleShape)
+                            .background(
+                                androidx.compose.ui.graphics.Brush.linearGradient(
+                                    colors = listOf(
+                                        primaryColor.copy(alpha = 0.8f),
+                                        primaryColor.copy(alpha = 0.6f)
+                                    )
+                                )
+                            )
+                            .clickable { imagePicker.launch("image/*") },
+                        contentAlignment = Alignment.Center
                     ) {
+                        if (profilePhotoUri != null) {
+                            Image(
+                                painter = rememberAsyncImagePainter(profilePhotoUri),
+                                contentDescription = "Profile Photo",
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(CircleShape)
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = "Profile",
+                                tint = Color.White,
+                                modifier = Modifier.size(50.dp)
+                            )
+                        }
+                        
                         Box(
                             modifier = Modifier
-                                .size(60.dp)
+                                .align(Alignment.BottomEnd)
+                                .size(32.dp)
                                 .clip(CircleShape)
-                                .background(Color.LightGray)
-                                .clickable { imagePicker.launch("image/*") },
+                                .background(primaryColor),
                             contentAlignment = Alignment.Center
                         ) {
-                            if (profilePhotoUri != null) {
-                                Image(
-                                    painter = rememberAsyncImagePainter(profilePhotoUri),
-                                    contentDescription = "Profile Photo",
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .clip(CircleShape)
-                                )
-                            } else {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Edit Photo",
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    OutlinedTextField(
+                        value = editableName,
+                        onValueChange = { editableName = it },
+                        singleLine = true,
+                        textStyle = LocalTextStyle.current.copy(
+                            color = textColor, 
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            textAlign = TextAlign.Center
+                        ),
+                        modifier = Modifier.fillMaxWidth(0.8f),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = primaryColor,
+                            unfocusedBorderColor = Color.Gray.copy(alpha = 0.3f),
+                            cursorColor = primaryColor
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        trailingIcon = {
+                            IconButton(onClick = { settings.setUsername(editableName) }) {
                                 Icon(
-                                    imageVector = Icons.Default.Person,
-                                    contentDescription = "Profile",
-                                    tint = Color.Gray,
-                                    modifier = Modifier.size(32.dp)
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "Save",
+                                    tint = primaryColor,
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
                         }
-                        
-                        Spacer(modifier = Modifier.width(16.dp))
-                        
+                    )
+                    
+                    Text(
+                        text = "Dog lover",
+                        fontSize = 14.sp,
+                        color = secondaryTextColor,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 32.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Card(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(100.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = primaryColor
+                        ),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
                         Column(
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
                         ) {
-                            OutlinedTextField(
-                                value = editableName,
-                                onValueChange = { editableName = it },
-                                singleLine = true,
-                                textStyle = LocalTextStyle.current.copy(color = textColor, fontSize = 16.sp),
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = DarkBrown,
-                                    unfocusedBorderColor = Color.Gray.copy(alpha = 0.4f),
-                                    cursorColor = DarkBrown
-                                )
+                            Text(
+                                text = "00",
+                                fontSize = 32.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
                             )
                             Text(
-                                text = "description",
+                                text = "LIKED PETS",
                                 fontSize = 12.sp,
-                                color = secondaryTextColor
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White
                             )
                         }
-                        
-                        IconButton(onClick = { settings.setUsername(editableName) }) {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = "Edit",
-                                tint = Color.Gray,
-                                modifier = Modifier.size(20.dp)
+                    }
+
+                    Card(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(100.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = accentColor
+                        ),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = "00",
+                                fontSize = 32.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "GEMS",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White
                             )
                         }
                     }
                 }
 
+                Text(
+                    text = "Settings",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = textColor,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+                
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 24.dp),
+                    shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = cardColor),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
                     Column(
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        SettingsItem(
+                        ModernSettingsItem(
+                            icon = Icons.Default.Person,
                             label = "Notifications",
+                            subtitle = "Manage your notifications",
                             hasSwitch = true,
                             isEnabled = notificationsEnabled,
                             textColor = textColor,
                             secondaryTextColor = secondaryTextColor,
+                            primaryColor = primaryColor,
                             onToggle = {
                                 notificationsEnabled = !notificationsEnabled
                                 settings.setNotificationsEnabled(notificationsEnabled)
                             }
                         )
                         
-                        Divider(color = if (isDarkMode) Color.Gray.copy(alpha = 0.3f) else Color.LightGray.copy(alpha = 0.5f))
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            color = if (isDarkMode) Color.Gray.copy(alpha = 0.2f) else Color.LightGray.copy(alpha = 0.3f)
+                        )
                         
-                        SettingsItem(
+                        ModernSettingsItem(
+                            icon = Icons.Default.Person,
                             label = "Privacy",
+                            subtitle = "Control your privacy settings",
                             hasSwitch = true,
                             isEnabled = privacyEnabled,
                             textColor = textColor,
                             secondaryTextColor = secondaryTextColor,
+                            primaryColor = primaryColor,
                             onToggle = {
                                 privacyEnabled = !privacyEnabled
                                 settings.setPrivacyEnabled(privacyEnabled)
                             }
                         )
                         
-                        Divider(color = if (isDarkMode) Color.Gray.copy(alpha = 0.3f) else Color.LightGray.copy(alpha = 0.5f))
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            color = if (isDarkMode) Color.Gray.copy(alpha = 0.2f) else Color.LightGray.copy(alpha = 0.3f)
+                        )
                         
-                        SettingsItem(
+                        ModernSettingsItem(
+                            icon = Icons.Default.Person,
                             label = "Dark Mode",
+                            subtitle = "Toggle dark theme",
                             hasSwitch = true,
                             isEnabled = isDarkMode,
                             textColor = textColor,
                             secondaryTextColor = secondaryTextColor,
+                            primaryColor = primaryColor,
                             onToggle = { 
                                 ThemeManager.toggleDarkMode()
                                 isDarkMode = ThemeManager.isDarkMode
                             }
                         )
-                        
-                        Divider(color = if (isDarkMode) Color.Gray.copy(alpha = 0.3f) else Color.LightGray.copy(alpha = 0.5f))
-                        
-                        SettingsItem(
+                    }
+                }
+                
+                Text(
+                    text = "General",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = textColor,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+                
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = cardColor),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        ModernSettingsItem(
+                            icon = Icons.Default.Person,
                             label = "Account Settings",
+                            subtitle = "Manage your account",
                             hasSwitch = false,
                             textColor = textColor,
                             secondaryTextColor = secondaryTextColor,
+                            primaryColor = primaryColor,
                             onClick = { navController.navigate("account_settings") }
                         )
                         
-                        Divider(color = if (isDarkMode) Color.Gray.copy(alpha = 0.3f) else Color.LightGray.copy(alpha = 0.5f))
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            color = if (isDarkMode) Color.Gray.copy(alpha = 0.2f) else Color.LightGray.copy(alpha = 0.3f)
+                        )
                         
-                        SettingsItem(
+                        ModernSettingsItem(
+                            icon = Icons.Default.Person,
                             label = "Help & Support",
+                            subtitle = "Get help and contact us",
                             hasSwitch = false,
                             textColor = textColor,
                             secondaryTextColor = secondaryTextColor,
+                            primaryColor = primaryColor,
                             onClick = { navController.navigate("help_support") }
                         )
                         
-                        Divider(color = if (isDarkMode) Color.Gray.copy(alpha = 0.3f) else Color.LightGray.copy(alpha = 0.5f))
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            color = if (isDarkMode) Color.Gray.copy(alpha = 0.2f) else Color.LightGray.copy(alpha = 0.3f)
+                        )
                         
-                        SettingsItem(
+                        ModernSettingsItem(
+                            icon = Icons.Default.Person,
                             label = "About",
+                            subtitle = "App version and info",
                             hasSwitch = false,
                             textColor = textColor,
                             secondaryTextColor = secondaryTextColor,
+                            primaryColor = primaryColor,
                             onClick = { navController.navigate("about_app") }
                         )
                     }
@@ -262,6 +412,7 @@ fun SettingsItem(
     isEnabled: Boolean = false,
     textColor: Color = Color.Black,
     secondaryTextColor: Color = Color.Gray,
+    primaryColor: Color = Color(0xFFFFB6C1),
     onClick: (() -> Unit)? = null,
     onToggle: (() -> Unit)? = null
 ) {
@@ -296,7 +447,7 @@ fun SettingsItem(
                 },
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = Color.White,
-                    checkedTrackColor = DarkBrown,
+                    checkedTrackColor = primaryColor,
                     uncheckedThumbColor = Color.White,
                     uncheckedTrackColor = Color.Gray
                 )
@@ -306,6 +457,92 @@ fun SettingsItem(
                 imageVector = Icons.Default.ArrowForward,
                 contentDescription = "Navigate",
                 tint = secondaryTextColor,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun ModernSettingsItem(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    subtitle: String,
+    hasSwitch: Boolean,
+    isEnabled: Boolean = false,
+    textColor: Color = Color.Black,
+    secondaryTextColor: Color = Color.Gray,
+    primaryColor: Color = Color(0xFFFFB6C1),
+    onClick: (() -> Unit)? = null,
+    onToggle: (() -> Unit)? = null
+) {
+    var switchState by remember { mutableStateOf(isEnabled) }
+    
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .let { mod ->
+                if (!hasSwitch && onClick != null) {
+                    mod.clickableWithoutRipple { onClick() }
+                } else {
+                    mod
+                }
+            }
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(primaryColor.copy(alpha = 0.15f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = primaryColor,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+        
+        Spacer(modifier = Modifier.width(16.dp))
+        
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
+            Text(
+                text = label,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+                color = textColor
+            )
+            Text(
+                text = subtitle,
+                fontSize = 13.sp,
+                color = secondaryTextColor.copy(alpha = 0.7f)
+            )
+        }
+        
+        if (hasSwitch) {
+            Switch(
+                checked = switchState,
+                onCheckedChange = { 
+                    switchState = it
+                    onToggle?.invoke()
+                },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Color.White,
+                    checkedTrackColor = primaryColor,
+                    uncheckedThumbColor = Color.White,
+                    uncheckedTrackColor = Color.Gray.copy(alpha = 0.3f)
+                )
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Default.ArrowForward,
+                contentDescription = "Navigate",
+                tint = secondaryTextColor.copy(alpha = 0.5f),
                 modifier = Modifier.size(20.dp)
             )
         }

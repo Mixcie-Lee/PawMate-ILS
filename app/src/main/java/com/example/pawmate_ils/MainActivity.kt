@@ -41,6 +41,7 @@ import com.example.pawmate_ils.ui.theme.PawMateILSTheme
 import TinderLogic_PetSwipe.AdopterLikeScreen
 import com.example.pawmate_ils.ui.screens.ProfileSettingsScreen
 import com.example.pawmate_ils.ui.screens.AccountSettingsScreen
+import com.example.pawmate_ils.ui.screens.EducationalScreen
 import com.example.pawmate_ils.onboard.OnboardingScreen
 import com.example.pawmate_ils.onboard.OnboardingUtil
 import com.google.firebase.Firebase
@@ -275,6 +276,7 @@ class MainActivity : ComponentActivity() {
 
                             }
                             composable("account_settings") { AccountSettingsScreen(navController = navController) }
+                            composable("educational") { EducationalScreen(navController = navController) }
                             composable("help_support") { Text("Help & Support - Coming Soon") }
                             composable("about_app") { Text("About - Coming Soon") }
                         }

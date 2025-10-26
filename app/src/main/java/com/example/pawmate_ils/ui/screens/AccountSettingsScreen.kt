@@ -44,7 +44,7 @@ fun AccountSettingsScreen(navController: NavController) {
             OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") }, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(value = phone, onValueChange = { phone = it }, label = { Text("Phone") }, modifier = Modifier.fillMaxWidth())
 
-            Button(onClick = { /* TODO: Save email/phone to backend */ }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = DarkBrown, contentColor = Color.White)) {
+            Button(onClick = { /* TODO: Save email/phone to backend */ }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFB6C1), contentColor = Color.White)) {
                 Text("Save Profile")
             }
 
@@ -53,7 +53,7 @@ fun AccountSettingsScreen(navController: NavController) {
             OutlinedTextField(value = currentPassword, onValueChange = { currentPassword = it }, label = { Text("Current Password") }, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
             OutlinedTextField(value = newPassword, onValueChange = { newPassword = it }, label = { Text("New Password") }, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
             OutlinedTextField(value = confirmPassword, onValueChange = { confirmPassword = it }, label = { Text("Confirm New Password") }, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
-            Button(onClick = { /* TODO: Update password backend */ }, enabled = newPassword.isNotBlank() && newPassword == confirmPassword, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = DarkBrown, contentColor = Color.White)) {
+            Button(onClick = { /* TODO: Update password backend */ }, enabled = newPassword.isNotBlank() && newPassword == confirmPassword, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFB6C1), contentColor = Color.White)) {
                 Text("Update Password")
             }
 
