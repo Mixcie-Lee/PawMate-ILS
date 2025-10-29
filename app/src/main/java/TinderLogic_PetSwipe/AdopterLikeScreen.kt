@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
@@ -64,21 +65,106 @@ fun AdopterLikeScreen(navController: NavController) {
     val authState = AuthViewModel.authState.observeAsState()
     val context = LocalContext.current
     
-    // Get liked pets from the manager
     val likedPets by remember { derivedStateOf { LikedPetsManager.likedPets } }
     
-    // Responsive design
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
     val isTablet = screenWidth >= 600.dp
     
-    // Dark mode support
     val isDarkMode = ThemeManager.isDarkMode
-    val backgroundColor = if (isDarkMode) Color(0xFF121212) else Color.White
-    val textColor = if (isDarkMode) Color.White else DarkBrown
-    val cardColor = if (isDarkMode) Color(0xFF1E1E1E) else Color.White
+    val backgroundColor = if (isDarkMode) Color(0xFF1A1A1A) else Color(0xFFFFF0F5)
+    val textColor = if (isDarkMode) Color.White else Color.Black
+    val cardColor = if (isDarkMode) Color(0xFF2A2A2A) else Color.White
+    val navBarColor = if (isDarkMode) Color(0xFF1E1E1E) else Color.White
+    val primaryColor = if (isDarkMode) Color(0xFFFF9999) else Color(0xFFFFB6C1)
+    val accentColor = if (isDarkMode) Color(0xFFB39DDB) else Color(0xFFDDA0DD)
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Scaffold(
+        bottomBar = {
+            NavigationBar(
+                containerColor = navBarColor,
+                contentColor = textColor,
+                tonalElevation = 8.dp
+            ) {
+                NavigationBarItem(
+                    icon = { 
+                        Icon(
+                            Icons.Default.Pets, 
+                            contentDescription = "Swipe",
+                            tint = Color.Gray.copy(alpha = 0.6f)
+                        ) 
+                    },
+                    label = { Text("Swipe", color = Color.Gray.copy(alpha = 0.6f)) },
+                    selected = false,
+                    onClick = { navController.navigate("pet_swipe") },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = Color(0xFFFF9999),
+                        selectedTextColor = Color(0xFFFF9999),
+                        indicatorColor = Color(0xFFFFD6E0)
+                    )
+                )
+                NavigationBarItem(
+                    icon = { 
+                        Image(
+                            painter = painterResource(id = R.drawable.heart),
+                            contentDescription = "Liked",
+                            modifier = Modifier.size(24.dp),
+                            colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(Color(0xFFFF9999))
+                        )
+                    },
+                    label = { Text("Liked", color = Color(0xFFFF9999), fontWeight = FontWeight.Bold) },
+                    selected = true,
+                    onClick = { },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = Color(0xFFFF9999),
+                        selectedTextColor = Color(0xFFFF9999),
+                        indicatorColor = Color(0xFFFFD6E0)
+                    )
+                )
+                NavigationBarItem(
+                    icon = { 
+                        Image(
+                            painter = painterResource(id = R.drawable.book_open),
+                            contentDescription = "Learn",
+                            modifier = Modifier.size(24.dp),
+                            colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(
+                                Color.Gray.copy(alpha = 0.6f)
+                            )
+                        )
+                    },
+                    label = { Text("Learn", color = Color.Gray.copy(alpha = 0.6f)) },
+                    selected = false,
+                    onClick = { navController.navigate("educational") },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = Color(0xFFFF9999),
+                        selectedTextColor = Color(0xFFFF9999),
+                        indicatorColor = Color(0xFFFFD6E0)
+                    )
+                )
+                NavigationBarItem(
+                    icon = { 
+                        Image(
+                            painter = painterResource(id = R.drawable.profile_d),
+                            contentDescription = "Profile",
+                            modifier = Modifier.size(24.dp),
+                            colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(
+                                Color.Gray.copy(alpha = 0.6f)
+                            )
+                        )
+                    },
+                    label = { Text("Profile", color = Color.Gray.copy(alpha = 0.6f)) },
+                    selected = false,
+                    onClick = { navController.navigate("profile_settings") },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = Color(0xFFFF9999),
+                        selectedTextColor = Color(0xFFFF9999),
+                        indicatorColor = Color(0xFFFFD6E0)
+                    )
+                )
+            }
+        }
+    ) { paddingValues ->
+        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
@@ -96,6 +182,7 @@ fun AdopterLikeScreen(navController: NavController) {
                 title = {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
                         modifier = Modifier.clickable {
                             tapCount++
                             if (tapCount >= 4) {
@@ -104,23 +191,29 @@ fun AdopterLikeScreen(navController: NavController) {
                             }
                         }
                     ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.pawmate_logo),
+                            contentDescription = "PawMate Logo",
+                            modifier = Modifier.size(if (isTablet) 32.dp else 28.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
                         Icon(
                             imageVector = Icons.Default.Favorite,
                             contentDescription = "Liked",
                             tint = Color.Red,
                             modifier = Modifier.size(if (isTablet) 28.dp else 24.dp)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "Liked Pets (${likedPets.size})",
-                            fontSize = if (isTablet) 22.sp else 20.sp,
+                            text = "Liked (${likedPets.size})",
+                            fontSize = if (isTablet) 22.sp else 18.sp,
                             fontWeight = FontWeight.Bold,
                             color = textColor
                         )
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = backgroundColor
+                    containerColor = Color(0xFFFFF0F5)
                 ),
                 actions = {
                     Row(
@@ -128,7 +221,7 @@ fun AdopterLikeScreen(navController: NavController) {
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Card(
-                            colors = CardDefaults.cardColors(containerColor = DarkBrown),
+                            colors = CardDefaults.cardColors(containerColor = accentColor),
                             shape = RoundedCornerShape(20.dp)
                         ) {
                             Row(
@@ -152,7 +245,7 @@ fun AdopterLikeScreen(navController: NavController) {
                         FloatingActionButton(
                             onClick = { showGemDialog = true },
                             modifier = Modifier.size(if (isTablet) 36.dp else 32.dp),
-                            containerColor = DarkBrown,
+                            containerColor = accentColor,
                             contentColor = Color.White,
                             elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 2.dp)
                         ) {
@@ -198,7 +291,7 @@ fun AdopterLikeScreen(navController: NavController) {
                     )
                     Button(
                         onClick = { navController.navigate("pet_swipe") },
-                        colors = ButtonDefaults.buttonColors(containerColor = DarkBrown),
+                        colors = ButtonDefaults.buttonColors(containerColor = primaryColor),
                         shape = RoundedCornerShape(28.dp),
                         modifier = Modifier
                             .fillMaxWidth(if (isTablet) 0.5f else 0.8f)
@@ -233,14 +326,12 @@ fun AdopterLikeScreen(navController: NavController) {
             }
         }
 
-        // Dog emoji animation
         if (showDogAnimation) {
             DogEmojiAnimation(
                 onAnimationComplete = { showDogAnimation = false }
             )
         }
 
-        // Gem Purchase Dialog
         if (showGemDialog) {
             GemPurchaseDialog(
                 onDismiss = { showGemDialog = false },
@@ -249,6 +340,7 @@ fun AdopterLikeScreen(navController: NavController) {
                     showGemDialog = false
                 }
             )
+        }
         }
     }
 }

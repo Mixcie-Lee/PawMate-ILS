@@ -2,6 +2,7 @@ package com.example.pawmate_ils.ui.screens
 
 import android.util.Log
 import android.widget.Toast
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -12,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -20,6 +22,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.pawmate_ils.Firebase_Utils.AuthState
 import com.example.pawmate_ils.Firebase_Utils.AuthViewModel
+import com.example.pawmate_ils.R
 import com.example.pawmate_ils.ui.theme.DarkBrown
 import com.example.pawmate_ils.ui.theme.LightGray
 import com.google.firebase.auth.FirebaseAuth
@@ -60,115 +63,84 @@ fun UserTypeSelectionScreen(
 
 
 
-    var selectedOption by remember { mutableStateOf<String?>(null) }
     
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(
+                androidx.compose.ui.graphics.Brush.verticalGradient(
+                    colors = listOf(
+                        Color(0xFFFFF0F5),
+                        Color(0xFFFFE4E9),
+                        Color(0xFFFFD6E0)
+                    )
+                )
+            )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 24.dp),
+                .padding(horizontal = 32.dp, vertical = 48.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            Spacer(modifier = Modifier.height(40.dp))
+            
+            Image(
+                painter = painterResource(id = R.drawable.pawmate_logo),
+                contentDescription = "PawMate Logo",
+                modifier = Modifier
+                    .size(120.dp)
+                    .padding(bottom = 24.dp)
+            )
+            
             Text(
-                text = "Are you a...",
-                style = MaterialTheme.typography.headlineMedium.copy(
-                    fontWeight = FontWeight.Normal,
-                    color = Color.Black,
-                    fontSize = 24.sp
-                ),
+                text = "Welcome to PawMate!",
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(bottom = 48.dp)
             )
 
-            // Adopter Option
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (selectedOption == "adopter") LightGray else Color.White
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                onClick = { selectedOption = "adopter" }
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Adopter?",
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.Normal,
-                            color = Color.Black,
-                            fontSize = 20.sp
-                        )
-                    )
-                }
-            }
-
-            // Animal Shelter Owner Option
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 48.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (selectedOption == "shelter") LightGray else Color.White
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                onClick = { selectedOption = "shelter" }
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Animal Shelter Owner?",
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.Normal,
-                            color = Color.Black,
-                            fontSize = 20.sp
-                        )
-                    )
-                }
-            }
-
-            // Submit Button
             Button(
                 onClick = {
-                    when (selectedOption) {
-                        "adopter" -> navController.navigate("signup")
-                        "shelter" -> navController.navigate("seller_signup")
-                    }
+                    navController.navigate("signup")
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(50.dp),
+                    .height(56.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = DarkBrown,
+                    containerColor = Color(0xFFFFB6C1),
                     contentColor = Color.White
                 ),
-                shape = RoundedCornerShape(8.dp),
-                enabled = selectedOption != null
+                shape = RoundedCornerShape(28.dp),
+                elevation = ButtonDefaults.buttonElevation(
+                    defaultElevation = 0.dp,
+                    pressedElevation = 2.dp
+                )
             ) {
                 Text(
-                    text = "Submit",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 16.sp
-                    )
+                    text = "Get Started",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            TextButton(
+                onClick = { navController.navigate("seller_signup") }
+            ) {
+                Text(
+                    text = "Are you a shelter? Click here",
+                    color = Color(0xFFFF9999),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(40.dp))
         }
     }
 } 

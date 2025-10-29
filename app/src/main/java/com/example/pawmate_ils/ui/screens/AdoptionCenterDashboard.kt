@@ -77,7 +77,7 @@ fun AdoptionCenterDashboard(
                             text = centerName,
                             style = MaterialTheme.typography.titleLarge.copy(
                                 fontWeight = FontWeight.Bold,
-                                color = DarkBrown
+                                color = Color(0xFFFF9999)
                             )
                         )
                         Text(
@@ -176,7 +176,7 @@ private fun DashboardContent(
                     title = "Available Pets",
                     value = "24",
                     icon = Icons.Default.Pets,
-                    color = DarkBrown,
+                    color = Color(0xFFFF9999),
                     modifier = Modifier.weight(1f)
                 )
                 StatCard(
@@ -267,7 +267,7 @@ private fun DashboardContent(
                     .fillMaxWidth()
                     .padding(vertical = 8.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = DarkBrown.copy(alpha = 0.1f)
+                    containerColor = Color(0xFFFFB6C1).copy(alpha = 0.15f)
                 )
             ) {
                 Row(
@@ -278,7 +278,7 @@ private fun DashboardContent(
                     Icon(
                         imageVector = Icons.Default.Lightbulb,
                         contentDescription = "Tip",
-                        tint = DarkBrown,
+                        tint = Color(0xFFFFB6C1),
                         modifier = Modifier.size(24.dp)
                     )
                     Column {
@@ -286,7 +286,7 @@ private fun DashboardContent(
                             text = "Pro Tip",
                             style = MaterialTheme.typography.titleSmall.copy(
                                 fontWeight = FontWeight.Bold,
-                                color = DarkBrown
+                                color = Color(0xFFFF9999)
                             )
                         )
                         Text(
@@ -356,7 +356,7 @@ fun QuickActionButton(
         onClick = onClick,
         modifier = modifier.height(48.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = DarkBrown
+            containerColor = Color(0xFFFFB6C1)
         ),
         contentPadding = PaddingValues(horizontal = 16.dp)
     ) {

@@ -153,7 +153,7 @@ fun StatusChip(status: String) {
         "Pending" -> Color(0xFFFFA000) to Color.White
         "Approved" -> Color(0xFF4CAF50) to Color.White
         "Rejected" -> Color(0xFFF44336) to Color.White
-        else -> DarkBrown to Color.White
+        else -> Color(0xFFFFB6C1) to Color.White
     }
     
     Surface(
