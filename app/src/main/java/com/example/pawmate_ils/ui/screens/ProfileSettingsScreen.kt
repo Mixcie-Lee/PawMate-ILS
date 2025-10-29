@@ -30,12 +30,21 @@ import androidx.compose.foundation.Image
 import coil.compose.rememberAsyncImagePainter
 import com.example.pawmate_ils.SettingsManager
 import androidx.compose.ui.platform.LocalContext
-
+import com.example.pawmate_ils.Firebase_Utils.AuthViewModel
+import com.example.pawmate_ils.Firebase_Utils.FirestoreRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileSettingsScreen(navController: NavController, username: String = "User") {
+    //Firebase tools for saving settings such as photo and name remotely and locally
+    val authViewModel: AuthViewModel = viewModel()
+    val firestoreRepository = remember { FirestoreRepository() }
+    val coroutineScope = rememberCoroutineScope()
+    //<---------DIVIDER BETWEN FIREBASE TOOLS AND OTHER COMPONENTS--------->
     var isDarkMode by remember { mutableStateOf(ThemeManager.isDarkMode) }
     val context = LocalContext.current
     val settings = remember { SettingsManager(context) }
@@ -43,16 +52,36 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
     var privacyEnabled by remember { mutableStateOf(settings.isPrivacyEnabled()) }
     var editableName by remember { mutableStateOf(settings.getUsername()) }
     var profilePhotoUri by remember { mutableStateOf(settings.getProfilePhotoUri()?.let { Uri.parse(it) }) }
+
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
             profilePhotoUri = uri
             settings.setProfilePhotoUri(uri.toString())
+            val currentUser = authViewModel.currentUser
+            currentUser?.let { user ->
+                coroutineScope.launch(Dispatchers.IO) {
+                    try{
+                        val downloadUrl =  firestoreRepository.uploadProfilePhoto(user.uid, uri)
+                        settings.setProfilePhotoUri(downloadUrl) // save remote url locally
+                        profilePhotoUri = Uri.parse(downloadUrl)
+                    }catch( e: Exception){
+                        e.printStackTrace()
+                    }
+                }
+            }
+
         }
     }
-    
-    
+
+
     // Update local state when theme changes
     LaunchedEffect(Unit) {
+        authViewModel.syncUserDataLocal(context)
+        delay(800)
+        editableName = settings.getUsername()
+        profilePhotoUri = settings.getProfilePhotoUri()?.let { Uri.parse(it) }
+
+        println("🔥 Saved photo URI = $profilePhotoUri") // check logcat output
         isDarkMode = ThemeManager.isDarkMode
     }
     val backgroundColor = if (isDarkMode) Color(0xFF121212) else Color(0xFFF5F5F5)
@@ -114,19 +143,20 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                                 .size(60.dp)
                                 .clip(CircleShape)
                                 .background(Color.LightGray)
-                                .clickable { imagePicker.launch("image/*") },
+                                .clickable {
+                                    imagePicker.launch("image/*")},
                             contentAlignment = Alignment.Center
                         ) {
                             if (profilePhotoUri != null) {
                                 Image(
-                                    painter = rememberAsyncImagePainter(profilePhotoUri),
+                                    painter = rememberAsyncImagePainter(profilePhotoUri?.toString()),
                                     contentDescription = "Profile Photo",
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .clip(CircleShape)
                                 )
                             } else {
-                                Icon(
+                                    Icon(
                                     imageVector = Icons.Default.Person,
                                     contentDescription = "Profile",
                                     tint = Color.Gray,
@@ -159,7 +189,19 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                             )
                         }
                         
-                        IconButton(onClick = { settings.setUsername(editableName) }) {
+                        IconButton(onClick = {
+                            settings.setUsername(editableName)
+                            val currentUser = authViewModel.currentUser
+                            currentUser?.let { user ->
+                                coroutineScope?.launch(Dispatchers.IO) {
+                                      try{
+                                          firestoreRepository.updateDisplayName(user.uid, editableName)
+                                      }catch (e : Exception){
+                                          e.printStackTrace()}
+                                  }
+                                }
+                            }
+                        ) {
                             Icon(
                                 imageVector = Icons.Default.Edit,
                                 contentDescription = "Edit",

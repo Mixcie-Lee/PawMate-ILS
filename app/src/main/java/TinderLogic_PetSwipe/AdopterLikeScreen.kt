@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+    import coil.compose.AsyncImage
 import com.example.pawmate_ils.Firebase_Utils.AuthState
 import com.example.pawmate_ils.Firebase_Utils.AuthViewModel
 import com.example.pawmate_ils.R
@@ -266,7 +267,7 @@ fun LikedPetCard(
             .fillMaxWidth()
             .height(if (isTablet) 140.dp else 120.dp),
         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = cardColor),
+        colors = CardDefaults.cardColors(containerColor = cardColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Row(
@@ -275,22 +276,19 @@ fun LikedPetCard(
                 .padding(if (isTablet) 16.dp else 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Pet Image
-            Image(
-                painter = painterResource(id = pet.imageRes),
+            // Pet main image using Coil AsyncImage
+            AsyncImage(
+                model = pet.imageRes.firstOrNull(), // main image URL
                 contentDescription = pet.name,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .size(if (isTablet) 100.dp else 80.dp)
                     .clip(RoundedCornerShape(12.dp))
             )
-            
+
             Spacer(modifier = Modifier.width(if (isTablet) 16.dp else 12.dp))
-            
-            // Pet Info
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
+
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = pet.name,
                     fontSize = if (isTablet) 22.sp else 20.sp,
@@ -311,8 +309,8 @@ fun LikedPetCard(
                     maxLines = 2
                 )
             }
-            
-            // Remove Button
+
+            // Remove button
             IconButton(
                 onClick = onRemove,
                 modifier = Modifier

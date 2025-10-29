@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,8 +23,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.example.pawmate_ils.Firebase_Utils.Auth2State
-import com.example.pawmate_ils.Firebase_Utils.Auth2ViewModel
 import com.example.pawmate_ils.Firebase_Utils.AuthState
 import com.example.pawmate_ils.Firebase_Utils.AuthViewModel
 import com.example.pawmate_ils.ui.theme.DarkBrown
@@ -38,34 +37,11 @@ fun AdoptionCenterDashboard(
     centerName: String
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Dashboard", "Pets", "Applications", "Analytics")
+    val tabs = listOf("Dashboard", "Pets", "Applications", "Message")
     //Firebase initialization
     val AuthViewModel : AuthViewModel = viewModel()
     val authState  = AuthViewModel.authState.observeAsState()
     val context = LocalContext.current
-    LaunchedEffect(authState.value) {
-        when(authState.value){
-            is AuthState.Authenticated -> {
-                val userId = FirebaseAuth.getInstance().currentUser?.uid
-                if (userId != null) {
-                    FirebaseFirestore.getInstance()
-                        .collection("users") // or "adopters"/"shelters"
-                        .document(userId)
-                        .get()
-                        .addOnSuccessListener { snapshot ->
-                            val role = snapshot.getString("role")
-                            when (role) {
-                                "adopter" -> navController.navigate("pet_selection")
-                                "shelter" -> navController.navigate("adoption_center_dashboard")
-                            }
-                        }
-                }
-            }
-            is Auth2State.Unauthenticated -> Log.d("Auth", "login")
-            is Auth2State.Error -> Toast.makeText(context,( authState.value as AuthState.Error).message, Toast.LENGTH_SHORT).show()
-            else -> Unit
-        }
-    }
 
 
     Scaffold(
@@ -110,19 +86,36 @@ fun AdoptionCenterDashboard(
                                     0 -> Icons.Default.Home
                                     1 -> Icons.Default.Pets
                                     2 -> Icons.AutoMirrored.Filled.List
-                                    else -> Icons.Default.Analytics
+                                    3 -> Icons.AutoMirrored.Filled.Message
+                                    else -> Icons.Default.Home
                                 },
                                 contentDescription = title
                             )
                         },
                         label = { Text(title) },
                         selected = selectedTab == index,
-                        onClick = { 
+                        onClick = {
                             selectedTab = index
                             when (index) {
-                                1 -> navController.navigate("adoption_center_pets")
-                                2 -> navController.navigate("adoption_center_applications")
-                                3 -> navController.navigate("adoption_center_statistics")
+                                0 -> navController.navigate("adoption_center_dashboard") {
+                                    popUpTo("adoption_center_dashboard") { inclusive = true }
+                                    launchSingleTop = true
+                                }
+
+                                1 -> navController.navigate("adoption_center_pets") {
+                                    popUpTo("adoption_center_dashboard")
+                                    launchSingleTop = true
+                                }
+
+                                2 -> navController.navigate("adoption_center_applications") {
+                                    popUpTo("adoption_center_dashboard")
+                                    launchSingleTop = true
+                                }
+
+                                3 -> navController.navigate("chat_home") {
+                                    popUpTo("adoption_center_dashboard")
+                                    launchSingleTop = true
+                                }
                             }
                         }
                     )
@@ -167,7 +160,7 @@ private fun DashboardContent(
                 ),
                 modifier = Modifier.padding(bottom = 8.dp)
             )
-            
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -187,7 +180,7 @@ private fun DashboardContent(
                     modifier = Modifier.weight(1f)
                 )
             }
-            
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -410,7 +403,7 @@ fun ApplicationCard(
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                 )
             }
-            
+
             Surface(
                 shape = RoundedCornerShape(16.dp),
                 color = when (application.status) {
@@ -430,4 +423,4 @@ fun ApplicationCard(
             }
         }
     }
-} 
+}

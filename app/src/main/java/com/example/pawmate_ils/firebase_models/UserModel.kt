@@ -9,5 +9,8 @@ data class User(
     val MobileNumber: String = "",
     val Address: String = "",
     val Age: String = "",
-    val createdAt: Long = System.currentTimeMillis()
+    val photoUri: String = "",
+    val createdAt: Long = System.currentTimeMillis(),
+    val isOnline : Boolean = false,
+    val lastActive : Long = System.currentTimeMillis()
 )

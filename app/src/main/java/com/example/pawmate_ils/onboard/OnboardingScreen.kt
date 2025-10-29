@@ -9,13 +9,18 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.launch
 import com.example.pawmate_ils.ui.theme.DarkBrown
 import com.example.pawmate_ils.ThemeManager
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.tasks.await
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -23,6 +28,39 @@ fun OnboardingScreen(onComplete: () -> Unit) {
     val pages = OnboardingData.onboardingItems
     val pagerState = rememberPagerState(initialPage = 0) { pages.size }
     var termsAccepted by remember { mutableStateOf(false) }
+
+
+
+    //FIREBASE AUTHENTICATION, THE USER WOULD NOT NEED TO UNDERGO THE ONBOARDING IF ITS ALREADY AUTHENTICATED
+    val auth: FirebaseAuth = FirebaseAuth.getInstance()
+    val db: FirebaseFirestore = FirebaseFirestore.getInstance()
+    val context = LocalContext.current
+    val navController = rememberNavController()
+    val onboardingUtil = OnboardingUtil(context)
+
+    LaunchedEffect(Unit) {
+        if (onboardingUtil.isOnboardingCompleted()) {
+            val currentUser = auth.currentUser
+            if (currentUser != null) {
+                try {
+                    val snapshot = db.collection("users").document(currentUser.uid).get().await()
+                    val role = snapshot.getString("role")
+                    val destination = when (role) {
+                        "adopter" -> "pet_swipe"
+                        "shelter" -> "adoption_center_dashboard"
+                        else -> "user_type"
+                    }
+                    if (destination != "user_type") {
+                        navController.navigate(destination) {
+                            popUpTo("user_type") { inclusive = true }
+                        }
+                    }
+                } catch (e: Exception) {
+                    // Stay on user_type if there's an error
+                }
+            }
+        }
+    }
 
     val buttonState = remember {
         derivedStateOf {

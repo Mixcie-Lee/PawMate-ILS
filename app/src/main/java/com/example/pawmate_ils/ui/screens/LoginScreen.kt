@@ -1,5 +1,8 @@
 package com.example.pawmate_ils.ui.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -27,23 +30,85 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.withContext
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.ui.platform.LocalContext
+import com.example.pawmate_ils.Firebase_Utils.AuthState
+import com.example.pawmate_ils.Firebase_Utils.AuthViewModel
 import com.example.pawmate_ils.R
 import com.example.pawmate_ils.ui.theme.DarkBrown
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
+    authViewModel : AuthViewModel,
     onLoginClick: (String, String) -> Unit,
     onSignUpClick: () -> Unit,
     onSellerAuthClick: () -> Unit
 ) {
-
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val scrollState = rememberScrollState()
+    val authState by authViewModel.authState.observeAsState(AuthState.Unauthenticated)
 
+    //HANDLES GOOGLE SIGN IN
+    var isGoogleLoading by remember {mutableStateOf(false)}
+    val context = LocalContext.current
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+        try {
+            val account = task.getResult(ApiException::class.java)
+            val idToken = account?.idToken
+            if (idToken == null) {
+                errorMessage = "Failed to get Google ID Token."
+                return@rememberLauncherForActivityResult
+            }
+            isGoogleLoading = true
+
+            // Attempt Firebase sign-in/sign-up with Google
+            authViewModel.signUpWithGoogle(idToken) { success, error ->
+                isGoogleLoading = false
+                if (success) {
+                    // ✅ Navigate directly to home screen or pet swipe
+                    onLoginClick(email, password)
+                } else {
+                    errorMessage = "Google Sign-In failed. Try again."
+                }
+            }
+
+        } catch (e: ApiException) {
+            isGoogleLoading = false
+            errorMessage = "Google sign in failed: ${e.message}"
+        }
+    }
+
+
+
+//checks if the user account is authenticated
+    LaunchedEffect(authState) {
+       when (authState) {
+           is AuthState.Authenticated -> {
+               isLoading = false
+               errorMessage = null
+               onLoginClick(email, password)
+           }
+
+           is AuthState.Loading -> isLoading = true
+           is AuthState.Error -> {
+               isLoading = false
+               errorMessage = (authState as AuthState.Error).message
+           }
+           is AuthState.Unauthenticated -> isLoading = false
+       }
+   }
 
     Box(
         modifier = Modifier
@@ -160,8 +225,14 @@ fun LoginScreen(
                         return@Button
                     }
                     isLoading = true
-                    onLoginClick(email, password)
-                },
+                    authViewModel.signIn(email, password) { success, error ->
+                        isLoading = false
+                        if (success) {
+                            onLoginClick(email, password)
+                        } else {
+                            errorMessage = error ?: "Login failed"
+                        }
+                    }                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 16.dp)
@@ -183,6 +254,52 @@ fun LoginScreen(
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
                     )
+                }
+            }
+
+            OutlinedButton( // BUTTON FOR GOOGLE SIGN IN
+                onClick = {
+                    val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                        .requestIdToken(context.getString(R.string.default_web_client_id))
+                        .requestEmail()
+                        .build()
+                    val googleSignInClient = GoogleSignIn.getClient(context, gso)
+                    launcher.launch(googleSignInClient.signInIntent)
+
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = Color.Black
+                ),
+                border = BorderStroke(1.dp, Color.LightGray),
+                shape = RoundedCornerShape(8.dp),
+                enabled = !isGoogleLoading
+            ) {
+                if (isGoogleLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = Color.DarkGray,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            "G",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Red,
+                            modifier = Modifier.padding(end = 8.dp)
+                        )
+                        Text(
+                            "Continue with Google",
+                            fontSize = 14.sp
+                        )
+                    }
                 }
             }
 
@@ -215,4 +332,5 @@ fun LoginScreen(
             }
         }
     }
-} 
+}
+

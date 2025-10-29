@@ -133,11 +133,13 @@ fun AuthScreen(
 
                     } else {
                         LoginScreen(
-                            onLoginClick = { _, _ ->
+                            authViewModel = AuthViewModel,
+                            onLoginClick = { email, password->
                                 onAuthComplete()
                             },
                             onSignUpClick = { showSignUp = true },
                             onSellerAuthClick = { showShelterOwnerAuth = true }
+
                         )
                     }
                 }

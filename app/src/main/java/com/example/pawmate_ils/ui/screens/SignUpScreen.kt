@@ -1,7 +1,6 @@
 package com.example.pawmate_ils.ui.screens
 
 import android.content.Context
-import android.util.Log.e
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -34,12 +33,14 @@ import com.example.pawmate_ils.firebase_models.User
 import com.google.firebase.auth.FirebaseAuth
 import com.example.pawmate_ils.ui.theme.DarkBrown
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.pawmate_ils.AdopShelDataStruc.AdopterRepository
+import com.example.pawmate_ils.AdopShelDataStruc.ShelterRepository
 import com.example.pawmate_ils.R
+import com.example.pawmate_ils.SettingsManager
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.common.api.ApiException
-import com.google.firebase.auth.GoogleAuthProvider
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -69,6 +70,7 @@ fun SignUpScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
+    var isGoogleLoading by remember {mutableStateOf(false)}
 
     //GOOGLE SIGN-UP/SIGN-IN HANDLER
     val launcher = rememberLauncherForActivityResult(
@@ -82,18 +84,19 @@ fun SignUpScreen(
                 errorMessage = "Failed to get Google ID Token."
                 return@rememberLauncherForActivityResult
             }
-
-            // Attempt Firebase sign-up with Google
-            AuthViewModel.signUpWithGoogle(idToken) { success ->
-                println("Google SignIn success: $success")
+            AuthViewModel.signUpWithGoogle(idToken) { success, message ->
+                isGoogleLoading = false
                 if (success) {
+                    // If user is new → continue to About You
                     currentStep = 2
                 } else {
-                    errorMessage = "Google Sign-In failed. Try again."
+                    errorMessage = message ?: "Google Sign-In failed. Try again."
                 }
             }
 
+
         } catch (e: ApiException) {
+            isGoogleLoading = false
             errorMessage = "Google sign in failed: ${e.message}"
         }
     }
@@ -172,6 +175,7 @@ fun SignUpScreen(
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Text,
                             imeAction = ImeAction.Next
+                            //visualTransformation = PasswordVisualTransformation()
                         ),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = Color.Gray,
@@ -198,9 +202,18 @@ fun SignUpScreen(
                                 errorMessage = "Please enter a valid email address"
                                 return@Button
                             }
-                            errorMessage = null
-                            AuthViewModel.signUp(email, password)
-                            currentStep = 2 // Move to About You step
+                            isLoading = true
+                            AuthViewModel.signUp(email, password) { success, message ->
+                                isLoading = false
+                                if (success) {
+                                    currentStep = 2
+                                    AuthViewModel.fetchUserRole()
+
+
+                                } else {
+                                    errorMessage = message
+                                }
+                            }// Move to About You step
 
                         },
                         modifier = Modifier
@@ -229,10 +242,14 @@ fun SignUpScreen(
                         modifier = Modifier.padding(vertical = 8.dp)
                     )
 
+
+
                     // Google Sign Up Button
                     OutlinedButton( // BUTTON FOR GOOGLE SIGN UP
                         onClick = {
-                        /* Handle Google Sign In */
+                            AuthViewModel.fetchUserRole()
+                            /* Handle Google Sign In */
+                            isGoogleLoading = true
                              val gsoClient = getGoogleSignInClient(context)
                             launcher.launch(gsoClient.signInIntent)
                         },
@@ -243,23 +260,32 @@ fun SignUpScreen(
                             contentColor = Color.Black
                         ),
                         border = BorderStroke(1.dp, Color.LightGray),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(8.dp),
+                        enabled = !isGoogleLoading
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Text(
-                                "G",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.Red,
-                                modifier = Modifier.padding(end = 8.dp)
+                        if (isGoogleLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = Color.DarkGray,
+                                strokeWidth = 2.dp
                             )
-                            Text(
-                                "Continue with Google",
-                                fontSize = 14.sp
-                            )
+                        } else {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    "G",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.Red,
+                                    modifier = Modifier.padding(end = 8.dp)
+                                )
+                                Text(
+                                    "Continue with Google",
+                                    fontSize = 14.sp
+                                )
+                            }
                         }
                     }
 
@@ -445,6 +471,11 @@ fun SignUpScreen(
                                             isLoading = false
                                             return@launch
                                         }
+                                        val adopterRepo = AdopterRepository()
+                                        val shelterRepo = ShelterRepository()
+
+
+
                                         val user = User(
                                             id = uid,
                                             name = "$firstName $lastName",
@@ -456,10 +487,22 @@ fun SignUpScreen(
                                         )
                                         try {
                                             firestoreRepo.addUser(user)
+                                            if(user.role == "adopter"){
+                                                adopterRepo.addAdopter(user)
+                                            }else if(user.role == "shelter"){
+                                                shelterRepo.addShelter(user)
+                                            }
+
+                                            AuthViewModel.fetchUserRole()
+
                                             onSignUpClick(firstName, email, lastName, mobileNumber)
-                                            sharedViewModel.username.value = "$firstName, $lastName"
+                                            sharedViewModel.username.value = "$firstName $lastName"
+                                            //saves username locally, so it persists across app restarts
+                                            val settings = SettingsManager(context)
+                                            settings.setUsername("$firstName $lastName")
+
                                             delay(50)
-                                            navController.navigate("pet_selection") {
+                                            navController.navigate("pet_swipe") {
                                                 popUpTo("user_type") { inclusive = true }
                                             }
                                         } catch (e: Exception){

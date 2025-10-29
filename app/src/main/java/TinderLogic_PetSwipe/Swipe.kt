@@ -1,5 +1,6 @@
 package TinderLogic_PetSwipe
 
+import android.annotation.SuppressLint
 import androidx.compose.animation.core.*
 import androidx.compose.animation.*
 import androidx.compose.animation.ExperimentalAnimationApi
@@ -11,7 +12,6 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Home
@@ -39,6 +39,8 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.navigation.NavController
 import android.content.res.Configuration
+import android.util.Log
+import androidx.compose.material.icons.filled.Message
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.rememberNavController
 import com.example.pawmate_ils.R
@@ -48,9 +50,19 @@ import com.example.pawmate_ils.GemPackage
 import com.example.pawmate_ils.LikedPetsManager
 import com.example.pawmate_ils.ThemeManager
 import androidx.compose.material3.MaterialTheme
+import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.pawmate_ils.Firebase_Utils.AuthViewModel
+import com.example.pawmate_ils.Firebase_Utils.ChatViewModel
+import com.example.pawmate_ils.Firebase_Utils.ChatViewModelFactory
+import com.example.pawmate_ils.Firebase_Utils.FirestoreRepository
+import com.example.pawmate_ils.Firebase_Utils.HomeViewModel
+import com.example.pawmate_ils.firebase_models.Channel
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import coil.compose.AsyncImage
+import coil.compose.rememberAsyncImagePainter
 
 data class PetData(
     val name: String,
@@ -58,8 +70,10 @@ data class PetData(
     val age: String,
     val description: String,
     val type: String,
-    val imageRes: Int,
-    val additionalImages: List<Int> = emptyList()
+    val imageRes: List<Int> = emptyList(),
+    val additionalImages: List<Int> = emptyList(),
+    val shelterId: String = "",
+    val shelterName: String = "",
 )
 
 enum class PetFilter {
@@ -67,98 +81,218 @@ enum class PetFilter {
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
-@Composable
-fun PetSwipeScreen(navController: NavController) {
-    var currentPetIndex by remember { mutableIntStateOf(0) }
-    val likedPets = remember { mutableListOf<String>() }
-    var petFilter by remember { mutableStateOf(PetFilter.ALL) }
-    var showFilterDialog by remember { mutableStateOf(false) }
-    
-    var offsetX by remember(currentPetIndex) { mutableFloatStateOf(0f) }
-    var rotation by remember(currentPetIndex) { mutableFloatStateOf(0f) }
-    var isDragging by remember { mutableStateOf(false) }
-    var showGemDialog by remember { mutableStateOf(false) }
-    var gemCount by remember { mutableIntStateOf(GemManager.gemCount) }
-    
-    val scope = rememberCoroutineScope()
-    val context = LocalContext.current
-    val tutorialPrefs = remember(context) { context.getSharedPreferences("swipe_tutorial", android.content.Context.MODE_PRIVATE) }
-    val tutorialSeen = remember { tutorialPrefs.getBoolean("seen", false) }
-    // Force-show on first screen entry; user dismissal persists the flag.
-    var showTutorial by rememberSaveable { mutableStateOf(true) }
-    LaunchedEffect(showTutorial) {
-        if (showTutorial) TutorialRuntime.wasShownThisProcess = true
-    }
-    
-    val configuration = LocalConfiguration.current
-    val screenWidth = configuration.screenWidthDp.dp
-    val screenHeight = configuration.screenHeightDp.dp
-    val density = LocalDensity.current
-    
-    // Determine if device is tablet based on smallest width (more reliable) and fall back to widthDp
-    val isTablet = configuration.smallestScreenWidthDp >= 600 || configuration.screenWidthDp >= 600
-    val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
-    
-    val isDarkMode = ThemeManager.isDarkMode
-    val backgroundColor = if (isDarkMode) Color(0xFF121212) else Color.White
-    val textColor = if (isDarkMode) Color.White else DarkBrown
-    val cardColor = if (isDarkMode) Color(0xFF1E1E1E) else Color.White
-    
-    // Responsive dimensions (larger cards on tablets; also larger in portrait)
-    val cardWidth = when {
-        isTablet && isPortrait -> screenWidth * 0.86f
-        isTablet && !isPortrait -> screenWidth * 0.70f
-        !isTablet && isPortrait -> screenWidth * 0.92f
-        else -> screenWidth * 0.70f
-    }
-    val cardHeight = when {
-        isTablet && isPortrait -> screenHeight * 0.74f
-        isTablet && !isPortrait -> screenHeight * 0.82f
-        !isTablet && isPortrait -> screenHeight * 0.70f
-        else -> screenHeight * 0.82f
-    }
-    val titleFontSize = if (isTablet) 34.sp else 24.sp
-    val bodyFontSize = if (isTablet) 18.sp else 14.sp
-    val paddingSize = if (isTablet) 28.dp else 16.dp
-    
-    val allPets = listOf(
-        PetData("Max", "Golden Retriever", "2 years", "Friendly and energetic", "dog", R.drawable.dog1, listOf(R.drawable.dogsub1, R.drawable.dogsub2)),
-        PetData("Charlie", "Labrador", "1 year", "Playful and loyal", "dog", R.drawable.shitzu, listOf(R.drawable.shitzusub1, R.drawable.shitzusub2)),
-        PetData("Rocky", "German Shepherd", "3 years", "Protective and smart", "dog", R.drawable.chow, listOf(R.drawable.chowsub1, R.drawable.chowsub2)),
-        PetData("Buddy", "Beagle", "2 years", "Curious and gentle", "dog", R.drawable.dog1, listOf(R.drawable.dogsub1, R.drawable.dogsub2)),
-        PetData("Cooper", "Border Collie", "1 year", "Intelligent and active", "dog", R.drawable.shitzu, listOf(R.drawable.shitzusub1, R.drawable.shitzusub2)),
-        PetData("Duke", "Bulldog", "4 years", "Calm and friendly", "dog", R.drawable.chow, listOf(R.drawable.chowsub1, R.drawable.chowsub2)),
-        PetData("Zeus", "Husky", "2 years", "Adventurous and strong", "dog", R.drawable.dog1, listOf(R.drawable.dogsub1, R.drawable.dogsub2)),
-        PetData("Bear", "Saint Bernard", "3 years", "Gentle giant", "dog", R.drawable.shitzu, listOf(R.drawable.shitzusub1, R.drawable.shitzusub2)),
-        PetData("Alexa", "Persian", "1 year", "Playful and agile", "cat", R.drawable.cat1, listOf(R.drawable.posaadd1, R.drawable.posaadd2)),
-        PetData("Yuri", "Garfield", "2 years", "Smart and loyal", "cat", R.drawable.cat2, listOf(R.drawable.posaaa1, R.drawable.posaaa2)),
-        PetData("Oggy", "Siberian", "6 months", "Independent and cuddly", "cat", R.drawable.cat3, listOf(R.drawable.posaaaa1, R.drawable.posaaaa2))
+    @Composable
+    fun PetSwipeScreen(navController: NavController) {
+        var currentPetIndex by remember { mutableIntStateOf(0) }
+        val likedPets = remember { mutableListOf<String>() }
+        var petFilter by remember { mutableStateOf(PetFilter.ALL) }
+        var showFilterDialog by remember { mutableStateOf(false) }
+
+        var offsetX by remember(currentPetIndex) { mutableFloatStateOf(0f) }
+        var rotation by remember(currentPetIndex) { mutableFloatStateOf(0f) }
+        var isDragging by remember { mutableStateOf(false) }
+        var showGemDialog by remember { mutableStateOf(false) }
+        var gemCount by remember { mutableIntStateOf(GemManager.gemCount) }
+
+        //Firebase essentials for authentication needed for chat creation
+        val viewModelStoreOwner = LocalViewModelStoreOwner.current
+        val authViewModel: AuthViewModel = viewModel(
+            viewModelStoreOwner = viewModelStoreOwner!!
+        )
+        val factory = remember { ChatViewModelFactory(authViewModel) }
+        val chatViewModel: ChatViewModel = viewModel(factory = factory)
+        val firestoreRepo = remember { FirestoreRepository() }
+
+
+        val homeViewModel: HomeViewModel = viewModel()
+        val scope = rememberCoroutineScope()
+        val context = LocalContext.current
+        val tutorialPrefs = remember(context) {
+            context.getSharedPreferences(
+                "swipe_tutorial",
+                android.content.Context.MODE_PRIVATE
+            )
+        }
+        val tutorialSeen = remember { tutorialPrefs.getBoolean("seen", false) }
+        // Force-show on first screen entry; user dismissal persists the flag.
+        var showTutorial by rememberSaveable { mutableStateOf(true) }
+        LaunchedEffect(showTutorial) {
+            if (showTutorial) TutorialRuntime.wasShownThisProcess = true
+        }
+        //Instanly show chat channels after swiping right
+        LaunchedEffect(Unit) {
+            homeViewModel.listenToChannels()
+        }
+
+        val configuration = LocalConfiguration.current
+        val screenWidth = configuration.screenWidthDp.dp
+        val screenHeight = configuration.screenHeightDp.dp
+        val density = LocalDensity.current
+
+        // Determine if device is tablet based on smallest width (more reliable) and fall back to widthDp
+        val isTablet = configuration.smallestScreenWidthDp >= 600 || configuration.screenWidthDp >= 600
+        val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
+
+        val isDarkMode = ThemeManager.isDarkMode
+        val backgroundColor = if (isDarkMode) Color(0xFF121212) else Color.White
+        val textColor = if (isDarkMode) Color.White else DarkBrown
+        val cardColor = if (isDarkMode) Color(0xFF1E1E1E) else Color.White
+
+        // Responsive dimensions (larger cards on tablets; also larger in portrait)
+        val cardWidth = when {
+            isTablet && isPortrait -> screenWidth * 0.86f
+            isTablet && !isPortrait -> screenWidth * 0.70f
+            !isTablet && isPortrait -> screenWidth * 0.92f
+            else -> screenWidth * 0.70f
+        }
+        val cardHeight = when {
+            isTablet && isPortrait -> screenHeight * 0.74f
+            isTablet && !isPortrait -> screenHeight * 0.82f
+            !isTablet && isPortrait -> screenHeight * 0.70f
+            else -> screenHeight * 0.82f
+        }
+        val titleFontSize = if (isTablet) 34.sp else 24.sp
+        val bodyFontSize = if (isTablet) 18.sp else 14.sp
+        val paddingSize = if (isTablet) 28.dp else 16.dp
+
+        val allPets = listOf(
+            PetData(
+                "Max",
+                "Golden Retriever",
+                "2 years",
+                "Friendly and energetic",
+                "dog",
+                imageRes = listOf(R.drawable.dog1), // main image URL
+                additionalImages = listOf(R.drawable.dogsub1, R.drawable.dogsub2)
+            ),
+            PetData(
+                "Charlie",
+                "Labrador",
+                "1 year",
+                "Playful and loyal",
+                "dog",
+                imageRes = listOf(R.drawable.shitzu),
+                additionalImages = listOf(R.drawable.shitzusub1, R.drawable.shitzusub2),
+                shelterName = "Shelter Name"
+            ),
+            PetData(
+                "Rocky",
+                "German Shepherd",
+                "3 years",
+                "Protective and smart",
+                "dog",
+                imageRes = listOf(R.drawable.chow),
+                additionalImages = listOf(R.drawable.chowsub1, R.drawable.chowsub2)
+            ),
+            PetData(
+                "Alexa",
+                "Persian",
+                "1 year",
+                "Playful and agile",
+                "cat",
+                imageRes = listOf(R.drawable.posaaa1),
+                additionalImages = listOf(R.drawable.posaadd1, R.drawable.posaadd2)
+            ),
+            PetData(
+                "Yuri",
+                "Garfield",
+                "2 years",
+                "Smart and loyal",
+                "cat",
+                imageRes = listOf(R.drawable.posaaa2),
+                additionalImages = listOf(R.drawable.posaaa1, R.drawable.posaadd2)
+            ),
+            PetData(
+                "Oggy",
+                "Siberian",
+                "6 months",
+                "Independent and cuddly",
+                "cat",
+                imageRes = listOf(R.drawable.posaaaa2),
+                additionalImages = listOf(R.drawable.posaaaa1, R.drawable.posaaaa2)
+            )
     )
-    
+
+
     val filteredPets = when (petFilter) {
         PetFilter.ALL -> allPets
         PetFilter.DOGS -> allPets.filter { it.type == "dog" }
         PetFilter.CATS -> allPets.filter { it.type == "cat" }
     }
-    
 
+
+    @SuppressLint("SuspiciousIndentation")
     fun swipeCard(direction: Float) {
         if (isDragging || currentPetIndex >= filteredPets.size) return
-        
+
         if (direction > 0) {
             if (GemManager.gemCount >= 5) {
                 repeat(5) { GemManager.consumeGem() }
                 val currentPet = filteredPets[currentPetIndex]
                 likedPets.add(currentPet.name)
-                // Add to persistent liked pets storage
                 LikedPetsManager.addLikedPet(currentPet)
                 gemCount = GemManager.gemCount
+                scope.launch {
+                    try {
+                        // ✅ Get shelter info from Firestore
+                        val allUsers = firestoreRepo.getAllUsers()
+                        val shelterUser = allUsers.firstOrNull { it.role == "shelter" }
+
+                        if (shelterUser != null) {
+                            val adopterId = authViewModel.currentUser?.uid ?: ""
+                            val adopterName = authViewModel.currentUser?.displayName ?: "Unknown"
+                            val shelterId = shelterUser.id
+                            val shelterName = shelterUser.name
+                            val petName = currentPet.name
+
+                            // ✅ Prevent duplicate channel creation
+                            val existingChannel = homeViewModel.channels.value.firstOrNull {
+                                (it.adopterId == adopterId && it.shelterId == shelterId && it.petName == petName)
+                            }
+
+                            if (existingChannel != null) {
+                                Log.d("PetSwipe", "⚠️ Channel already exists. Redirecting to message screen...")
+                                navController.navigate("chat_screen/${existingChannel.channelId}")
+                                return@launch
+                            }
+
+                            // ✅ Create a new channel
+                            val channel = Channel(
+                                channelId = "$adopterId-$shelterId-$petName",
+                                adopterId = adopterId,
+                                adopterName = adopterName,
+                                shelterId = shelterId,
+                                shelterName = shelterName,
+                                petName = petName,
+                                lastMessage = "",
+                                timestamp = System.currentTimeMillis(),
+                                unreadCount = 0,
+                                createdAt = System.currentTimeMillis()
+                            )
+
+                            Log.d("PetSwipe", "✅ Creating channel in RTDB: $channel")
+
+                            // ✅ Add channel to RTDB
+                            homeViewModel.addChannel(channel)
+
+                            // ✅ Navigate directly to the new chat screen
+
+
+                        } else {
+                            Log.w("PetSwipe", "⚠️ No shelter found in Firestore for pet: ${currentPet.name}")
+                        }
+                    } catch (e: Exception) {
+                        Log.e("PetSwipe", "❌ Error creating RTDB channel", e)
+                    }
+                }
             } else {
                 showGemDialog = true
                 return
             }
         }
-        
+
+
+
         val nextIndex = currentPetIndex + 1
         
         if (nextIndex < filteredPets.size) {
@@ -261,6 +395,20 @@ fun PetSwipeScreen(navController: NavController) {
                         navController.navigate("profile_settings")
                     }
                 )
+                NavigationBarItem(
+                    icon = {
+                        Icon(
+                            Icons.Default.Message,
+                            contentDescription = "Message",
+                            tint = textColor
+                        )
+                    },
+                    label = { Text("Message", color = textColor) },
+                    selected = false,
+                    onClick = {
+                        navController.navigate("chat_home")
+                    }
+                )
             }
         }
     ) { paddingValues ->
@@ -298,7 +446,7 @@ fun PetSwipeScreen(navController: NavController) {
                 )
                 
                 if (likedPets.isNotEmpty()) {
-    Text(
+                         Text(
                         text = "Your pet matches:",
                         fontSize = 16.sp,
         fontWeight = FontWeight.Bold,
@@ -778,21 +926,29 @@ fun SwipeablePetCard(
                     .fillMaxSize()
                     .background(backgroundOverlay)
             )
-            
+
             val currentImage = when {
-                currentImageIndex == 0 -> pet.imageRes
-                currentImageIndex <= pet.additionalImages.size -> {
-                    pet.additionalImages[currentImageIndex - 1]
-                }
-                else -> pet.imageRes
+                currentImageIndex == 0 -> pet.imageRes.firstOrNull()
+                currentImageIndex <= pet.additionalImages.size -> pet.additionalImages[currentImageIndex - 1]
+                else -> pet.imageRes.firstOrNull()
             }
-            
-            Image(
-                painter = painterResource(id = currentImage),
-                contentDescription = pet.name,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
+
+            if (currentImage != null) {
+                AsyncImage(
+                    model = currentImage,
+                    contentDescription = pet.name,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                Image(
+                    painter = painterResource(id = R.drawable.chowsub1), // fallback image
+                    contentDescription = "No image available",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+
             
             // Enhanced photo indicators with animations
             if (pet.additionalImages.isNotEmpty()) {

@@ -23,7 +23,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.example.pawmate_ils.Firebase_Utils.Auth2ViewModel
+import com.example.pawmate_ils.AdopShelDataStruc.AdopterRepository
+import com.example.pawmate_ils.AdopShelDataStruc.ShelterRepository
+import com.example.pawmate_ils.Firebase_Utils.AuthViewModel
 import com.example.pawmate_ils.Firebase_Utils.FirestoreRepository
 import com.example.pawmate_ils.ui.theme.DarkBrown
 import com.example.pawmate_ils.SharedViewModel
@@ -48,21 +50,25 @@ fun ShelterOwnerSignUpScreen(
     //Firebase Initializations & stuffs related to firebase
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val Auth2ViewModel : Auth2ViewModel = viewModel()
-    val authState  = Auth2ViewModel.authState.observeAsState()
+    val AuthViewModel : AuthViewModel = viewModel()
+    val authState  = AuthViewModel.authState.observeAsState()
     val firestoreRepo = remember { FirestoreRepository() }
+    val currentUserRole by AuthViewModel.currentUserRole.collectAsState()
+
 
     var currentStep by remember { mutableStateOf(1) } // 1: Email, 2: About You
     var email by remember { mutableStateOf("") }
-    var firstName by remember { mutableStateOf("") }
-    var lastName by remember { mutableStateOf("") }
+    var shelterName by remember { mutableStateOf("") }
+    var ownerName by remember { mutableStateOf("") }
     var mobileNumber by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
-    var age by remember { mutableStateOf("") }
+    var establishedYear by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var password by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val scrollState = rememberScrollState()
+    var isGoogleLoading by remember {mutableStateOf(false)}
+
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -75,10 +81,11 @@ fun ShelterOwnerSignUpScreen(
                 errorMessage = "Failed to get Google ID Token."
                 return@rememberLauncherForActivityResult
             }
-
+              isGoogleLoading = true
             // Attempt Firebase sign-up with Google
-            Auth2ViewModel.signUpWithGoogle(idToken) { success ->
+            AuthViewModel.signUpWithGoogle(idToken) { success, error ->
                 println("Google SignIn success: $success")
+                isGoogleLoading = false
                 if (success) {
                     currentStep = 2
                 } else {
@@ -87,6 +94,7 @@ fun ShelterOwnerSignUpScreen(
             }
 
         } catch (e: ApiException) {
+            isGoogleLoading = false
             errorMessage = "Google sign in failed: ${e.message}"
         }
     }
@@ -188,10 +196,19 @@ fun ShelterOwnerSignUpScreen(
                                 errorMessage = "Please enter a valid email address"
                                 return@Button
                             }
-                            errorMessage = null
-                            Auth2ViewModel.signUp(email, password)
-                                currentStep = 2 // Move to About You step
-                        },
+                            isLoading = true
+                            AuthViewModel.signUp(email, password) { success, message ->
+                                isLoading = false
+                                if (success) {
+                                    currentStep = 2
+                                    AuthViewModel.fetchUserRole()
+                                } else {
+                                    errorMessage = message
+                                }
+                            }// Move to About You step
+
+                        }, // Move to About You step
+
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(48.dp),
@@ -219,8 +236,11 @@ fun ShelterOwnerSignUpScreen(
                     )
 
                     // Google Sign In Button
-                    OutlinedButton(
-                        onClick = { /* Handle Google Sign In */
+                    OutlinedButton( // BUTTON FOR GOOGLE SIGN UP
+                        onClick = {
+                            AuthViewModel.fetchUserRole()
+                            /* Handle Google Sign In */
+                            isGoogleLoading = true
                             val gsoClient = getGoogleSignInClient(context)
                             launcher.launch(gsoClient.signInIntent)
                         },
@@ -231,23 +251,32 @@ fun ShelterOwnerSignUpScreen(
                             contentColor = Color.Black
                         ),
                         border = androidx.compose.foundation.BorderStroke(1.dp, Color.LightGray),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(8.dp),
+                        enabled = !isGoogleLoading
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Text(
-                                "G",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.Red,
-                                modifier = Modifier.padding(end = 8.dp)
+                        if (isGoogleLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = Color.DarkGray,
+                                strokeWidth = 2.dp
                             )
-                            Text(
-                                "Continue with Google",
-                                fontSize = 14.sp
-                            )
+                        } else {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    "G",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.Red,
+                                    modifier = Modifier.padding(end = 8.dp)
+                                )
+                                Text(
+                                    "Continue with Google",
+                                    fontSize = 14.sp
+                                )
+                            }
                         }
                     }
 
@@ -299,15 +328,15 @@ fun ShelterOwnerSignUpScreen(
                     )
 
                     OutlinedTextField(
-                        value = firstName,
-                        onValueChange = { firstName = it },
-                        placeholder = { Text("First name", color = Color.Gray) },
+                        value = shelterName,
+                        onValueChange = {shelterName = it },
+                        placeholder = { Text("Shelter Name", color = Color.Gray) },
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Text,
                             imeAction = ImeAction.Next
                         ),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color.Gray,
+                              focusedBorderColor = Color.Gray,
                             unfocusedBorderColor = Color.LightGray,
                             cursorColor = Color.Black
                         ),
@@ -318,9 +347,9 @@ fun ShelterOwnerSignUpScreen(
                     )
 
                     OutlinedTextField(
-                        value = lastName,
-                        onValueChange = { lastName = it },
-                        placeholder = { Text("Last name", color = Color.Gray) },
+                        value = ownerName,
+                        onValueChange = { ownerName = it },
+                        placeholder = { Text("Owner name", color = Color.Gray) },
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Text,
                             imeAction = ImeAction.Next
@@ -339,7 +368,7 @@ fun ShelterOwnerSignUpScreen(
                     OutlinedTextField(
                         value = mobileNumber,
                         onValueChange = { mobileNumber = it },
-                        placeholder = { Text("Mobile name", color = Color.Gray) },
+                        placeholder = { Text("Mobile number", color = Color.Gray) },
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Phone,
                             imeAction = ImeAction.Next
@@ -375,9 +404,9 @@ fun ShelterOwnerSignUpScreen(
                     )
 
                     OutlinedTextField(
-                        value = age,
-                        onValueChange = { age = it },
-                        placeholder = { Text("Age", color = Color.Gray) },
+                        value = establishedYear,
+                        onValueChange = { establishedYear = it },
+                        placeholder = { Text("Established Year", color = Color.Gray) },
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Number,
                             imeAction = ImeAction.Done
@@ -396,12 +425,12 @@ fun ShelterOwnerSignUpScreen(
                     Button(
                         onClick = {
                             when {
-                                firstName.isBlank() -> {
-                                    errorMessage = "Please enter your first name"
+                                shelterName.isBlank() -> {
+                                    errorMessage = "Please enter your shelter name"
                                     return@Button
                                 }
-                                lastName.isBlank() -> {
-                                    errorMessage = "Please enter your last name"
+                                ownerName.isBlank() -> {
+                                    errorMessage = "Please enter owner name"
                                     return@Button
                                 }
                                 mobileNumber.isBlank() -> {
@@ -412,8 +441,8 @@ fun ShelterOwnerSignUpScreen(
                                     errorMessage = "Please enter your address"
                                     return@Button
                                 }
-                                age.isBlank() -> {
-                                    errorMessage = "Please enter your age"
+                                establishedYear.isBlank() -> {
+                                    errorMessage = "Please enter your established year"
                                     return@Button
                                 }
                                 else -> {
@@ -433,19 +462,32 @@ fun ShelterOwnerSignUpScreen(
                                             isLoading = false
                                             return@launch
                                         }
+                                        val adopterRepo = AdopterRepository()
+                                        val shelterRepo = ShelterRepository()
+
+
                                         val user = User(
                                             id = uid,
-                                            name = "$firstName $lastName",
+                                            name = shelterName,
                                             email = email,
                                             MobileNumber = mobileNumber,
                                             Address = address,
-                                            Age = age,
+                                            Age = establishedYear,
                                             role = "shelter" //
                                         )
                                         try {
                                             firestoreRepo.addUser(user)
-                                            sharedViewModel.username.value = "$firstName, $lastName"
-                                            onSignUpClick(firstName, email, lastName, mobileNumber)
+                                            if(user.role == "adopter"){
+                                                adopterRepo.addAdopter(user)
+                                            }else if(user.role == "shelter"){
+                                                shelterRepo.addShelter(user)
+                                            }
+
+
+                                            AuthViewModel.fetchUserRole()
+
+                                            sharedViewModel.username.value = shelterName
+                                            onSignUpClick(shelterName, email, ownerName, mobileNumber)
                                             delay(1)
                                             navController.navigate("adoption_center_dashboard") {
                                                 popUpTo("user_type") { inclusive = true }
