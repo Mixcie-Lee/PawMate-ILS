@@ -1,5 +1,6 @@
 package com.example.pawmate_ils.ui.screens
 
+import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -10,60 +11,74 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.example.pawmate_ils.Firebase_Utils.Auth2ViewModel
-import com.example.pawmate_ils.Firebase_Utils.FirestoreRepository
-import com.example.pawmate_ils.ui.theme.DarkBrown
-import com.example.pawmate_ils.SharedViewModel
-import com.example.pawmate_ils.firebase_models.User
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.common.api.ApiException
-import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import com.example.pawmate_ils.Firebase_Utils.AuthViewModel
+import com.example.pawmate_ils.SharedViewModel
+import com.example.pawmate_ils.Firebase_Utils.FirestoreRepository
+import com.example.pawmate_ils.firebase_models.User
+import com.google.firebase.auth.FirebaseAuth
+import com.example.pawmate_ils.R
+import com.example.pawmate_ils.ui.theme.DarkBrown
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.pawmate_ils.AdopShelDataStruc.AdopterRepository
+import com.example.pawmate_ils.AdopShelDataStruc.ShelterRepository
+import com.example.pawmate_ils.SettingsManager
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInClient
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
+import com.google.firebase.auth.GoogleAuthProvider
 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ShelterOwnerSignUpScreen(
+fun SellerSignUpScreen(
     navController: NavController,
+    authViewModel: AuthViewModel,
     onSignUpClick: (String, String, String, String) -> Unit,
     onLoginClick: () -> Unit,
-    onUserAuthClick: () -> Unit,
-    sharedViewModel : SharedViewModel
-) {
-    // I COMMENT THE ON SIGN UP CLICK FUNCTION YOU'VE MADE SINCE IT WILL BE HANDLED BY FIREBASE
-    //Firebase Initializations & stuffs related to firebase
+    onSellerAuthClick: () -> Unit,
+    sharedViewModel: SharedViewModel,
+
+    ) {
+    //FIREBASE AUTHENTICATION
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val Auth2ViewModel : Auth2ViewModel = viewModel()
-    val authState  = Auth2ViewModel.authState.observeAsState()
+    val AuthViewModel : AuthViewModel = viewModel()
+    val authState  = AuthViewModel.authState.observeAsState()
     val firestoreRepo = remember { FirestoreRepository() }
 
     var currentStep by remember { mutableStateOf(1) } // 1: Email, 2: About You
     var email by remember { mutableStateOf("") }
-    var firstName by remember { mutableStateOf("") }
-    var lastName by remember { mutableStateOf("") }
+    var password by remember {mutableStateOf(" ")} //MOCK UP LANG TO GA, PERO I NEED YOU TO ADD PASSWORD AS WELL SA SIGN UP FOR AUTHENTICATION
+    var shelterName by remember { mutableStateOf("") }
+    var OwnerName by remember { mutableStateOf("") }
     var mobileNumber by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
-    var age by remember { mutableStateOf("") }
+    var establishedYear by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
-    var password by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
+    var isGoogleLoading by remember {mutableStateOf(false)}
 
+    //GOOGLE SIGN-UP/SIGN-IN HANDLER
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -76,112 +91,158 @@ fun ShelterOwnerSignUpScreen(
                 return@rememberLauncherForActivityResult
             }
 
-            // Attempt Firebase sign-up with Google
-            Auth2ViewModel.signUpWithGoogle(idToken) { success ->
-                println("Google SignIn success: $success")
-                if (success) {
-                    currentStep = 2
-                } else {
-                    errorMessage = "Google Sign-In failed. Try again."
+            val credential = GoogleAuthProvider.getCredential(idToken, null)
+            FirebaseAuth.getInstance().signInWithCredential(credential)
+                .addOnCompleteListener { task ->
+                    isGoogleLoading = false
+                    if (task.isSuccessful) {
+                        // Move to About You step for additional info
+                        currentStep = 2
+                        email = account.email ?: ""
+                    } else {
+                        errorMessage = task.exception?.message ?: "Google Sign-In failed."
+                    }
                 }
-            }
 
         } catch (e: ApiException) {
+            isGoogleLoading = false
             errorMessage = "Google sign in failed: ${e.message}"
         }
     }
 
+
+
+
+
+
+
+
+
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(
+                androidx.compose.ui.graphics.Brush.verticalGradient(
+                    colors = listOf(
+                        Color(0xFFFFF0F5),
+                        Color(0xFFFFE4E9),
+                        Color(0xFFFFD6E0)
+                    )
+                )
+            )
     ) {
         Column(
             modifier = Modifier
                 .verticalScroll(scrollState)
                 .fillMaxSize()
-                .padding(horizontal = 24.dp),
+                .padding(horizontal = 32.dp, vertical = 48.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Spacer(modifier = Modifier.height(80.dp))
+            Spacer(modifier = Modifier.height(40.dp))
 
             when (currentStep) {
                 1 -> {
-                    // Email Step
-                    Text(
-                        text = "PawMate",
-                        style = MaterialTheme.typography.headlineMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = Color.Black,
-                            fontSize = 28.sp
-                        ),
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(bottom = 32.dp)
+                    Image(
+                        painter = painterResource(id = R.drawable.pawmate_logo),
+                        contentDescription = "PawMate Logo",
+                        modifier = Modifier
+                            .size(100.dp)
+                            .padding(bottom = 16.dp)
                     )
 
                     Text(
-                        text = "Create an account",
-                        style = MaterialTheme.typography.titleMedium.copy(
+                        text = "Create Account",
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "This is shelter sign up, sign up to get started!",
+                        fontSize = 16.sp,
+                        color = Color.Gray,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(48.dp))
+
+                    Column(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+
+                            text = "Email",
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
                             color = Color.Black,
-                            fontSize = 18.sp
-                        ),
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
 
-                    Text(
-                        text = "Enter your email to sign up for this app",
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            color = Color.Gray,
-                            fontSize = 14.sp
-                        ),
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(bottom = 32.dp)
-                    )
+                        OutlinedTextField(
+                            value = email,
+                            onValueChange = { email = it },
+                            placeholder = { Text("Enter your email", color = Color.Gray.copy(alpha = 0.6f)) },
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Email,
+                                imeAction = ImeAction.Next
+                            ),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color(0xFFFFB6C1),
+                                unfocusedBorderColor = Color.Gray.copy(alpha = 0.3f),
+                                cursorColor = Color(0xFFFFB6C1)
+                            ),
+                            shape = RoundedCornerShape(28.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 20.dp)
+                        )
+                    }
 
-                    OutlinedTextField(
-                        value = email,
-                        onValueChange = { email = it },
-                        placeholder = { Text("name@example.com", color = Color.Black) },
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Email,
-                            imeAction = ImeAction.Next
-                        ),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color.Gray,
-                            unfocusedBorderColor = Color.LightGray,
-                            cursorColor = Color.Black
-                        ),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 16.dp)
-                    )
-                    OutlinedTextField(
-                        value = password,
-                        onValueChange = { password = it },
-                        placeholder = { Text("password", color = Color.Black) },
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Password,
-                            imeAction = ImeAction.Next
-                        ),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color.Gray,
-                            unfocusedBorderColor = Color.LightGray,
-                            cursorColor = Color.Black
-                        ),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 16.dp)
-                    )
+                    Column(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Password",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color.Black,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
 
-                    Button(
+                        OutlinedTextField(
+                            value = password,
+                            onValueChange = { password = it },
+                            placeholder = { Text("Create a password", color = Color.Gray.copy(alpha = 0.6f)) },
+                            visualTransformation = PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Password,
+                                imeAction = ImeAction.Done
+                            ),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color(0xFFFFB6C1),
+                                unfocusedBorderColor = Color.Gray.copy(alpha = 0.3f),
+                                cursorColor = Color(0xFFFFB6C1)
+                            ),
+                            shape = RoundedCornerShape(28.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 24.dp)
+                        )
+                    }
+
+                    Button( //THIS IS THE BUTTON THAT HANDLES SIGN UPP FOR EMAILS!!
                         onClick = {
                             if (email.isBlank()) {
                                 errorMessage = "Please enter your email"
+                                return@Button
+                            }
+                            if (password.isBlank()) {
+                                errorMessage = "Please enter password"
                                 return@Button
                             }
                             if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
@@ -189,49 +250,78 @@ fun ShelterOwnerSignUpScreen(
                                 return@Button
                             }
                             errorMessage = null
-                            Auth2ViewModel.signUp(email, password)
-                                currentStep = 2 // Move to About You step
+                            AuthViewModel.signUp(email, password) { success, message ->
+                                if (success) {
+                                    currentStep = 2 // Move to "About You" step
+                                } else {
+                                    errorMessage = message ?: "Sign-up failed. Please try again."
+                                }
+                            }
+                            currentStep = 2 // Move to About You step
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(48.dp),
+                            .height(56.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = DarkBrown,
-                            contentColor = Color.White
+                            containerColor = Color(0xFFFFB6C1),
+                            contentColor = Color.White,
+                            disabledContainerColor = Color(0xFFFFB6C1).copy(alpha = 0.6f)
                         ),
-                        shape = RoundedCornerShape(8.dp),
-                        enabled = !isLoading
+                        shape = RoundedCornerShape(28.dp),
+                        enabled = !isLoading,
+                        elevation = ButtonDefaults.buttonElevation(
+                            defaultElevation = 0.dp,
+                            pressedElevation = 2.dp
+                        )
                     ) {
                         Text(
                             "Continue",
                             fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
 
-                    Text(
-                        text = "or",
-                        color = Color.Gray,
-                        fontSize = 14.sp,
-                        modifier = Modifier.padding(vertical = 8.dp)
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        HorizontalDivider(
+                            modifier = Modifier.weight(1f),
+                            color = Color.Gray.copy(alpha = 0.3f)
+                        )
+                        Text(
+                            text = "or",
+                            color = Color.Gray,
+                            fontSize = 14.sp,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+                        HorizontalDivider(
+                            modifier = Modifier.weight(1f),
+                            color = Color.Gray.copy(alpha = 0.3f)
+                        )
+                    }
 
-                    // Google Sign In Button
+                    Spacer(modifier = Modifier.height(20.dp))
+                    //Google Button
                     OutlinedButton(
-                        onClick = { /* Handle Google Sign In */
+                        onClick = {
+                            AuthViewModel.fetchUserRole()
+                            /* Handle Google Sign In */
+                            isGoogleLoading = true
                             val gsoClient = getGoogleSignInClient(context)
                             launcher.launch(gsoClient.signInIntent)
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(48.dp),
+                            .height(56.dp),
                         colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = Color.White,
                             contentColor = Color.Black
                         ),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.LightGray),
-                        shape = RoundedCornerShape(8.dp)
+                        border = BorderStroke(1.dp, Color.Gray.copy(alpha = 0.3f)),
+                        shape = RoundedCornerShape(28.dp)
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -239,24 +329,25 @@ fun ShelterOwnerSignUpScreen(
                         ) {
                             Text(
                                 "G",
-                                fontSize = 18.sp,
+                                fontSize = 20.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.Red,
-                                modifier = Modifier.padding(end = 8.dp)
+                                color = Color(0xFF4285F4),
+                                modifier = Modifier.padding(end = 12.dp)
                             )
                             Text(
                                 "Continue with Google",
-                                fontSize = 14.sp
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Medium
                             )
                         }
                     }
 
-
-                    Spacer(modifier = Modifier.height(32.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
 
                     Row(
-                        modifier = Modifier.padding(bottom = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
                     ) {
                         Text(
                             "Already have an account? ",
@@ -269,165 +360,241 @@ fun ShelterOwnerSignUpScreen(
                         ) {
                             Text(
                                 "Log in",
-                                color = Color.Black,
+                                color = Color(0xFFFF9999),
                                 fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium
+                                fontWeight = FontWeight.Bold
                             )
                         }
                     }
 
+                    Spacer(modifier = Modifier.height(16.dp))
+
                     Text(
-                        text = "By clicking continue, you agree to our Terms of Service and Privacy Policy.",
-                        color = Color.Gray,
+                        text = "By continuing, you agree to our Terms of Service and Privacy Policy",
+                        color = Color.Gray.copy(alpha = 0.7f),
                         fontSize = 12.sp,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(horizontal = 16.dp)
+                        lineHeight = 16.sp,
+                        modifier = Modifier.padding(horizontal = 20.dp)
                     )
                 }
 
                 2 -> {
-                    // About You Step
                     Text(
-                        text = "About you",
-                        style = MaterialTheme.typography.headlineMedium.copy(
-                            fontWeight = FontWeight.Bold,
+                        text = "About You",
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "Tell us more about yourself",
+                        fontSize = 16.sp,
+                        color = Color.Gray,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(32.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(
+                                text = "Shelter Name",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color.Black,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                            OutlinedTextField(
+                                value = shelterName,
+                                onValueChange = { shelterName = it },
+                                placeholder = { Text("Cainta Shelter", color = Color.Gray.copy(alpha = 0.6f)) },
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Text,
+                                    imeAction = ImeAction.Next
+                                ),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = Color(0xFFFFB6C1),
+                                    unfocusedBorderColor = Color.Gray.copy(alpha = 0.3f),
+                                    cursorColor = Color(0xFFFFB6C1)
+                                ),
+                                shape = RoundedCornerShape(28.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+
+                        Column(
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(
+                                text = "Owner name",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color.Black,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                            OutlinedTextField(
+                                value = OwnerName,
+                                onValueChange = { OwnerName = it },
+                                placeholder = { Text("Doe", color = Color.Gray.copy(alpha = 0.6f)) },
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Text,
+                                    imeAction = ImeAction.Next
+                                ),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = Color(0xFFFFB6C1),
+                                    unfocusedBorderColor = Color.Gray.copy(alpha = 0.3f),
+                                    cursorColor = Color(0xFFFFB6C1)
+                                ),
+                                shape = RoundedCornerShape(28.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Column(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Mobile Number",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
                             color = Color.Black,
-                            fontSize = 28.sp
-                        ),
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(bottom = 32.dp)
-                    )
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                        OutlinedTextField(
+                            value = mobileNumber,
+                            onValueChange = { mobileNumber = it },
+                            placeholder = { Text("+1 234 567 8900", color = Color.Gray.copy(alpha = 0.6f)) },
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Phone,
+                                imeAction = ImeAction.Next
+                            ),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color(0xFFFFB6C1),
+                                unfocusedBorderColor = Color.Gray.copy(alpha = 0.3f),
+                                cursorColor = Color(0xFFFFB6C1)
+                            ),
+                            shape = RoundedCornerShape(28.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
 
-                    OutlinedTextField(
-                        value = firstName,
-                        onValueChange = { firstName = it },
-                        placeholder = { Text("First name", color = Color.Gray) },
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Text,
-                            imeAction = ImeAction.Next
-                        ),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color.Gray,
-                            unfocusedBorderColor = Color.LightGray,
-                            cursorColor = Color.Black
-                        ),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 16.dp)
-                    )
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                    OutlinedTextField(
-                        value = lastName,
-                        onValueChange = { lastName = it },
-                        placeholder = { Text("Last name", color = Color.Gray) },
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Text,
-                            imeAction = ImeAction.Next
-                        ),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color.Gray,
-                            unfocusedBorderColor = Color.LightGray,
-                            cursorColor = Color.Black
-                        ),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 16.dp)
-                    )
+                    Column(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Address",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color.Black,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                        OutlinedTextField(
+                            value = address,
+                            onValueChange = { address = it },
+                            placeholder = { Text("123 Main Street", color = Color.Gray.copy(alpha = 0.6f)) },
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Text,
+                                imeAction = ImeAction.Next
+                            ),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color(0xFFFFB6C1),
+                                unfocusedBorderColor = Color.Gray.copy(alpha = 0.3f),
+                                cursorColor = Color(0xFFFFB6C1)
+                            ),
+                            shape = RoundedCornerShape(28.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
 
-                    OutlinedTextField(
-                        value = mobileNumber,
-                        onValueChange = { mobileNumber = it },
-                        placeholder = { Text("Mobile name", color = Color.Gray) },
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Phone,
-                            imeAction = ImeAction.Next
-                        ),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color.Gray,
-                            unfocusedBorderColor = Color.LightGray,
-                            cursorColor = Color.Black
-                        ),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 16.dp)
-                    )
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                    OutlinedTextField(
-                        value = address,
-                        onValueChange = { address = it },
-                        placeholder = { Text("Address", color = Color.Gray) },
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Text,
-                            imeAction = ImeAction.Next
-                        ),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color.Gray,
-                            unfocusedBorderColor = Color.LightGray,
-                            cursorColor = Color.Black
-                        ),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 16.dp)
-                    )
+                    Column(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Established Year",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color.Black,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                        OutlinedTextField(
+                            value = establishedYear,
+                            onValueChange = { establishedYear = it },
+                            placeholder = { Text("25", color = Color.Gray.copy(alpha = 0.6f)) },
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Number,
+                                imeAction = ImeAction.Done
+                            ),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color(0xFFFFB6C1),
+                                unfocusedBorderColor = Color.Gray.copy(alpha = 0.3f),
+                                cursorColor = Color(0xFFFFB6C1)
+                            ),
+                            shape = RoundedCornerShape(28.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Text(
+                            text = "You must be 18 or older to use PawMate",
+                            fontSize = 12.sp,
+                            color = Color.Gray.copy(alpha = 0.7f),
+                            modifier = Modifier.padding(top = 6.dp, start = 4.dp)
+                        )
+                    }
 
-                    OutlinedTextField(
-                        value = age,
-                        onValueChange = { age = it },
-                        placeholder = { Text("Age", color = Color.Gray) },
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Number,
-                            imeAction = ImeAction.Done
-                        ),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color.Gray,
-                            unfocusedBorderColor = Color.LightGray,
-                            cursorColor = Color.Black
-                        ),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 16.dp)
-                    )
+                    Spacer(modifier = Modifier.height(24.dp))
 
                     Button(
                         onClick = {
                             when {
-                                firstName.isBlank() -> {
+                                shelterName.isBlank() -> {
                                     errorMessage = "Please enter your first name"
                                     return@Button
                                 }
-                                lastName.isBlank() -> {
+
+                                OwnerName.isBlank() -> {
                                     errorMessage = "Please enter your last name"
                                     return@Button
                                 }
+
                                 mobileNumber.isBlank() -> {
                                     errorMessage = "Please enter your mobile number"
                                     return@Button
                                 }
+
                                 address.isBlank() -> {
                                     errorMessage = "Please enter your address"
                                     return@Button
                                 }
-                                age.isBlank() -> {
+
+                                establishedYear.isBlank() -> {
                                     errorMessage = "Please enter your age"
                                     return@Button
                                 }
-                                else -> {
+
+                                establishedYear.toIntOrNull() == null -> {
+                                    errorMessage = "Please enter a valid year"
+                                    return@Button
+                                }else -> {
                                     errorMessage = null
                                     isLoading = true
-                                    scope.launch{
-                                        //STORING DATA AFTER AUTHENTICATING IN THE STEP 1
-                                        /*Please do not delete this, kahit duplicated sya from auth screen kailangan sya para
-                                         makapag input ng data sa firestore. Di kasi nagana pag walang ganto sa auth screen or kapag wala
-                                         naman ganto dito. So kailangan meron ganto sa authscreen at dito.
-                                        */
+                                    scope.launch {
                                         val uid = FirebaseAuth.getInstance().currentUser?.uid
                                         if (uid == null) {
-                                            // user not signed in (maybe Auth step failed)
                                             errorMessage =
                                                 "User not signed in. Please complete Step 1."
                                             isLoading = false
@@ -435,18 +602,37 @@ fun ShelterOwnerSignUpScreen(
                                         }
                                         val user = User(
                                             id = uid,
-                                            name = "$firstName $lastName",
+                                            name = "$shelterName $OwnerName",
                                             email = email,
                                             MobileNumber = mobileNumber,
                                             Address = address,
-                                            Age = age,
-                                            role = "shelter" //
+                                            Age = establishedYear,
+                                            role = "shelter",
+                                            gems = 10,
+                                            likedPetsCount = 0,
                                         )
+                                        val adopterRepo = AdopterRepository()
+                                        val shelterRepo = ShelterRepository()
+
+
+
                                         try {
                                             firestoreRepo.addUser(user)
-                                            sharedViewModel.username.value = "$firstName, $lastName"
-                                            onSignUpClick(firstName, email, lastName, mobileNumber)
-                                            delay(1)
+                                            if(user.role == "adopter"){
+                                                adopterRepo.addAdopter(user)
+                                            }else if(user.role == "shelter"){
+                                                shelterRepo.addShelter(user)
+                                            }
+
+                                            AuthViewModel.fetchUserRole()
+
+                                            onSignUpClick(shelterName, email, OwnerName, mobileNumber)
+                                            sharedViewModel.username.value = "$shelterName $OwnerName"
+                                            //saves username locally, so it persists across app restarts
+                                            val settings = SettingsManager(context)
+                                            settings.setUsername("$shelterName $OwnerName")
+
+                                            delay(50)
                                             navController.navigate("adoption_center_dashboard") {
                                                 popUpTo("user_type") { inclusive = true }
                                             }
@@ -456,31 +642,37 @@ fun ShelterOwnerSignUpScreen(
                                             isLoading = false
                                         }
 
-                                        }
+
                                     }
                                 }
-
+                            }
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(48.dp),
+                            .height(56.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = DarkBrown,
-                            contentColor = Color.White
+                            containerColor = Color(0xFFFFB6C1),
+                            contentColor = Color.White,
+                            disabledContainerColor = Color(0xFFFFB6C1).copy(alpha = 0.6f)
                         ),
-                        shape = RoundedCornerShape(8.dp),
-                        enabled = !isLoading
+                        shape = RoundedCornerShape(28.dp),
+                        enabled = !isLoading,
+                        elevation = ButtonDefaults.buttonElevation(
+                            defaultElevation = 0.dp,
+                            pressedElevation = 2.dp
+                        )
                     ) {
                         if (isLoading) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                color = Color.White
+                                modifier = Modifier.size(24.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
                             )
                         } else {
                             Text(
-                                "Continue",
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Medium
+                                "Complete Sign Up",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold
                             )
                         }
                     }
@@ -488,15 +680,30 @@ fun ShelterOwnerSignUpScreen(
             }
 
             errorMessage?.let {
-                Text(
-                    text = it,
-                    color = MaterialTheme.colorScheme.error,
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(top = 16.dp)
-                )
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color(0xFFFFEBEE)
+                    ),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        text = it,
+                        color = Color(0xFFC62828),
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(12.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(40.dp))
         }
     }
 }
+
+
+
+
+

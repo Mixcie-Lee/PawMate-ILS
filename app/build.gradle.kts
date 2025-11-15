@@ -71,6 +71,7 @@ dependencies {
     implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
     implementation("com.google.android.libraries.identity.googleid:googleid:1.1.0")
     implementation("com.google.android.gms:play-services-auth:21.4.0")
+    implementation(libs.firebase.database)
 
     implementation(libs.googleid)
     implementation (platform("com.google.firebase:firebase-bom:34.2.0"))

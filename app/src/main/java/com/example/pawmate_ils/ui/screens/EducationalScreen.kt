@@ -46,12 +46,12 @@ fun EducationalScreen(navController: NavController) {
     val cardColor = if (isDarkMode) Color(0xFF2A2A2A) else Color.White
     val primaryColor = if (isDarkMode) Color(0xFFFF9999) else Color(0xFFFFB6C1)
     val navBarColor = if (isDarkMode) Color(0xFF1E1E1E) else Color.White
-    
+
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf("All") }
-    
+
     val categories = listOf("All", "Dog Care", "Cat Care", "Health", "Training", "Nutrition")
-    
+
     val articles = listOf(
         EducationalArticle(
             id = 1,
@@ -102,29 +102,30 @@ fun EducationalScreen(navController: NavController) {
             readTime = "7 min read"
         )
     )
-    
+
     val filteredArticles = articles.filter { article ->
         (selectedCategory == "All" || article.category == selectedCategory) &&
-        (searchQuery.isEmpty() || article.title.contains(searchQuery, ignoreCase = true) ||
-         article.description.contains(searchQuery, ignoreCase = true))
+                (searchQuery.isEmpty() || article.title.contains(searchQuery, ignoreCase = true) ||
+                        article.description.contains(searchQuery, ignoreCase = true))
     }
 
     Scaffold(
         bottomBar = {
             NavigationBar(
                 containerColor = navBarColor,
+                contentColor = textColor,
                 tonalElevation = 8.dp
             ) {
                 NavigationBarItem(
-                    icon = { 
+                    icon = {
                         Icon(
-                            imageVector = androidx.compose.material.icons.Icons.Default.Pets, 
+                            Icons.Default.Pets,
                             contentDescription = "Swipe",
-                            tint = Color.Gray.copy(alpha = 0.6f)
-                        ) 
+                            tint = Color(0xFFFF9999)
+                        )
                     },
-                    label = { Text("Swipe", color = Color.Gray.copy(alpha = 0.6f)) },
-                    selected = false,
+                    label = { Text("Swipe", color = Color(0xFFFF9999), fontWeight = FontWeight.Bold) },
+                    selected = true,
                     onClick = { navController.navigate("pet_swipe") },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = Color(0xFFFF9999),
@@ -133,7 +134,7 @@ fun EducationalScreen(navController: NavController) {
                     )
                 )
                 NavigationBarItem(
-                    icon = { 
+                    icon = {
                         Image(
                             painter = painterResource(id = R.drawable.heart),
                             contentDescription = "Liked",
@@ -145,7 +146,9 @@ fun EducationalScreen(navController: NavController) {
                     },
                     label = { Text("Liked", color = Color.Gray.copy(alpha = 0.6f)) },
                     selected = false,
-                    onClick = { navController.navigate("adopter_home") },
+                    onClick = {
+                        navController.navigate("adopter_home")
+                    },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = Color(0xFFFF9999),
                         selectedTextColor = Color(0xFFFF9999),
@@ -153,17 +156,21 @@ fun EducationalScreen(navController: NavController) {
                     )
                 )
                 NavigationBarItem(
-                    icon = { 
+                    icon = {
                         Image(
                             painter = painterResource(id = R.drawable.book_open),
-                            contentDescription = "Education",
+                            contentDescription = "Learn",
                             modifier = Modifier.size(24.dp),
-                            colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(Color(0xFFFF9999))
+                            colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(
+                                Color.Gray.copy(alpha = 0.6f)
+                            )
                         )
                     },
-                    label = { Text("Education", color = Color(0xFFFF9999), fontWeight = FontWeight.Bold) },
-                    selected = true,
-                    onClick = { },
+                    label = { Text("Learn", color = Color.Gray.copy(alpha = 0.6f)) },
+                    selected = false,
+                    onClick = {
+                        navController.navigate("educational")
+                    },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = Color(0xFFFF9999),
                         selectedTextColor = Color(0xFFFF9999),
@@ -171,7 +178,7 @@ fun EducationalScreen(navController: NavController) {
                     )
                 )
                 NavigationBarItem(
-                    icon = { 
+                    icon = {
                         Image(
                             painter = painterResource(id = R.drawable.profile_d),
                             contentDescription = "Profile",
@@ -183,7 +190,32 @@ fun EducationalScreen(navController: NavController) {
                     },
                     label = { Text("Profile", color = Color.Gray.copy(alpha = 0.6f)) },
                     selected = false,
-                    onClick = { navController.navigate("profile_settings") },
+                    onClick = {
+                        navController.navigate("profile_settings")
+                    },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = Color(0xFFFF9999),
+                        selectedTextColor = Color(0xFFFF9999),
+                        indicatorColor = Color(0xFFFFD6E0)
+                    )
+                )
+
+                NavigationBarItem(
+                    icon = {
+                        Image(
+                            painter = painterResource(id = R.drawable.message_square),
+                            contentDescription = "Message",
+                            modifier = Modifier.size(24.dp),
+                            colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(
+                                Color.Gray.copy(alpha = 0.6f)
+                            )
+                        )
+                    },
+                    label = { Text("Message", color = Color.Gray.copy(alpha = 0.6f)) },
+                    selected = false,
+                    onClick = {
+                        navController.navigate("chat_home")
+                    },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = Color(0xFFFF9999),
                         selectedTextColor = Color(0xFFFF9999),
@@ -203,7 +235,7 @@ fun EducationalScreen(navController: NavController) {
         ) {
             item {
                 Spacer(modifier = Modifier.height(16.dp))
-                
+
                 Text(
                     text = "Education",
                     fontSize = 36.sp,
@@ -215,8 +247,8 @@ fun EducationalScreen(navController: NavController) {
                         .padding(bottom = 24.dp)
                 )
             }
-            
-            
+
+
             items(filteredArticles) { article ->
                 ArticleCard(
                     article = article,
@@ -226,7 +258,7 @@ fun EducationalScreen(navController: NavController) {
                     }
                 )
             }
-            
+
             item {
                 Spacer(modifier = Modifier.height(16.dp))
             }
@@ -293,9 +325,9 @@ fun ArticleCard(
                     color = Color.Black,
                     maxLines = 1
                 )
-                
+
                 Spacer(modifier = Modifier.height(4.dp))
-                
+
                 Text(
                     text = article.description,
                     fontSize = 13.sp,
@@ -304,7 +336,7 @@ fun ArticleCard(
                     lineHeight = 18.sp
                 )
             }
-            
+
             Box(
                 modifier = Modifier
                     .size(80.dp)

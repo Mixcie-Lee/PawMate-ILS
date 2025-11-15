@@ -11,7 +11,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.example.pawmate_ils.Firebase_Utils.AuthState
 import com.example.pawmate_ils.Firebase_Utils.AuthViewModel
 import com.example.pawmate_ils.Firebase_Utils.FirestoreRepository
 import com.example.pawmate_ils.SharedViewModel
@@ -26,6 +25,7 @@ fun AuthScreen(
      navController: NavController,
     onAuthComplete: () -> Unit,
      sharedViewModel: SharedViewModel,
+     onUserAuthClick: () -> Unit,
      onSignUpClick: (String, String, String, String) -> Unit,
 
 
@@ -64,7 +64,7 @@ fun AuthScreen(
             when {
                 showShelterOwnerAuth -> {
                     if (showShelterOwnerSignUp) {
-                        ShelterOwnerSignUpScreen(
+                        SellerSignUpScreen(
                             navController = navController,
                             onSignUpClick = { _,_,_,_ ->
                                 onAuthComplete()
@@ -105,16 +105,20 @@ fun AuthScreen(
 
                             },
                             onLoginClick = { showShelterOwnerSignUp = false },
-                            onUserAuthClick = { showShelterOwnerAuth = false },
-                            sharedViewModel = sharedViewModel
+                            onSellerAuthClick =  { showShelterOwnerAuth = false },
+                            sharedViewModel = sharedViewModel,
+                            authViewModel = AuthViewModel
+
+
                         )
                     } else {
-                        ShelterOwnerLoginScreen(
+                       SellerLoginScreen(
+                           authViewModel = AuthViewModel,
                             onLoginClick = { _, _ ->
                                 onAuthComplete()
                             },
                             onSignUpClick = { showShelterOwnerSignUp = true },
-                            onUserAuthClick = { showShelterOwnerAuth = false }
+                            onSellerAuthClick = { showShelterOwnerAuth = false },
                         )
                     }
                 }
@@ -133,11 +137,13 @@ fun AuthScreen(
 
                     } else {
                         LoginScreen(
-                            onLoginClick = { _, _ ->
+                            authViewModel = AuthViewModel,
+                            onLoginClick = { email, password->
                                 onAuthComplete()
                             },
                             onSignUpClick = { showSignUp = true },
                             onSellerAuthClick = { showShelterOwnerAuth = true }
+
                         )
                     }
                 }

@@ -20,7 +20,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.example.pawmate_ils.Firebase_Utils.AuthState
 import com.example.pawmate_ils.Firebase_Utils.AuthViewModel
 import com.example.pawmate_ils.R
 import com.example.pawmate_ils.ui.theme.DarkBrown
@@ -36,7 +35,7 @@ fun UserTypeSelectionScreen(
     val AuthViewModel : AuthViewModel = viewModel()
     val authState  = AuthViewModel.authState.observeAsState()
     val context = LocalContext.current
-    LaunchedEffect(authState.value) {
+    /*LaunchedEffect(authState.value) {
         when(authState.value){
             is AuthState.Authenticated -> {
                 val userId = FirebaseAuth.getInstance().currentUser?.uid
@@ -59,11 +58,11 @@ fun UserTypeSelectionScreen(
             else -> Unit
         }
     }
+    */
 
 
 
 
-    
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -85,7 +84,7 @@ fun UserTypeSelectionScreen(
             verticalArrangement = Arrangement.Center
         ) {
             Spacer(modifier = Modifier.height(40.dp))
-            
+
             Image(
                 painter = painterResource(id = R.drawable.pawmate_logo),
                 contentDescription = "PawMate Logo",
@@ -93,7 +92,7 @@ fun UserTypeSelectionScreen(
                     .size(120.dp)
                     .padding(bottom = 24.dp)
             )
-            
+
             Text(
                 text = "Welcome to PawMate!",
                 fontSize = 32.sp,
@@ -126,9 +125,9 @@ fun UserTypeSelectionScreen(
                     fontWeight = FontWeight.SemiBold
                 )
             }
-            
+
             Spacer(modifier = Modifier.height(16.dp))
-            
+
             TextButton(
                 onClick = { navController.navigate("seller_signup") }
             ) {
@@ -139,8 +138,8 @@ fun UserTypeSelectionScreen(
                     fontWeight = FontWeight.Medium
                 )
             }
-            
+
             Spacer(modifier = Modifier.height(40.dp))
         }
     }
-} 
+}

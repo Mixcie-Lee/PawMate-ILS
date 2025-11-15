@@ -24,7 +24,7 @@ fun AdoptionCenterPets(
     onAddPet: () -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
-    val pets = remember { 
+    val pets = remember {
         mutableStateListOf(
             Pet1("Max", "Dog", "Golden Retriever", "2 years", "Male"),
             Pet1("Luna", "Cat", "Siamese", "1 year", "Female"),
@@ -115,7 +115,7 @@ fun PetCard(pet: Pet1) {
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )
             }
-            
+
             Row {
                 IconButton(onClick = { /* Edit pet */ }) {
                     Icon(Icons.Default.Edit, "Edit", tint = Color(0xFFFFB6C1))

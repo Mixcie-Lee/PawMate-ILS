@@ -3,12 +3,14 @@ package com.example.pawmate_ils.ui.screens
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,10 +24,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.example.pawmate_ils.Firebase_Utils.Auth2State
-import com.example.pawmate_ils.Firebase_Utils.Auth2ViewModel
-import com.example.pawmate_ils.Firebase_Utils.AuthState
 import com.example.pawmate_ils.Firebase_Utils.AuthViewModel
+import com.example.pawmate_ils.Firebase_Utils.HomeViewModel
+import com.example.pawmate_ils.Firebase_Utils.PetRepository
+import com.example.pawmate_ils.SharedViewModel
+import com.example.pawmate_ils.firebase_models.Channel
 import com.example.pawmate_ils.ui.theme.DarkBrown
 import com.example.pawmate_ils.ui.models.Application
 import com.google.firebase.auth.FirebaseAuth
@@ -38,34 +41,23 @@ fun AdoptionCenterDashboard(
     centerName: String
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Dashboard", "Pets", "Applications", "Analytics")
+    val tabs = listOf("Dashboard", "Pets", "Applications",)
     //Firebase initialization
-    val AuthViewModel : AuthViewModel = viewModel()
-    val authState  = AuthViewModel.authState.observeAsState()
+    val authViewModel : AuthViewModel = viewModel()
+    val sharedViewModel : SharedViewModel = viewModel ()
+    val authState  = authViewModel.authState.observeAsState()
     val context = LocalContext.current
-    LaunchedEffect(authState.value) {
-        when(authState.value){
-            is AuthState.Authenticated -> {
-                val userId = FirebaseAuth.getInstance().currentUser?.uid
-                if (userId != null) {
-                    FirebaseFirestore.getInstance()
-                        .collection("users") // or "adopters"/"shelters"
-                        .document(userId)
-                        .get()
-                        .addOnSuccessListener { snapshot ->
-                            val role = snapshot.getString("role")
-                            when (role) {
-                                "adopter" -> navController.navigate("pet_selection")
-                                "shelter" -> navController.navigate("adoption_center_dashboard")
-                            }
-                        }
-                }
-            }
-            is Auth2State.Unauthenticated -> Log.d("Auth", "login")
-            is Auth2State.Error -> Toast.makeText(context,( authState.value as AuthState.Error).message, Toast.LENGTH_SHORT).show()
-            else -> Unit
-        }
+    //Channel initialization
+    val homeViewModel: HomeViewModel = viewModel()
+    val channels by homeViewModel.channels.collectAsState()
+    LaunchedEffect(Unit) {
+        homeViewModel.listenToChannels()
     }
+
+    //observe all pets, i planned to change the available pets number into count of how many pets were
+    //added hehe
+    val petRepository: PetRepository = viewModel()
+    val pets by petRepository.allPets.collectAsState()
 
 
     Scaffold(
@@ -77,7 +69,7 @@ fun AdoptionCenterDashboard(
                             text = centerName,
                             style = MaterialTheme.typography.titleLarge.copy(
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFFFF9999)
+                                color = DarkBrown
                             )
                         )
                         Text(
@@ -110,19 +102,35 @@ fun AdoptionCenterDashboard(
                                     0 -> Icons.Default.Home
                                     1 -> Icons.Default.Pets
                                     2 -> Icons.AutoMirrored.Filled.List
-                                    else -> Icons.Default.Analytics
+                                    else ->Icons.Default.Home
                                 },
                                 contentDescription = title
                             )
                         },
                         label = { Text(title) },
                         selected = selectedTab == index,
-                        onClick = { 
+                        onClick = {
                             selectedTab = index
                             when (index) {
-                                1 -> navController.navigate("adoption_center_pets")
-                                2 -> navController.navigate("adoption_center_applications")
-                                3 -> navController.navigate("adoption_center_statistics")
+                                0 -> navController.navigate("adoption_center_dashboard") {
+                                    popUpTo("adoption_center_dashboard") { inclusive = true }
+                                    launchSingleTop = true
+                                }
+
+                                1 -> navController.navigate("adoption_center_pets") {
+                                    popUpTo("adoption_center_dashboard")
+                                    launchSingleTop = true
+                                }
+
+                                2 -> navController.navigate("adoption_center_applications") {
+                                    popUpTo("adoption_center_dashboard")
+                                    launchSingleTop = true
+                                }
+
+                                3 -> navController.navigate("chat_home") {
+                                    popUpTo("adoption_center_dashboard")
+                                    launchSingleTop = true
+                                }
                             }
                         }
                     )
@@ -131,11 +139,14 @@ fun AdoptionCenterDashboard(
         }
     ) { paddingValues ->
         when (selectedTab) {
-            0 -> DashboardContent(
+           0 ->  DashboardContent(
                 paddingValues = paddingValues,
+                navController = navController,
                 onAddPet = { navController.navigate("add_pet") },
                 onViewPets = { navController.navigate("adoption_center_pets") },
-                onViewApplications = { navController.navigate("adoption_center_applications") }
+                onViewApplications = { navController.navigate("adoption_center_applications") },
+                channels = channels,
+                homeViewModel = homeViewModel // pass it here
             )
             1, 2, 3 -> {
                 // Navigation handled by bottom bar
@@ -147,10 +158,19 @@ fun AdoptionCenterDashboard(
 @Composable
 private fun DashboardContent(
     paddingValues: PaddingValues,
+    navController: NavController,
     onAddPet: () -> Unit,
     onViewPets: () -> Unit,
-    onViewApplications: () -> Unit
+    onViewApplications: () -> Unit,
+    channels: List<Channel>,
+    homeViewModel : HomeViewModel
 ) {
+    //observe all pets, i planned to change the available pets number into count of how many pets were
+    //added hehe
+    val petRepository: PetRepository = viewModel()
+    val pets by petRepository.allPets.collectAsState()
+
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -167,47 +187,34 @@ private fun DashboardContent(
                 ),
                 modifier = Modifier.padding(bottom = 8.dp)
             )
-            
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 StatCard(
-                    title = "Available Pets",
-                    value = "24",
+                    title = "Uploaded Pets",
+                    value = pets.size.toString(),
                     icon = Icons.Default.Pets,
-                    color = Color(0xFFFF9999),
+                    color = DarkBrown,
                     modifier = Modifier.weight(1f)
                 )
                 StatCard(
                     title = "Applications",
-                    value = "12",
+                    value = channels.size.toString(),
                     icon = Icons.AutoMirrored.Filled.List,
                     color = Color(0xFF4CAF50),
                     modifier = Modifier.weight(1f)
                 )
             }
-            
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                StatCard(
-                    title = "Adoptions",
-                    value = "8",
-                    icon = Icons.Default.Favorite,
-                    color = Color(0xFF2196F3),
-                    modifier = Modifier.weight(1f)
-                )
-                StatCard(
-                    title = "Success Rate",
-                    value = "67%",
-                    icon = Icons.Default.TrendingUp,
-                    color = Color(0xFF9C27B0),
-                    modifier = Modifier.weight(1f)
-                )
+
             }
         }
 
@@ -251,13 +258,16 @@ private fun DashboardContent(
             )
         }
 
-        items(3) { index ->
-            val application = when (index) {
-                0 -> Application("John Doe", "Max", "Golden Retriever", "Today", "Pending")
-                1 -> Application("Jane Smith", "Luna", "Siamese Cat", "Yesterday", "Approved")
-                else -> Application("Mike Johnson", "Rocky", "German Shepherd", "2 days ago", "Pending")
-            }
-            ApplicationCard(application, onViewApplications)
+        items(channels, key = { it.channelId }) { channel ->
+            ChannelCard(
+                channel = channel,
+                onClick = {
+                    navController.navigate("message/${channel.channelId}")
+                },
+                onDelete = { ch ->
+                    homeViewModel.deleteChannel(ch)
+                }
+            )
         }
 
         // Adoption Tips
@@ -267,7 +277,7 @@ private fun DashboardContent(
                     .fillMaxWidth()
                     .padding(vertical = 8.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFFFFB6C1).copy(alpha = 0.15f)
+                    containerColor = DarkBrown.copy(alpha = 0.1f)
                 )
             ) {
                 Row(
@@ -278,7 +288,7 @@ private fun DashboardContent(
                     Icon(
                         imageVector = Icons.Default.Lightbulb,
                         contentDescription = "Tip",
-                        tint = Color(0xFFFFB6C1),
+                        tint = DarkBrown,
                         modifier = Modifier.size(24.dp)
                     )
                     Column {
@@ -286,7 +296,7 @@ private fun DashboardContent(
                             text = "Pro Tip",
                             style = MaterialTheme.typography.titleSmall.copy(
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFFFF9999)
+                                color = DarkBrown
                             )
                         )
                         Text(
@@ -300,6 +310,82 @@ private fun DashboardContent(
         }
     }
 }
+@Composable
+fun ChannelCard(
+    channel: Channel,
+    onClick: () -> Unit,
+    onDelete: (Channel) -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable{ onClick() }
+            ) {
+                Text(
+                    text = channel.adopterName,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                )
+                Text(
+                    text = channel.petName,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                )
+                Text(
+                    text = channel.lastMessage.takeIf { it.isNotEmpty() } ?: "No messages yet",
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    )
+                )
+            }
+
+            if (channel.unreadCount > 0) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFF4CAF50),
+                    modifier = Modifier.padding(end = 8.dp)
+                ) {
+                    Text(
+                        text = channel.unreadCount.toString(),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium)
+                    )
+                }
+            }
+
+            IconButton(
+                onClick = { onDelete(channel) },
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Delete channel",
+                    tint = Color.Red
+                )
+            }
+        }
+    }
+}
+
+
+
+
+
+
 
 @Composable
 fun StatCard(
@@ -356,7 +442,7 @@ fun QuickActionButton(
         onClick = onClick,
         modifier = modifier.height(48.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = Color(0xFFFFB6C1)
+            containerColor = DarkBrown
         ),
         contentPadding = PaddingValues(horizontal = 16.dp)
     ) {
@@ -410,7 +496,7 @@ fun ApplicationCard(
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                 )
             }
-            
+
             Surface(
                 shape = RoundedCornerShape(16.dp),
                 color = when (application.status) {
@@ -430,4 +516,4 @@ fun ApplicationCard(
             }
         }
     }
-} 
+}

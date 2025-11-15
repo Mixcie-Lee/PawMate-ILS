@@ -31,17 +31,25 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import coil.compose.rememberAsyncImagePainter
 import com.example.pawmate_ils.SettingsManager
 import androidx.compose.ui.platform.LocalContext
+import com.example.pawmate_ils.Firebase_Utils.LikedPetsViewModel
+import com.example.pawmate_ils.GemManager
 
 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileSettingsScreen(navController: NavController, username: String = "User") {
-    var isDarkMode by remember { mutableStateOf(ThemeManager.isDarkMode) }
     val context = LocalContext.current
+    LaunchedEffect(Unit) { GemManager.init(context) }
+    val likedPetsViewModel: LikedPetsViewModel = viewModel()
+    // Observe gem count
+    val gemCount by GemManager.gemCount.collectAsState()
+    var isDarkMode by remember { mutableStateOf(ThemeManager.isDarkMode) }
     val settings = remember { SettingsManager(context) }
     var notificationsEnabled by remember { mutableStateOf(settings.isNotificationsEnabled()) }
     var privacyEnabled by remember { mutableStateOf(settings.isPrivacyEnabled()) }
@@ -53,8 +61,11 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
             settings.setProfilePhotoUri(uri.toString())
         }
     }
-    
-    
+    val likedPets by likedPetsViewModel.likedPets.collectAsState()
+    val likedPetsCount = likedPets.size
+
+
+
     LaunchedEffect(Unit) {
         isDarkMode = ThemeManager.isDarkMode
     }
@@ -64,7 +75,7 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
     val secondaryTextColor = if (isDarkMode) Color.Gray else Color.Gray
     val primaryColor = if (isDarkMode) Color(0xFFFF9999) else Color(0xFFFFB6C1)
     val accentColor = if (isDarkMode) Color(0xFFB39DDB) else Color(0xFFDDA0DD)
-    
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = backgroundColor
@@ -98,6 +109,7 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
                     .padding(16.dp)
             ) {
                 Column(
@@ -137,7 +149,7 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                                 modifier = Modifier.size(50.dp)
                             )
                         }
-                        
+
                         Box(
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
@@ -154,15 +166,15 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                             )
                         }
                     }
-                    
+
                     Spacer(modifier = Modifier.height(16.dp))
-                    
+
                     OutlinedTextField(
                         value = editableName,
                         onValueChange = { editableName = it },
                         singleLine = true,
                         textStyle = LocalTextStyle.current.copy(
-                            color = textColor, 
+                            color = textColor,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.SemiBold,
                             textAlign = TextAlign.Center
@@ -185,7 +197,7 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                             }
                         }
                     )
-                    
+
                     Text(
                         text = "Dog lover",
                         fontSize = 14.sp,
@@ -217,7 +229,7 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                             verticalArrangement = Arrangement.Center
                         ) {
                             Text(
-                                text = "00",
+                                text = likedPetsCount.toString(),
                                 fontSize = 32.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
@@ -248,7 +260,7 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                             verticalArrangement = Arrangement.Center
                         ) {
                             Text(
-                                text = "00",
+                                text = gemCount.toString(),
                                 fontSize = 32.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
@@ -270,7 +282,7 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                     color = textColor,
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
-                
+
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -296,12 +308,12 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                                 settings.setNotificationsEnabled(notificationsEnabled)
                             }
                         )
-                        
+
                         HorizontalDivider(
                             modifier = Modifier.padding(horizontal = 16.dp),
                             color = if (isDarkMode) Color.Gray.copy(alpha = 0.2f) else Color.LightGray.copy(alpha = 0.3f)
                         )
-                        
+
                         ModernSettingsItem(
                             icon = Icons.Default.Person,
                             label = "Privacy",
@@ -316,12 +328,12 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                                 settings.setPrivacyEnabled(privacyEnabled)
                             }
                         )
-                        
+
                         HorizontalDivider(
                             modifier = Modifier.padding(horizontal = 16.dp),
                             color = if (isDarkMode) Color.Gray.copy(alpha = 0.2f) else Color.LightGray.copy(alpha = 0.3f)
                         )
-                        
+
                         ModernSettingsItem(
                             icon = Icons.Default.Person,
                             label = "Dark Mode",
@@ -331,14 +343,14 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                             textColor = textColor,
                             secondaryTextColor = secondaryTextColor,
                             primaryColor = primaryColor,
-                            onToggle = { 
+                            onToggle = {
                                 ThemeManager.toggleDarkMode()
                                 isDarkMode = ThemeManager.isDarkMode
                             }
                         )
                     }
                 }
-                
+
                 Text(
                     text = "General",
                     fontSize = 20.sp,
@@ -346,7 +358,7 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                     color = textColor,
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
-                
+
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
@@ -366,12 +378,12 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                             primaryColor = primaryColor,
                             onClick = { navController.navigate("account_settings") }
                         )
-                        
+
                         HorizontalDivider(
                             modifier = Modifier.padding(horizontal = 16.dp),
                             color = if (isDarkMode) Color.Gray.copy(alpha = 0.2f) else Color.LightGray.copy(alpha = 0.3f)
                         )
-                        
+
                         ModernSettingsItem(
                             icon = Icons.Default.Person,
                             label = "Help & Support",
@@ -382,12 +394,12 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                             primaryColor = primaryColor,
                             onClick = { navController.navigate("help_support") }
                         )
-                        
+
                         HorizontalDivider(
                             modifier = Modifier.padding(horizontal = 16.dp),
                             color = if (isDarkMode) Color.Gray.copy(alpha = 0.2f) else Color.LightGray.copy(alpha = 0.3f)
                         )
-                        
+
                         ModernSettingsItem(
                             icon = Icons.Default.Person,
                             label = "About",
@@ -417,7 +429,7 @@ fun SettingsItem(
     onToggle: (() -> Unit)? = null
 ) {
     var switchState by remember { mutableStateOf(isEnabled) }
-    
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -437,11 +449,11 @@ fun SettingsItem(
             color = textColor,
             modifier = Modifier.weight(1f)
         )
-        
+
         if (hasSwitch) {
             Switch(
                 checked = switchState,
-                onCheckedChange = { 
+                onCheckedChange = {
                     switchState = it
                     onToggle?.invoke()
                 },
@@ -477,7 +489,7 @@ fun ModernSettingsItem(
     onToggle: (() -> Unit)? = null
 ) {
     var switchState by remember { mutableStateOf(isEnabled) }
-    
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -505,9 +517,9 @@ fun ModernSettingsItem(
                 modifier = Modifier.size(20.dp)
             )
         }
-        
+
         Spacer(modifier = Modifier.width(16.dp))
-        
+
         Column(
             modifier = Modifier.weight(1f)
         ) {
@@ -523,11 +535,11 @@ fun ModernSettingsItem(
                 color = secondaryTextColor.copy(alpha = 0.7f)
             )
         }
-        
+
         if (hasSwitch) {
             Switch(
                 checked = switchState,
-                onCheckedChange = { 
+                onCheckedChange = {
                     switchState = it
                     onToggle?.invoke()
                 },

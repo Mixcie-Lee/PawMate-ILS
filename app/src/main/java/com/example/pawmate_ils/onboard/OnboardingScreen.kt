@@ -30,9 +30,11 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.rotate
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -185,6 +187,7 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                 modifier = Modifier
                     .padding(paddingValues)
                     .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
             ) {
                 val logoScale by infiniteTransition.animateFloat(
                     initialValue = 1f,
@@ -261,6 +264,7 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                             Column(
                                 modifier = Modifier
                                     .fillMaxSize()
+                                    .verticalScroll(rememberScrollState())
                                     .padding(horizontal = 28.dp, vertical = 24.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center
@@ -390,6 +394,7 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                             Column(
                                 modifier = Modifier
                                     .fillMaxSize()
+                                    .verticalScroll(rememberScrollState())
                                     .padding(horizontal = 28.dp, vertical = 24.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center

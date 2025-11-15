@@ -6,7 +6,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.Firebase
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.storage.storage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -25,12 +24,7 @@ class AdoptionCenterViewModel(
       and attaches the current shelter info from authViewModel.
      */
     fun addPet(
-        name: String,
-        breed: String,
-        age: String,
-        description: String,
-        type: String,
-        imageRes: List<Int> = emptyList()
+        NewPet : PetData
     ) {
         val currentUser = authViewModel.currentUser
         if (currentUser == null) {
@@ -41,20 +35,11 @@ class AdoptionCenterViewModel(
         val shelterName = currentUser.displayName ?: "Unknown Shelter"
         val petId = db.collection("pets").document().id
 
-        val newPet = PetData(
-            name = name,
-            breed = breed,
-            age = age,
-            description = description,
-            type = type,
-            shelterId = shelterId,
-            shelterName = shelterName,
-            imageRes = imageRes,
-        )
+
         viewModelScope.launch {
             db.collection("pets")
                 .document(petId)
-                .set(newPet)
+                .set(NewPet)
                 .addOnSuccessListener {
                     _addPetStatus.value = Result.success("Pet added successfully")
                 }
@@ -65,6 +50,25 @@ class AdoptionCenterViewModel(
         /* Fetch all pets from firestore with optional filters heheh
 
          */
+
+   /* fun uploadPetImages(uris: List<Uri>, onComplete: (List<String>) -> Unit) {
+        val storage = Firebase.storage.reference
+        val uploadedUrls = mutableListOf<String>()
+
+        uris.forEach { uri ->
+            val ref = storage.child("pets/${UUID.randomUUID()}")
+            ref.putFile(uri).addOnSuccessListener {
+                ref.downloadUrl.addOnSuccessListener { url ->
+                    uploadedUrls.add(url.toString())
+                    if (uploadedUrls.size == uris.size) {
+                        onComplete(uploadedUrls)
+                    }
+                }
+            }
+        }
+    }
+*/
+
         fun getPets(
             shelterId: String? = null,
             type: String? = null,
@@ -85,24 +89,25 @@ class AdoptionCenterViewModel(
                 }
         }
     }
-    fun uploadPetImages(uris: List<Uri>, onComplete: (List<String>) -> Unit) {
-        val storage = Firebase.storage.reference
-        val uploadedUrls = mutableListOf<String>()
-
-        uris.forEach { uri ->
-            val ref = storage.child("pets/${UUID.randomUUID()}")
-            ref.putFile(uri).addOnSuccessListener {
-                ref.downloadUrl.addOnSuccessListener { url ->
-                    uploadedUrls.add(url.toString())
-                    if (uploadedUrls.size == uris.size) {
-                        onComplete(uploadedUrls)
-                    }
+    fun observePets(
+        shelterId: String? = null,
+        type: String? = null,
+        onUpdate: (List<PetData>) -> Unit
+    ) {
+        db.collection("pets")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    onUpdate(emptyList())
+                    return@addSnapshotListener
                 }
+                val pets = snapshot?.documents?.mapNotNull { it.toObject(PetData::class.java) }
+                    ?.filter { pet ->
+                        (shelterId == null || pet.shelterId == shelterId) &&
+                                (type == null || pet.type == type)
+                    } ?: emptyList()
+                onUpdate(pets)
             }
-        }
     }
-
-
 
 }
 

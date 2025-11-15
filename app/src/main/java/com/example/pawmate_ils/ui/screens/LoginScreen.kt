@@ -28,12 +28,14 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.withContext
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
+import com.example.pawmate_ils.Firebase_Utils.AuthViewModel
 import com.example.pawmate_ils.R
 import com.example.pawmate_ils.ui.theme.DarkBrown
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
+    authViewModel: AuthViewModel,
     onLoginClick: (String, String) -> Unit,
     onSignUpClick: () -> Unit,
     onSellerAuthClick: () -> Unit
@@ -68,7 +70,7 @@ fun LoginScreen(
             verticalArrangement = Arrangement.Center
         ) {
             Spacer(modifier = Modifier.height(20.dp))
-            
+
             Image(
                 painter = painterResource(id = R.drawable.pawmate_logo),
                 contentDescription = "PawMate Logo",
@@ -76,7 +78,7 @@ fun LoginScreen(
                     .size(120.dp)
                     .padding(bottom = 16.dp)
             )
-            
+
             Text(
                 text = "Welcome Back",
                 fontSize = 32.sp,
@@ -84,7 +86,7 @@ fun LoginScreen(
                 color = Color.Black,
                 textAlign = TextAlign.Center
             )
-            
+
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
@@ -106,7 +108,7 @@ fun LoginScreen(
                     color = Color.Black,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
-                
+
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
@@ -139,7 +141,7 @@ fun LoginScreen(
                     color = Color.Black,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
-                
+
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
@@ -169,7 +171,15 @@ fun LoginScreen(
                     .padding(bottom = 16.dp),
                 horizontalArrangement = Arrangement.End
             ) {
-                TextButton(onClick = { }) {
+                TextButton(onClick = {
+                    if (email.isBlank()) {
+                        errorMessage = "Please enter your email first."
+                    } else {
+                        authViewModel.resetPassword(email) { success, msg ->
+                            errorMessage = msg
+                        }
+                    }
+                }) {
                     Text(
                         "Forgot Password?",
                         color = Color(0xFFFF9999),
@@ -178,7 +188,7 @@ fun LoginScreen(
                     )
                 }
             }
-            
+
             errorMessage?.let {
                 Card(
                     modifier = Modifier
@@ -205,7 +215,12 @@ fun LoginScreen(
                         return@Button
                     }
                     isLoading = true
-                    onLoginClick(email, password)
+                    authViewModel.signIn(email, password) { success, message ->
+                        isLoading = false
+                        if (!success) {
+                            errorMessage = message
+                        }
+                    }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -260,7 +275,7 @@ fun LoginScreen(
             }
 
             Spacer(modifier = Modifier.height(20.dp))
-            
+
             OutlinedButton(
                 onClick = { },
                 modifier = Modifier
@@ -330,8 +345,9 @@ fun LoginScreen(
                     fontWeight = FontWeight.Medium
                 )
             }
-            
             Spacer(modifier = Modifier.height(40.dp))
+
+
         }
     }
-} 
+}
