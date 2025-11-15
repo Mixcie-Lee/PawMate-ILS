@@ -33,16 +33,20 @@ class HomeViewModel(
         }
     }
 
-    private fun getChannels() {
+     fun getChannels() {
+        val currentUserId = authViewModel.currentUser?.uid ?: return
+
         Log.d("DEBUG_HOME", "Fetching all channels from Firebase...")
         firebaseDatabase.getReference("channel").get().addOnSuccessListener {
             val list = mutableListOf<Channel>()
             it.children.forEach { data ->
                 val channel = data.getValue(Channel::class.java)
                 Log.d("DEBUG_HOME", "Found channel node: ${data.key} → $channel")
-                if (channel != null) list.add(channel)
+                if (channel != null && (channel.adopterId == currentUserId || channel.shelterId == currentUserId)) {
+                    list.add(channel)
+                }
             }
-            _channels.value = list
+            _channels.value = list.sortedByDescending { it.timestamp }
             Log.d("DEBUG_HOME", "Loaded ${list.size} channels into state.")
         }
     }
@@ -147,6 +151,8 @@ class HomeViewModel(
 
         val channelsRef = firebaseDatabase.getReference("channel")
         val messagesRef = firebaseDatabase.getReference("message")
+
+        _channels.value = emptyList()
 
         channelsRef.addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
@@ -294,5 +300,10 @@ class HomeViewModel(
         }.addOnFailureListener { e ->
             Log.e("DEBUG_DELETE", "Delete failed: ${e.message}")
         }
+    }
+    fun clearChannels(){
+        _channels.value = emptyList()
+        Log.d("DEBUG_HOME", "Cleared all channels for new user/login")
+
     }
 }

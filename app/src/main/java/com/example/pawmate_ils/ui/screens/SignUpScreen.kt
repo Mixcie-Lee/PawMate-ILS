@@ -1,5 +1,5 @@
     package com.example.pawmate_ils.ui.screens
-    
+
     import android.content.Context
     import androidx.activity.compose.rememberLauncherForActivityResult
     import androidx.activity.result.contract.ActivityResultContracts
@@ -39,14 +39,15 @@
     import androidx.lifecycle.viewmodel.compose.viewModel
     import com.example.pawmate_ils.AdopShelDataStruc.AdopterRepository
     import com.example.pawmate_ils.AdopShelDataStruc.ShelterRepository
+    import com.example.pawmate_ils.Firebase_Utils.HomeViewModel
     import com.example.pawmate_ils.SettingsManager
     import com.google.android.gms.auth.api.signin.GoogleSignIn
     import com.google.android.gms.auth.api.signin.GoogleSignInClient
     import com.google.android.gms.auth.api.signin.GoogleSignInOptions
     import com.google.android.gms.common.api.ApiException
     import com.google.firebase.Timestamp
-    
-    
+
+
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     fun SignUpScreen(
@@ -55,7 +56,7 @@
         onLoginClick: () -> Unit,
         onSellerAuthClick: () -> Unit,
         sharedViewModel: SharedViewModel,
-    
+
         ) {
         //FIREBASE AUTHENTICATION
         val context = LocalContext.current
@@ -63,8 +64,9 @@
         val authState  = AuthViewModel.authState.observeAsState()
         val firestoreRepo = remember { FirestoreRepository() }
         val authViewModel: AuthViewModel = viewModel()
-    
-    
+        val homeViewModel: HomeViewModel = viewModel ()
+
+
         var currentStep by remember { mutableStateOf(1) } // 1: Email, 2: About You
         var email by remember { mutableStateOf("") }
         var password by remember {mutableStateOf("")} //MOCK UP LANG TO GA, PERO I NEED YOU TO ADD PASSWORD AS WELL SA SIGN UP FOR AUTHENTICATION
@@ -78,13 +80,13 @@
         val scrollState = rememberScrollState()
         val scope = rememberCoroutineScope()
         var isGoogleLoading by remember {mutableStateOf(false)}
-    
-    
+
+
         // ADDED SECTION
         val newUser  by AuthViewModel.newUser.observeAsState()
-    
-    
-    
+
+
+
         //GOOGLE SIGN-UP/SIGN-IN HANDLER
         val launcher = rememberLauncherForActivityResult(
             contract = ActivityResultContracts.StartActivityForResult()
@@ -106,15 +108,15 @@
                         errorMessage = message ?: "Google Sign-In failed. Try again."
                     }
                 }
-    
-    
+
+
             } catch (e: ApiException) {
                 isGoogleLoading = false
                 errorMessage = "Google sign in failed: ${e.message}"
             }
         }
-    
-    
+
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -137,7 +139,7 @@
                 verticalArrangement = Arrangement.Center
             ) {
                 Spacer(modifier = Modifier.height(40.dp))
-    
+
                 when (currentStep) {
                     1 -> {
                         Image(
@@ -147,7 +149,7 @@
                                 .size(100.dp)
                                 .padding(bottom = 16.dp)
                         )
-    
+
                         Text(
                             text = "Create Account",
                             fontSize = 32.sp,
@@ -155,18 +157,18 @@
                             color = Color.Black,
                             textAlign = TextAlign.Center
                         )
-    
+
                         Spacer(modifier = Modifier.height(8.dp))
-    
+
                         Text(
                             text = "Sign up to get started",
                             fontSize = 16.sp,
                             color = Color.Gray,
                             textAlign = TextAlign.Center
                         )
-    
+
                         Spacer(modifier = Modifier.height(48.dp))
-    
+
                         Column(
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -177,7 +179,7 @@
                                 color = Color.Black,
                                 modifier = Modifier.padding(bottom = 8.dp)
                             )
-    
+
                             OutlinedTextField(
                                 value = email,
                                 onValueChange = { email = it },
@@ -197,7 +199,7 @@
                                     .padding(bottom = 20.dp)
                             )
                         }
-    
+
                         Column(
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -208,7 +210,7 @@
                                 color = Color.Black,
                                 modifier = Modifier.padding(bottom = 8.dp)
                             )
-    
+
                             OutlinedTextField(
                                 value = password,
                                 onValueChange = { password = it },
@@ -229,7 +231,7 @@
                                     .padding(bottom = 24.dp)
                             )
                         }
-    
+
                         Button( //THIS IS THE BUTTON THAT HANDLES SIGN UPP FOR EMAILS!!
                             onClick = {
                                 if (email.isBlank()) {
@@ -247,6 +249,9 @@
                                 errorMessage = null
                                 AuthViewModel.signUp(email, password) { success, message ->
                                     if (success) {
+                                        homeViewModel.clearChannels()
+                                        homeViewModel.getChannels()
+                                        homeViewModel.listenToChannels()
                                         currentStep = 2 // Move to "About You" step
                                     } else {
                                         errorMessage = message ?: "Sign-up failed. Please try again."
@@ -271,9 +276,9 @@
                             if (isLoading) CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
                             else Text("Continue", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                         }
-    
+
                         Spacer(modifier = Modifier.height(20.dp))
-    
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
@@ -293,7 +298,7 @@
                                 color = Color.Gray.copy(alpha = 0.3f)
                             )
                         }
-    
+
                         Spacer(modifier = Modifier.height(20.dp))
                            //Google Button
                         OutlinedButton(
@@ -324,9 +329,9 @@
                                 }
                             }
                         }
-    
+
                         Spacer(modifier = Modifier.height(20.dp))
-    
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
@@ -349,9 +354,9 @@
                                 )
                             }
                         }
-    
+
                         Spacer(modifier = Modifier.height(16.dp))
-    
+
                         Text(
                             text = "By continuing, you agree to our Terms of Service and Privacy Policy",
                             color = Color.Gray.copy(alpha = 0.7f),
@@ -361,7 +366,7 @@
                             modifier = Modifier.padding(horizontal = 20.dp)
                         )
                     }
-    
+
                     2 -> {
                         Text(
                             text = "About You",
@@ -370,18 +375,18 @@
                             color = Color.Black,
                             textAlign = TextAlign.Center
                         )
-    
+
                         Spacer(modifier = Modifier.height(8.dp))
-    
+
                         Text(
                             text = "Tell us more about yourself",
                             fontSize = 16.sp,
                             color = Color.Gray,
                             textAlign = TextAlign.Center
                         )
-    
+
                         Spacer(modifier = Modifier.height(32.dp))
-    
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -413,7 +418,7 @@
                                     modifier = Modifier.fillMaxWidth()
                                 )
                             }
-    
+
                             Column(
                                 modifier = Modifier.weight(1f)
                             ) {
@@ -442,9 +447,9 @@
                                 )
                             }
                         }
-    
+
                         Spacer(modifier = Modifier.height(16.dp))
-    
+
                         Column(
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -472,9 +477,9 @@
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
-    
+
                         Spacer(modifier = Modifier.height(16.dp))
-    
+
                         Column(
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -502,9 +507,9 @@
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
-    
+
                         Spacer(modifier = Modifier.height(16.dp))
-    
+
                         Column(
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -538,9 +543,9 @@
                                 modifier = Modifier.padding(top = 6.dp, start = 4.dp)
                             )
                         }
-    
+
                         Spacer(modifier = Modifier.height(24.dp))
-    
+
                         Button(
                             onClick = {
                                 when {
@@ -548,37 +553,37 @@
                                         errorMessage = "Please enter your first name"
                                         return@Button
                                     }
-    
+
                                     lastName.isBlank() -> {
                                         errorMessage = "Please enter your last name"
                                         return@Button
                                     }
-    
+
                                     mobileNumber.isBlank() -> {
                                         errorMessage = "Please enter your mobile number"
                                         return@Button
                                     }
-    
+
                                     address.isBlank() -> {
                                         errorMessage = "Please enter your address"
                                         return@Button
                                     }
-    
+
                                     age.isBlank() -> {
                                         errorMessage = "Please enter your age"
                                         return@Button
                                     }
-    
+
                                     age.toIntOrNull() == null -> {
                                         errorMessage = "Please enter a valid age"
                                         return@Button
                                     }
-    
+
                                     age.toInt() < 18 -> {
                                         errorMessage = "You must be at least 18 years old to use PawMate"
                                         return@Button
                                     }
-    
+
                                     else -> {
                                         errorMessage = null
                                         isLoading = true
@@ -589,10 +594,10 @@
                                                 isLoading = false
                                                 return@launch
                                             }
-    
+
                                             // ✅ Get the newUser flag from AuthViewModel LiveData
-                                            val isNewUser = authViewModel.newUser.value == true
-    
+                                            val isNewUser = firestoreRepo.isNewUser(uid)
+
                                             val user = User(
                                                 id = uid,
                                                 name = "$firstName $lastName",
@@ -607,6 +612,9 @@
                                                 likedPetsCount = 0,
                                             )
 
+                                            homeViewModel.clearChannels()
+                                            homeViewModel.listenToChannels()
+
                                                  val adopterRepo = AdopterRepository()
                                                  val shelterRepo = ShelterRepository()
                                                  try {
@@ -617,20 +625,21 @@
                                                          shelterRepo.addShelter(user)
                                                      }
 
+
                                                 authViewModel.fetchUserRole() // 🔹 call on instance
-    
+
                                                 onSignUpClick(firstName, email, lastName, mobileNumber)
-    
+
                                                 // Save username locally
                                                 val settings = SettingsManager(context)
                                                 settings.setUsername("$firstName $lastName")
                                                 sharedViewModel.username.value = "$firstName $lastName"
-    
+
                                                 delay(50)
                                                 navController.navigate("pet_swipe") {
                                                     popUpTo("user_type") { inclusive = true }
                                                 }
-    
+
                                             } catch (e: Exception) {
                                                 errorMessage = e.message ?: "Failed to save user data"
                                             } finally {
@@ -671,7 +680,7 @@
                         }
                     }
                 }
-    
+
                 errorMessage?.let {
                     Card(
                         modifier = Modifier
@@ -690,12 +699,12 @@
                         )
                     }
                 }
-    
+
                 Spacer(modifier = Modifier.height(40.dp))
             }
         }
     }
-    
+
         fun getGoogleSignInClient(context: Context): GoogleSignInClient {
             val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                 .requestIdToken(context.getString(R.string.default_web_client_id))

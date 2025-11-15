@@ -20,8 +20,8 @@ class FirestoreRepository {
     private val usersCollection = db.collection("users")
 
 
-    suspend fun getUserRole(uid: String): com.google.firebase.firestore.DocumentSnapshot  {
-           return db.collection("users")
+    suspend fun getUserRole(uid: String): com.google.firebase.firestore.DocumentSnapshot {
+        return db.collection("users")
             .document(uid)
             .get()
             .await()
@@ -59,7 +59,7 @@ class FirestoreRepository {
     }
 
     //HANDLES PROFILE PIC CHANGES. SO THE PROFILE PIC WOULD NOT DISAPPEAR WHEN THE APP IS CLOSED.
-   /* suspend fun uploadProfilePhoto(uid: String, imageUri: Uri): String? {
+    /* suspend fun uploadProfilePhoto(uid: String, imageUri: Uri): String? {
         return try {
             val storageRef = Firebase.storage.reference
                 .child("profile_photos/$uid.jpg")
@@ -127,6 +127,7 @@ class FirestoreRepository {
     object FirestoreManager {
         val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     }
+
     suspend fun addLikedPet(userId: String, petId: String, petName: String, petImage: String) {
         val likedPet = hashMapOf(
             "petId" to petId,
@@ -159,6 +160,7 @@ class FirestoreRepository {
             .delete()
             .await()
     }
+
     suspend fun updateGems(uid: String, newGems: Int) {
         try {
             db.collection("users").document(uid)
@@ -192,6 +194,7 @@ class FirestoreRepository {
             null
         }
     }
+
     suspend fun getShelterByUserId(userId: String): Map<String, Any>? { // --- NEW ---
         return try {
             val snapshot = shelterCollection
@@ -204,8 +207,13 @@ class FirestoreRepository {
             null
         }
     }
+
     // --- NEW ---
-    fun updateEmail(newEmail: String, currentPassword: String, onResult: (Boolean, String?) -> Unit) {
+    fun updateEmail(
+        newEmail: String,
+        currentPassword: String,
+        onResult: (Boolean, String?) -> Unit
+    ) {
         val user = FirebaseAuth.getInstance().currentUser
         val email = user?.email
 
@@ -225,7 +233,10 @@ class FirestoreRepository {
                                     onResult(true, "Email updated successfully.")
                                 }
                                 .addOnFailureListener { e ->
-                                    onResult(false, "Email updated in Auth but Firestore failed: ${e.message}")
+                                    onResult(
+                                        false,
+                                        "Email updated in Auth but Firestore failed: ${e.message}"
+                                    )
                                 }
                         } else {
                             onResult(false, updateTask.exception?.message)
@@ -239,7 +250,6 @@ class FirestoreRepository {
             onResult(false, "No user logged in.")
         }
     }
-
 
 
     // ------------------- UPDATE PHONE NUMBER -------------------
@@ -257,6 +267,7 @@ class FirestoreRepository {
             throw e
         }
     }
+
     suspend fun updatePhoneNumber(uid: String, newPhone: String) {
         try {
             FirebaseFirestore.getInstance()
@@ -271,12 +282,9 @@ class FirestoreRepository {
         }
     }
 
-
-
-
-
-
-
-
+    suspend fun isNewUser(uid: String): Boolean {
+        val doc = db.document(uid).get().await()
+        return !doc.exists()
+    }
 }
 
