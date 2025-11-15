@@ -73,13 +73,13 @@ fun AccountSettingsScreen(navController: NavController) {
             OutlinedTextField(
                 value = email,
                 onValueChange = { email = it },
-                label = { Text("Email") },
+                label = { Text("Change Email") },
                 modifier = Modifier.fillMaxWidth()
             )
             OutlinedTextField(
                 value = phone,
                 onValueChange = { phone = it },
-                label = { Text("Phone") },
+                label = { Text("Change Phone Number") },
                 modifier = Modifier.fillMaxWidth()
             )
             OutlinedTextField(
@@ -89,7 +89,6 @@ fun AccountSettingsScreen(navController: NavController) {
                 visualTransformation = PasswordVisualTransformation(),
                 modifier = Modifier.fillMaxWidth()
             )
-
 
             Button(
                 onClick = {
@@ -108,48 +107,47 @@ fun AccountSettingsScreen(navController: NavController) {
                     isUpdating = true
                     coroutineScope.launch {
                         try {
-                            Log.d("AccountSettings", "Reloading user")
+                            // Reload user to make sure the session is fresh
                             user.reload().await()
 
-                            // Reauthenticate using current password
-                            Log.d("AccountSettings", "Reauthenticating user")
+                            // Reauthenticate using current email + current password
                             val credential = EmailAuthProvider.getCredential(user.email!!, currentPasswordProfile.trim())
                             user.reauthenticate(credential).await()
+                            Log.d("AccountSettings", "User reauthenticated successfully")
 
-                            // --- UPDATE EMAIL IN AUTH ---
+                            // Update email in Firebase Auth if it changed
                             if (email.isNotBlank() && email != user.email) {
-                                Log.d("AccountSettings", "Updating email in Firebase Auth to $email")
-                                user.updateEmail(email).await()
-                            }
-
-                            // --- UPDATE EMAIL IN FIRESTORE ---
-                            Log.d("AccountSettings", "Updating email in Firestore")
-                            authViewModel.updateEmailInFirestore(email, currentPasswordProfile.trim()) { success, message ->
-                                Log.d("AccountSettings", "updateEmailInFirestore success=$success message=$message")
-                                Toast.makeText(context, message ?: "", Toast.LENGTH_SHORT).show()
-                            }
-
-                            // --- UPDATE PHONE IN FIRESTORE ---
-                            if (phone.isNotBlank()) {
-                                Log.d("AccountSettings", "Updating phone number in Firestore to $phone")
-                                authViewModel.updatePhoneNumberInFirestore(phone) { success, message ->
-                                    Log.d("AccountSettings", "updatePhoneNumberInFirestore success=$success message=$message")
+                                authViewModel.updateEmailInFirestore(email, currentPasswordProfile.trim()) { success, message ->
                                     Toast.makeText(context, message ?: "", Toast.LENGTH_SHORT).show()
+                                    Log.d("AccountSettings", "updateEmailInFirestore success=$success")
                                 }
                             }
 
-                            // --- UPDATE LOCAL ADOPTER COLLECTION ---
+                            // Update Firestore email and phone
+                            if (email.isNotBlank()) {
+                                authViewModel.updateEmailInFirestore(email, currentPasswordProfile.trim()) { success, message ->
+                                    Toast.makeText(context, message ?: "", Toast.LENGTH_SHORT).show()
+                                    Log.d("AccountSettings", "updateEmailInFirestore success=$success")
+                                }
+                            }
+
+                            if (phone.isNotBlank()) {
+                                authViewModel.updatePhoneNumberInFirestore(phone) { success, message ->
+                                    Toast.makeText(context, message ?: "", Toast.LENGTH_SHORT).show()
+                                    Log.d("AccountSettings", "updatePhoneNumberInFirestore success=$success")
+                                }
+                            }
+
+                            // Update local adopter collection
                             val updatedAdopter = User(
                                 id = user.uid,
-                                email = email,
-                                MobileNumber = phone // phone number update
+                                email = if (email.isNotBlank()) email else user.email!!,
+                                MobileNumber = phone
                             )
-                            Log.d("AccountSettings", "Updating adopter collection with $updatedAdopter")
                             adopterRepository.updateAdopter(updatedAdopter)
+                            Log.d("AccountSettings", "Adopter collection updated: $updatedAdopter")
 
                             Toast.makeText(context, "Profile updated successfully", Toast.LENGTH_SHORT).show()
-                            Log.d("AccountSettings", "Profile updated successfully")
-
                         } catch (e: Exception) {
                             Log.e("AccountSettings", "Failed to update profile", e)
                             Toast.makeText(context, "Incorrect password or update failed", Toast.LENGTH_SHORT).show()
@@ -169,6 +167,7 @@ fun AccountSettingsScreen(navController: NavController) {
                     Text("Save Profile")
                 }
             }
+
 
             Divider()
 
@@ -249,11 +248,12 @@ fun AccountSettingsScreen(navController: NavController) {
             Button(
                 onClick = {
                     isLoggingOut = true
-                    authViewModel.signOut()
-                    isLoggingOut = false
-                    Toast.makeText(context, "Logged out successfully", Toast.LENGTH_SHORT).show()
-                    navController.navigate("signup") {
-                        popUpTo(0)
+                    authViewModel.signOut {
+                        isLoggingOut = false
+                        Toast.makeText(context, "Logged out successfully", Toast.LENGTH_SHORT).show()
+                        navController.navigate("signup") {
+                            popUpTo("signup") { inclusive = true }
+                        }
                     }
                 },
                 enabled = !isLoggingOut,

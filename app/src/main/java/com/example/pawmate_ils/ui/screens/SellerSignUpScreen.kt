@@ -274,11 +274,8 @@ fun SellerSignUpScreen(
                             pressedElevation = 2.dp
                         )
                     ) {
-                        Text(
-                            "Continue",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
+                        if (isLoading) CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
+                        else Text("Continue", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                     }
 
                     Spacer(modifier = Modifier.height(20.dp))
@@ -323,22 +320,26 @@ fun SellerSignUpScreen(
                         border = BorderStroke(1.dp, Color.Gray.copy(alpha = 0.3f)),
                         shape = RoundedCornerShape(28.dp)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Text(
-                                "G",
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF4285F4),
-                                modifier = Modifier.padding(end = 12.dp)
-                            )
-                            Text(
-                                "Continue with Google",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Medium
-                            )
+                        if (isGoogleLoading) {
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color(0xFF4285F4), strokeWidth = 2.dp)
+                        } else {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    "G",
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF4285F4),
+                                    modifier = Modifier.padding(end = 12.dp)
+                                )
+                                Text(
+                                    "Continue with Google",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
                         }
                     }
 

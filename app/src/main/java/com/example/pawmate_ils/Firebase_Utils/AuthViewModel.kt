@@ -54,6 +54,14 @@ open class AuthViewModel : ViewModel() {
     init {
         checkAuthStatus()
     }
+    // 🔹 HELPER: Centralize _newUser update to sync with Firestore
+    private fun updateNewUserState(userDoc: User?) {
+        _newUser.value = userDoc?.isNewUser ?: true
+    }
+
+
+
+
 
     private fun checkAuthStatus() {
         if (auth.currentUser != null) {
@@ -87,6 +95,7 @@ open class AuthViewModel : ViewModel() {
                             try {
                                 val repo = FirestoreRepository()
                                 val userDoc = repo.getUserById(user.uid)
+                                updateNewUserState(userDoc)
 
                                 if (userDoc == null) {
                                     // 🔹 NEW: Gem Distribution Logic for new email sign-up
@@ -146,6 +155,8 @@ open class AuthViewModel : ViewModel() {
                                     _likedPetsCount.value = userDoc.likedPetsCount
                                     _currentUserRole.value = userDoc.role
 
+                                    updateNewUserState(userDoc)
+
                                     if (userDoc.isNewUser == true) {
                                         db.collection("users").document(user.uid)
                                             .update("isNewUser", false).await()
@@ -188,6 +199,8 @@ open class AuthViewModel : ViewModel() {
                             val user = auth.currentUser!!
                             val repo = FirestoreRepository()
                             val userDoc = repo.getUserById(user.uid)
+
+                            updateNewUserState(userDoc)
 
                             if (userDoc != null) {
                                 // Existing Google user
@@ -235,10 +248,24 @@ open class AuthViewModel : ViewModel() {
             }
     }
 
-    fun signOut() {
+    fun signOut(onComplete: (() -> Unit)? = null) {
         auth.signOut()
         _authState.value = AuthState.Unauthenticated
+        clearLocalUserData()
+        Log.d("AuthViewModel", "User signed out and local data cleared")
+        onComplete?.invoke() // ✅ callback after sign out
+
     }
+    fun clearLocalUserData(){
+        _userGems.value = 0
+        _likedPetsCount.value = 0
+        _currentUserRole.value = null
+
+    }
+
+
+
+
 
     fun syncUserDataLocal(context: Context) {
         val user = auth.currentUser ?: return
@@ -436,14 +463,15 @@ open class AuthViewModel : ViewModel() {
             if (document.exists()) {
                 val existingGems = document.getLong("gems")?.toInt() ?: 0
                 GemManager.setGemCount(existingGems)
+                _userGems.value = existingGems // 🔹 Sync StateFlow
             } else {
-                // 🔹 NEW: Gem Distribution Logic fallback
                 val newUserData = hashMapOf(
                     "gems" to 10,
                     "createdAt" to System.currentTimeMillis()
                 )
                 userRef.set(newUserData)
                 GemManager.setGemCount(10)
+                _userGems.value = 10 // 🔹 Sync StateFlow
             }
         }.addOnFailureListener { e -> e.printStackTrace() }
     }

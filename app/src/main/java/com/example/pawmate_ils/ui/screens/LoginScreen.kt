@@ -44,6 +44,7 @@ fun LoginScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
+    var isGoogleLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val scrollState = rememberScrollState()
 
@@ -214,7 +215,11 @@ fun LoginScreen(
                         errorMessage = "Please fill in all fields"
                         return@Button
                     }
+
+
+
                     isLoading = true
+
                     authViewModel.signIn(email, password) { success, message ->
                         isLoading = false
                         if (!success) {
