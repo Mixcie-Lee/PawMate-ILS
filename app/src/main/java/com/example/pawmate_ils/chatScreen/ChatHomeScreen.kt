@@ -239,9 +239,9 @@ fun HomeScreen(
                         ) {
                             items(channels) { channel ->
                                 val displayName = when (currentUserRole) {
-                                    "shelter" -> channel.adopterName.ifEmpty { "Unknown Adopter" }
-                                    "adopter" -> channel.shelterName.ifEmpty { "Unknown Shelter" }
-                                    else -> "Unknown"
+                                    "shelter" -> "${channel.adopterName} - ${channel.petName.ifEmpty { "Pet" }}"
+                                    "adopter" -> "${channel.shelterName} - ${channel.petName.ifEmpty { "Pet" }}"
+                                    else -> "Unknown - ${channel.petName.ifEmpty { "Pet" }}"
                                 }
 
                                 ChatListItem(
