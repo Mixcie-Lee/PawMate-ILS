@@ -256,6 +256,7 @@ open class AuthViewModel : ViewModel() {
         onComplete?.invoke() // ✅ callback after sign out
 
     }
+
     fun clearLocalUserData(){
         _userGems.value = 0
         _likedPetsCount.value = 0

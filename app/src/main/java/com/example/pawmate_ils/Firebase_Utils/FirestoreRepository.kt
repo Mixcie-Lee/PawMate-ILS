@@ -283,8 +283,14 @@ class FirestoreRepository {
     }
 
     suspend fun isNewUser(uid: String): Boolean {
-        val doc = db.document(uid).get().await()
-        return !doc.exists()
+        return try {
+            val doc = usersCollection.document(uid).get().await()
+            !doc.exists()
+        } catch (e: Exception) {
+            Log.e("FirestoreRepository", "isNewUser() failed: ${e.message}")
+            false
+        }
     }
+
 }
 
