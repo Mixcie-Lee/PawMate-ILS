@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,6 +24,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.navigation.NavController
 import com.example.pawmate_ils.R
 import com.example.pawmate_ils.ThemeManager
@@ -46,9 +50,21 @@ fun EducationalScreen(navController: NavController) {
     val cardColor = if (isDarkMode) Color(0xFF2A2A2A) else Color.White
     val primaryColor = if (isDarkMode) Color(0xFFFF9999) else Color(0xFFFFB6C1)
     val navBarColor = if (isDarkMode) Color(0xFF1E1E1E) else Color.White
+    val configuration = LocalConfiguration.current
+    val isTablet = configuration.screenWidthDp >= 600
+    val context = LocalContext.current
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf("All") }
+    
+    val tutorialPrefs = remember(context) {
+        context.getSharedPreferences(
+            "educational_tutorial",
+            android.content.Context.MODE_PRIVATE
+        )
+    }
+    val tutorialSeen = remember { tutorialPrefs.getBoolean("seen", false) }
+    var showTutorial by remember { mutableStateOf(!tutorialSeen) }
 
     val categories = listOf("All", "Dog Care", "Cat Care", "Health", "Training", "Nutrition")
 
@@ -119,13 +135,13 @@ fun EducationalScreen(navController: NavController) {
                 NavigationBarItem(
                     icon = {
                         Icon(
-                            Icons.Default.Pets,
+                            Icons.Filled.Pets,
                             contentDescription = "Swipe",
-                            tint = Color(0xFFFF9999)
+                            tint = Color.Gray.copy(alpha = 0.6f)
                         )
                     },
-                    label = { Text("Swipe", color = Color(0xFFFF9999), fontWeight = FontWeight.Bold) },
-                    selected = true,
+                    label = { Text("Swipe", color = Color.Gray.copy(alpha = 0.6f)) },
+                    selected = false,
                     onClick = { navController.navigate("pet_swipe") },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = Color(0xFFFF9999),
@@ -162,12 +178,12 @@ fun EducationalScreen(navController: NavController) {
                             contentDescription = "Learn",
                             modifier = Modifier.size(24.dp),
                             colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(
-                                Color.Gray.copy(alpha = 0.6f)
+                                Color(0xFFFF9999)
                             )
                         )
                     },
-                    label = { Text("Learn", color = Color.Gray.copy(alpha = 0.6f)) },
-                    selected = false,
+                    label = { Text("Learn", color = Color(0xFFFF9999), fontWeight = FontWeight.Bold) },
+                    selected = true,
                     onClick = {
                         navController.navigate("educational")
                     },
@@ -236,16 +252,33 @@ fun EducationalScreen(navController: NavController) {
             item {
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Text(
-                    text = "Education",
-                    fontSize = 36.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFFFF9999),
-                    textAlign = TextAlign.Center,
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 24.dp)
-                )
+                        .padding(bottom = 24.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Education",
+                        fontSize = 36.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFFF9999),
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    IconButton(
+                        onClick = { showTutorial = true },
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Info,
+                            contentDescription = "Show Tutorial",
+                            tint = Color(0xFFFF9999),
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
             }
 
 
@@ -255,6 +288,7 @@ fun EducationalScreen(navController: NavController) {
                     cardColor = cardColor,
                     textColor = textColor,
                     onClick = {
+                        navController.navigate("educational_detail/${article.id}")
                     }
                 )
             }
@@ -262,6 +296,102 @@ fun EducationalScreen(navController: NavController) {
             item {
                 Spacer(modifier = Modifier.height(16.dp))
             }
+        }
+
+        if (showTutorial) {
+            var tutorialStep by rememberSaveable { mutableStateOf(0) }
+
+            AlertDialog(
+                onDismissRequest = { 
+                    tutorialPrefs.edit().putBoolean("seen", true).apply()
+                    showTutorial = false 
+                },
+                containerColor = if (isDarkMode) Color(0xFF2A2A2A) else Color.White,
+                title = {
+                    Text(
+                        text = when (tutorialStep) {
+                            0 -> "Welcome to Education"
+                            1 -> "Explore Articles"
+                            else -> "Welcome to Education"
+                        },
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFFF9999)
+                    )
+                },
+                text = {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Image(
+                            painter = painterResource(
+                                id = when (tutorialStep) {
+                                    0 -> R.drawable.educationaltuto1
+                                    1 -> R.drawable.eductionaltuto2
+                                    else -> R.drawable.educationaltuto1
+                                }
+                            ),
+                            contentDescription = "Tutorial ${tutorialStep + 1}",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(if (isTablet) 700.dp else 600.dp),
+                            contentScale = ContentScale.FillWidth
+                        )
+                    }
+                },
+                confirmButton = {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (tutorialStep < 1) {
+                            TextButton(
+                                onClick = { tutorialStep++ },
+                                colors = ButtonDefaults.textButtonColors(
+                                    contentColor = Color(0xFFFF9999)
+                                )
+                            ) { 
+                                Text("Next") 
+                            }
+                        } else {
+                            Button(
+                                onClick = {
+                                    tutorialPrefs.edit().putBoolean("seen", true).apply()
+                                    showTutorial = false
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFFFFB6C1), 
+                                    contentColor = Color.White
+                                )
+                            ) { 
+                                Text("Get Started") 
+                            }
+                        }
+                    }
+                },
+                dismissButton = {
+                    if (tutorialStep > 0) {
+                        TextButton(
+                            onClick = { tutorialStep-- },
+                            colors = ButtonDefaults.textButtonColors(
+                                contentColor = Color(0xFFFF9999)
+                            )
+                        ) { 
+                            Text("Back") 
+                        }
+                    } else {
+                        TextButton(
+                            onClick = { 
+                                tutorialPrefs.edit().putBoolean("seen", true).apply()
+                                showTutorial = false 
+                            },
+                            colors = ButtonDefaults.textButtonColors(
+                                contentColor = Color(0xFFFF9999)
+                            )
+                        ) { 
+                            Text("Close") 
+                        }
+                    }
+                }
+            )
         }
     }
 }
@@ -272,19 +402,26 @@ fun CategoryChip(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
+    val isDarkMode = ThemeManager.isDarkMode
+    
     Card(
         onClick = onClick,
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) Color(0xFFFFB6C1) else if (ThemeManager.isDarkMode) Color(0xFF3A3A3A) else Color.LightGray.copy(alpha = 0.3f)
+            containerColor = if (isSelected) 
+                Color(0xFFFFB6C1) 
+            else if (isDarkMode) 
+                Color(0xFF3A3A3A) 
+            else 
+                Color.LightGray.copy(alpha = 0.3f)
         ),
         shape = RoundedCornerShape(20.dp),
         elevation = CardDefaults.cardElevation(
-            defaultElevation = if (isSelected) 2.dp else 0.dp
+            defaultElevation = if (isSelected) 3.dp else 1.dp
         )
     ) {
         Text(
             text = label,
-            color = if (isSelected) Color.White else Color.Gray,
+            color = if (isSelected) Color.White else if (isDarkMode) Color.LightGray else Color.Gray,
             fontSize = 13.sp,
             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
@@ -299,14 +436,18 @@ fun ArticleCard(
     textColor: Color,
     onClick: () -> Unit
 ) {
+    val isDarkMode = ThemeManager.isDarkMode
+    
     Card(
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
             .height(120.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDarkMode) Color(0xFF2A2A2A) else Color.White
+        ),
         shape = RoundedCornerShape(24.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isDarkMode) 4.dp else 2.dp)
     ) {
         Row(
             modifier = Modifier
@@ -322,7 +463,7 @@ fun ArticleCard(
                     text = article.title,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.Black,
+                    color = if (isDarkMode) Color.White else Color.Black,
                     maxLines = 1
                 )
 
@@ -331,7 +472,7 @@ fun ArticleCard(
                 Text(
                     text = article.description,
                     fontSize = 13.sp,
-                    color = Color.Gray,
+                    color = if (isDarkMode) Color.LightGray else Color.Gray,
                     maxLines = 2,
                     lineHeight = 18.sp
                 )
@@ -341,7 +482,9 @@ fun ArticleCard(
                 modifier = Modifier
                     .size(80.dp)
                     .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xFFFFD6E0)),
+                    .background(
+                        if (isDarkMode) Color(0xFFFF9999).copy(alpha = 0.2f) else Color(0xFFFFD6E0)
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Text(

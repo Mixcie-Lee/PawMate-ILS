@@ -53,6 +53,7 @@
     //import com.example.pawmate_ils.chatScreen.ChatScreen
     import com.example.pawmate_ils.chatScreen.HomeScreen
     import com.example.pawmate_ils.ui.screens.EducationalScreen
+    import com.example.pawmate_ils.ui.screens.EducationalDetailScreen
     import com.example.pawmate_ils.ui.screens.SellerLoginScreen
     import com.example.pawmate_ils.ui.screens.SellerSignUpScreen
     import com.example.pawmate_ils.ui.screens.AddPetScreen
@@ -111,31 +112,16 @@
                         val navController = rememberNavController()
                         val onboardingUtil = OnboardingUtil(context)
 
-                        // Determine start destination synchronously
                         val startDestination = remember {
                             val isUserAuthenticated = FirebaseAuth.getInstance().currentUser != null
                             val isCompleted = onboardingUtil.isOnboardingCompleted()
-                            // Reset onboarding for testing - this forces onboarding to show
-                            //context.getSharedPreferences("onboarding", android.content.Context.MODE_PRIVATE)
-                            // .edit()
-                            // .putBoolean("completed", false)
-                            // .apply()
+                            
                             when {
-                                !isCompleted -> "onboarding"
-                                isUserAuthenticated -> {
-                                    "welcome_popup"
-                                }
-
-                                else -> "user_type"
+                                !isCompleted && !isUserAuthenticated -> "onboarding"
+                                isUserAuthenticated -> "welcome_popup"
+                                isCompleted -> "user_type"
+                                else -> "onboarding"
                             }
-
-
-                            /* if (!isCompleted) {
-                                "onboarding"
-                            } else {
-                                "user_type"
-                            }
-                       */
                         }
                         LaunchedEffect(authState.value) {
                             if (!onboardingUtil.isOnboardingCompleted()) return@LaunchedEffect
@@ -266,7 +252,7 @@
                                     authViewModel = authViewModel,
                                     onSignUpClick = { _, _, _, _ ->
                                         navController.navigate("adoption_center_dashboard") {
-                                            popUpTo("uer_type") { inclusive = true }
+                                            popUpTo("user_type") { inclusive = true }
                                             launchSingleTop = true
                                         }
                                     },
@@ -370,9 +356,25 @@
                             }
 
                             composable("welcome_popup") {
+                                val userRoleState = remember { mutableStateOf("adopter") }
+                                
+                                LaunchedEffect(Unit) {
+                                    val currentUser = FirebaseAuth.getInstance().currentUser
+                                    if (currentUser != null) {
+                                        try {
+                                            val user = withContext(Dispatchers.IO) {
+                                                db.getUserById(currentUser.uid)
+                                            }
+                                            userRoleState.value = user?.role ?: "adopter"
+                                        } catch (e: Exception) {
+                                            userRoleState.value = "adopter"
+                                        }
+                                    }
+                                }
+                                
                                 WelcomePopupScreen(
                                     navController = navController,
-                                    userType = "adopter"
+                                    userType = userRoleState.value
                                 )
                             }
 
@@ -383,12 +385,33 @@
                                     navController = navController,
                                     username = sharedViewModel.username.value ?: "User",
                                 )
-
-                                }
-                                composable("account_settings") { AccountSettingsScreen(navController = navController) }
-                            composable("educational") { EducationalScreen(navController = navController) }
-                            composable("help_support") { Text("Help & Support - Coming Soon") }
-                                composable("about_app") { Text("About - Coming Soon") }
+                            }
+                            composable("account_settings") { 
+                                AccountSettingsScreen(navController = navController) 
+                            }
+                            composable("educational") { 
+                                EducationalScreen(navController = navController) 
+                            }
+                            composable(
+                                route = "educational_detail/{articleId}",
+                                arguments = listOf(
+                                    navArgument("articleId") {
+                                        type = NavType.IntType
+                                    }
+                                )
+                            ) { backStackEntry ->
+                                val articleId = backStackEntry.arguments?.getInt("articleId") ?: 1
+                                EducationalDetailScreen(
+                                    navController = navController,
+                                    articleId = articleId
+                                )
+                            }
+                            composable("help_support") { 
+                                Text("Help & Support - Coming Soon") 
+                            }
+                            composable("about_app") { 
+                                Text("About - Coming Soon") 
+                            }
                             }
                         }
                     }

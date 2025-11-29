@@ -248,7 +248,7 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                             .weight(1f)
                             .height(100.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = accentColor
+                            containerColor = cardColor
                         ),
                         shape = RoundedCornerShape(16.dp)
                     ) {
@@ -261,15 +261,15 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                         ) {
                             Text(
                                 text = gemCount.toString(),
-                                fontSize = 32.sp,
+                                fontSize = 28.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                color = primaryColor
                             )
                             Text(
                                 text = "GEMS",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color.White
+                                color = secondaryTextColor
                             )
                         }
                     }

@@ -88,13 +88,13 @@
                     NavigationBarItem(
                         icon = {
                             Icon(
-                                Icons.Default.Pets,
+                                Icons.Filled.Pets,
                                 contentDescription = "Swipe",
-                                tint = Color(0xFFFF9999)
+                                tint = Color.Gray.copy(alpha = 0.6f)
                             )
                         },
-                        label = { Text("Swipe", color = Color(0xFFFF9999), fontWeight = FontWeight.Bold) },
-                        selected = true,
+                        label = { Text("Swipe", color = Color.Gray.copy(alpha = 0.6f)) },
+                        selected = false,
                         onClick = {navController.navigate("pet_swipe")},
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = Color(0xFFFF9999),
@@ -109,12 +109,12 @@
                                 contentDescription = "Liked",
                                 modifier = Modifier.size(24.dp),
                                 colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(
-                                    Color.Gray.copy(alpha = 0.6f)
+                                    Color(0xFFFF9999)
                                 )
                             )
                         },
-                        label = { Text("Liked", color = Color.Gray.copy(alpha = 0.6f)) },
-                        selected = false,
+                        label = { Text("Liked", color = Color(0xFFFF9999), fontWeight = FontWeight.Bold) },
+                        selected = true,
                         onClick = {
                             navController.navigate("adopter_home")
                         },
@@ -203,7 +203,7 @@
                         navigationIcon = {
                             IconButton(onClick = { navController.popBackStack() }) {
                                 Icon(
-                                    imageVector = Icons.Default.ArrowBack,
+                                    imageVector = Icons.Filled.ArrowBack,
                                     contentDescription = "Back",
                                     tint = textColor
                                 )
@@ -222,13 +222,13 @@
                                 }
                             ) {
                                 Image(
-                                    painter = painterResource(id = R.drawable.pawmate_logo),
+                                    painter = painterResource(id = R.drawable.blackpawmateicon3),
                                     contentDescription = "PawMate Logo",
                                     modifier = Modifier.size(if (isTablet) 32.dp else 28.dp)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Icon(
-                                    imageVector = Icons.Default.Favorite,
+                                    imageVector = Icons.Filled.Favorite,
                                     contentDescription = "Liked",
                                     tint = Color.Red,
                                     modifier = Modifier.size(if (isTablet) 28.dp else 24.dp)
@@ -243,49 +243,10 @@
                             }
                         },
                         colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                            containerColor = Color(0xFFFFF0F5)
+                            containerColor = if (isDarkMode) Color(0xFF2A2A2A) else Color(0xFFFFF0F5)
                         ),
                         actions = {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Card(
-                                    colors = CardDefaults.cardColors(containerColor = accentColor),
-                                    shape = RoundedCornerShape(20.dp)
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = "💎",
-                                            fontSize = if (isTablet) 18.sp else 16.sp,
-                                            modifier = Modifier.padding(end = 4.dp)
-                                        )
-                                        Text(
-                                            text = gemCount.toString(),
-                                            color = Color.White,
-                                            fontSize = if (isTablet) 18.sp else 16.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                }
-
-                                FloatingActionButton(
-                                    onClick = { showGemDialog = true },
-                                    modifier = Modifier.size(if (isTablet) 36.dp else 32.dp),
-                                    containerColor = accentColor,
-                                    contentColor = Color.White,
-                                    elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 2.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Add,
-                                        contentDescription = "Buy Gems",
-                                        modifier = Modifier.size(if (isTablet) 20.dp else 16.dp)
-                                    )
-                                }
-                            }
+                            
                         }
                     )
 
@@ -315,7 +276,7 @@
                             Text(
                                 text = "Start swiping to find your perfect companion!",
                                 fontSize = if (isTablet) 18.sp else 16.sp,
-                                color = Color.Gray,
+                                color = if (ThemeManager.isDarkMode) Color.LightGray else Color.Gray,
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.padding(bottom = if (isTablet) 32.dp else 24.dp)
                             )
@@ -379,6 +340,60 @@
     }
 
     @Composable
+    fun SafePetImage(
+        imageRes: Int,
+        petName: String,
+        isTablet: Boolean
+    ) {
+        val context = LocalContext.current
+        var isValidResource by remember(imageRes) { mutableStateOf(false) }
+        
+        LaunchedEffect(imageRes) {
+            isValidResource = if (imageRes != 0 && imageRes != -1) {
+                try {
+                    context.resources.getResourceName(imageRes)
+                    true
+                } catch (e: Exception) {
+                    false
+                }
+            } else {
+                false
+            }
+        }
+        
+        if (isValidResource) {
+            Image(
+                painter = painterResource(id = imageRes),
+                contentDescription = petName,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(if (isTablet) 100.dp else 80.dp)
+                    .clip(RoundedCornerShape(12.dp))
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(if (isTablet) 100.dp else 80.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(
+                        if (ThemeManager.isDarkMode) 
+                            Color(0xFFFF9999).copy(alpha = 0.2f) 
+                        else 
+                            Color(0xFFFFB6C1).copy(alpha = 0.3f)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Pets,
+                    contentDescription = petName,
+                    tint = Color(0xFFFF9999),
+                    modifier = Modifier.size(if (isTablet) 50.dp else 40.dp)
+                )
+            }
+        }
+    }
+
+    @Composable
     fun LikedPetCard(
         pet: LikedPet,
         isTablet: Boolean,
@@ -401,13 +416,10 @@
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Pet Image
-                Image(
-                    painter = painterResource(id = pet.imageRes),
-                    contentDescription = pet.name,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(if (isTablet) 100.dp else 80.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                SafePetImage(
+                    imageRes = pet.imageRes,
+                    petName = pet.name,
+                    isTablet = isTablet
                 )
 
                 Spacer(modifier = Modifier.width(if (isTablet) 16.dp else 12.dp))
@@ -426,13 +438,13 @@
                     Text(
                         text = "${pet.breed} • ${pet.age}",
                         fontSize = if (isTablet) 16.sp else 14.sp,
-                        color = Color.Gray
+                        color = if (ThemeManager.isDarkMode) Color.LightGray else Color.Gray
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = pet.description,
                         fontSize = if (isTablet) 14.sp else 12.sp,
-                        color = Color.Gray,
+                        color = if (ThemeManager.isDarkMode) Color.LightGray else Color.Gray,
                         maxLines = 2
                     )
                 }
@@ -447,7 +459,7 @@
                         )
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Close,
+                        imageVector = Icons.Filled.Close,
                         contentDescription = "Remove",
                         tint = Color.Red,
                         modifier = Modifier.size(if (isTablet) 24.dp else 20.dp)

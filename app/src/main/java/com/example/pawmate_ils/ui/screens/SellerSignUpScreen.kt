@@ -145,7 +145,7 @@ fun SellerSignUpScreen(
             when (currentStep) {
                 1 -> {
                     Image(
-                        painter = painterResource(id = R.drawable.pawmate_logo),
+                        painter = painterResource(id = R.drawable.blackpawmateicon3),
                         contentDescription = "PawMate Logo",
                         modifier = Modifier
                             .size(100.dp)
@@ -476,7 +476,7 @@ fun SellerSignUpScreen(
                         OutlinedTextField(
                             value = mobileNumber,
                             onValueChange = { mobileNumber = it },
-                            placeholder = { Text("+1 234 567 8900", color = Color.Gray.copy(alpha = 0.6f)) },
+                            placeholder = { Text("+63 234 567 8900", color = Color.Gray.copy(alpha = 0.6f)) },
                             keyboardOptions = KeyboardOptions(
                                 keyboardType = KeyboardType.Phone,
                                 imeAction = ImeAction.Next
@@ -703,8 +703,4 @@ fun SellerSignUpScreen(
         }
     }
 }
-
-
-
-
 

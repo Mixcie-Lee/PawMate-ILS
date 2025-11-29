@@ -98,7 +98,7 @@ open class AuthViewModel : ViewModel() {
                                 updateNewUserState(userDoc)
 
                                 if (userDoc == null) {
-                                    // 🔹 NEW: Gem Distribution Logic for new email sign-up
+                                    // 🔹 Gem Distribution Logic for new email sign-up
                                     val userData = hashMapOf(
                                         "email" to email,
                                         "role" to "adopter",
@@ -111,9 +111,11 @@ open class AuthViewModel : ViewModel() {
                                     db.collection("users").document(user.uid).set(userData).await()
                                     _userGems.value = 10
                                     _likedPetsCount.value = 0
+                                    GemManager.setGemCount(10)
                                 } else {
                                     _userGems.value = userDoc.gems
                                     _likedPetsCount.value = userDoc.likedPetsCount
+                                    GemManager.setGemCount(userDoc.gems)
                                 }
 
                                 _authState.value = AuthState.Authenticated
@@ -154,6 +156,7 @@ open class AuthViewModel : ViewModel() {
                                     _userGems.value = userDoc.gems
                                     _likedPetsCount.value = userDoc.likedPetsCount
                                     _currentUserRole.value = userDoc.role
+                                    GemManager.setGemCount(userDoc.gems)
 
                                     updateNewUserState(userDoc)
 
@@ -207,10 +210,11 @@ open class AuthViewModel : ViewModel() {
                                 _userGems.value = userDoc.gems
                                 _likedPetsCount.value = userDoc.likedPetsCount
                                 _currentUserRole.value = userDoc.role
+                                GemManager.setGemCount(userDoc.gems)
                                 _authState.value = AuthState.Authenticated
                                 onResult(true, null)
                             } else {
-                                // 🔹 NEW: Gem Distribution Logic for new Google sign-in
+                                // 🔹 Gem Distribution Logic for new Google sign-in
                                 val newUser = User(
                                     id = user.uid,
                                     name = user.displayName ?: "",
@@ -221,8 +225,8 @@ open class AuthViewModel : ViewModel() {
                                     Age = "",
                                     gems = 10,
                                     likedPetsCount = 0,
-                                    createdAt = System.currentTimeMillis(),  // <-- NOW valid
-                                    lastActive = System.currentTimeMillis(), // 🔹 FIXED: lastActive as Timestamp
+                                    createdAt = System.currentTimeMillis(),
+                                    lastActive = System.currentTimeMillis(),
                                     isNewUser = true
                                 )
                                 db.collection("users").document(user.uid).set(newUser).await()
@@ -230,6 +234,7 @@ open class AuthViewModel : ViewModel() {
                                 _userGems.value = 10
                                 _likedPetsCount.value = 0
                                 _currentUserRole.value = "adopter"
+                                GemManager.setGemCount(10)
 
                                 _authState.value = AuthState.Authenticated
                                 onResult(true, null)

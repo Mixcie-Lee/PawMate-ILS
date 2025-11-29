@@ -210,7 +210,7 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                 )
                 
                 Image(
-                    painter = painterResource(id = R.drawable.pawmate_logo),
+                    painter = painterResource(id = R.drawable.blackpawmateicon3),
                     contentDescription = "PawMate Logo",
                     modifier = Modifier
                         .size(140.dp)

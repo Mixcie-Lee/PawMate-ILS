@@ -12,7 +12,6 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Home
@@ -103,11 +102,6 @@ fun PetSwipeScreen(navController: NavController) {
     //track which icon is selected(swipe...etc)
     var selectedItem by remember { mutableStateOf("Swipe") }
 
-    // Force-show on first screen entry; user dismissal persists the flag.
-    var showTutorial by rememberSaveable { mutableStateOf(true) }
-    LaunchedEffect(showTutorial) {
-        if (showTutorial) TutorialRuntime.wasShownThisProcess = true
-    }
     //Firebase essentials for authentication needed for chat creation
     val viewModelStoreOwner = LocalViewModelStoreOwner.current
     val authViewModel: AuthViewModel = viewModel(
@@ -130,15 +124,16 @@ fun PetSwipeScreen(navController: NavController) {
         )
     }
     val tutorialSeen = remember { tutorialPrefs.getBoolean("seen", false) }
+    var showTutorial by remember { mutableStateOf(!tutorialSeen) }
+    LaunchedEffect(showTutorial) {
+        if (showTutorial) TutorialRuntime.wasShownThisProcess = true
+    }
 
-    //Instanly show chat channels after swiping right
     LaunchedEffect(Unit) {
         homeViewModel.listenToChannels()
     }
     LaunchedEffect(Unit) { GemManager.init(context) } // ensure saved gem count is loaded
     val gemCount by GemManager.gemCount.collectAsState()
-
-    //allow for adopters to see newly added pets
 
 
 
@@ -148,7 +143,6 @@ fun PetSwipeScreen(navController: NavController) {
     val screenHeight = configuration.screenHeightDp.dp
     val density = LocalDensity.current
 
-    // Determine if device is tablet based on smallest width (more reliable) and fall back to widthDp
     val isTablet = configuration.smallestScreenWidthDp >= 600 || configuration.screenWidthDp >= 600
     val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
 
@@ -224,8 +218,8 @@ fun PetSwipeScreen(navController: NavController) {
         if (isDragging || currentPetIndex >= filteredPets.size) return
 
         if (direction > 0) {
-            if (gemCount >= 5) {
-                repeat(5) { GemManager.consumeGem() }
+            val hasGem = GemManager.consumeGems(5)
+            if (hasGem) {
                 val currentPet = filteredPets[currentPetIndex]
                 likedPetsViewmodel.addLikedPet(currentPet)
 
@@ -292,6 +286,7 @@ fun PetSwipeScreen(navController: NavController) {
                 }
             } else {
                 showGemDialog = true
+                return
             }
         }
 
@@ -363,10 +358,9 @@ fun PetSwipeScreen(navController: NavController) {
                 NavigationBarItem(
                     icon = {
                         Icon(
-                            Icons.Default.Pets,
+                            Icons.Filled.Pets,
                             contentDescription = "Swipe",
-
-                            tint = if (selectedItem == "Swipe") Color(0xFFFF9999) else Color.Gray.copy(alpha = 0.6f) // 🟩 dynamically change color
+                            tint = if (selectedItem == "Swipe") Color(0xFFFF9999) else Color.Gray.copy(alpha = 0.6f)
                         )
                     },
                     label = {
@@ -625,7 +619,7 @@ fun PetSwipeScreen(navController: NavController) {
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Image(
-                                painter = painterResource(id = R.drawable.pawmate_logo),
+                                painter = painterResource(id = R.drawable.blackpawmateicon3),
                                 contentDescription = "PawMate Logo",
                                 modifier = Modifier.size(if (isTablet) 64.dp else 56.dp)
                             )
@@ -657,26 +651,42 @@ fun PetSwipeScreen(navController: NavController) {
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Card(
-                                colors = CardDefaults.cardColors(containerColor = accentColor),
-                                shape = RoundedCornerShape(24.dp)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Text(
-                                        text = "💎",
-                                        fontSize = 18.sp
-                                    )
-                                    Text(
-                                        text = gemCount.toString(),
-                                        color = Color.White,
-                                        fontSize = 18.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
+                                Image(
+                                    painter = painterResource(id = R.drawable.diamond),
+                                    contentDescription = "Gems",
+                                    modifier = Modifier.size(if (isTablet) 26.dp else 22.dp)
+                                )
+                                Text(
+                                    text = gemCount.toString(),
+                                    color = textColor,
+                                    fontSize = if (isTablet) 18.sp else 16.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            TextButton(
+                                onClick = { showGemDialog = true }
+                            ) {
+                                Text(
+                                    text = "Buy",
+                                    color = Color(0xFFFF9999),
+                                    fontSize = if (isTablet) 14.sp else 12.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                            IconButton(
+                                onClick = { showTutorial = true },
+                                modifier = Modifier.size(if (isTablet) 48.dp else 44.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Info,
+                                    contentDescription = "Show Tutorial",
+                                    tint = if (isDarkMode) Color(0xFFFF9999) else Color(0xFFFF9999),
+                                    modifier = Modifier.size(if (isTablet) 28.dp else 24.dp)
+                                )
                             }
                         }
                     }
@@ -728,20 +738,6 @@ fun PetSwipeScreen(navController: NavController) {
                                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp)
                                 )
                             }
-                        }
-
-                        FilledIconButton(
-                            onClick = { showGemDialog = true },
-                            colors = IconButtonDefaults.filledIconButtonColors(
-                                containerColor = accentColor
-                            ),
-                            modifier = Modifier.size(48.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = "Buy Gems",
-                                tint = Color.White
-                            )
                         }
                     }
 
@@ -849,59 +845,95 @@ fun PetSwipeScreen(navController: NavController) {
                         }
 
                         AlertDialog(
-                            onDismissRequest = { showTutorial = false },
+                            onDismissRequest = { 
+                                tutorialPrefs.edit().putBoolean("seen", true).apply()
+                                showTutorial = false 
+                            },
+                            containerColor = if (ThemeManager.isDarkMode) Color(0xFF2A2A2A) else Color.White,
                             title = {
                                 Text(
                                     text = when (tutorialStep) {
-                                        0 -> "Info Button"
-                                        1 -> "Filter Pets"
-                                        2 -> "Buy Gems"
+                                        0 -> "Welcome to PawMate"
+                                        1 -> "How to Swipe"
+                                        2 -> "Discover Pets"
                                         else -> "Welcome to Swipe"
                                     },
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFFFF9999)
+                                    color = if (ThemeManager.isDarkMode) Color(0xFFFF9999) else Color(0xFFFF9999)
                                 )
                             },
                             text = {
-                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    when (tutorialStep) {
-                                        0 -> {
-                                            Text("Tap the info icon to view this tutorial anytime.", fontSize = 14.sp, color = Color.DarkGray)
-                                        }
-                                        1 -> {
-                                            Text("Use the filter icon to switch between Dogs, Cats, or All.", fontSize = 14.sp, color = Color.DarkGray)
-                                        }
-                                        2 -> {
-                                            Text("Tap the + button to buy gems. Likes cost 5 gems.", fontSize = 14.sp, color = Color.DarkGray)
-                                        }
-                                    }
-                                    Spacer(Modifier.height(6.dp))
-                                    Text("Swipe right to like (costs 5 gems)", fontSize = 14.sp, color = Color.DarkGray)
-                                    Text("Swipe left to pass", fontSize = 14.sp, color = Color.DarkGray)
-                                    Text("Tap left/right on the card to change photos", fontSize = 14.sp, color = Color.DarkGray)
-                                    Text("Hold the card to see detailed information", fontSize = 14.sp, color = Color.DarkGray)
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Image(
+                                        painter = painterResource(
+                                            id = when (tutorialStep) {
+                                                0 -> R.drawable.tutorial1
+                                                1 -> R.drawable.tutorial2
+                                                2 -> R.drawable.tutorial3
+                                                else -> R.drawable.tutorial1
+                                            }
+                                        ),
+                                        contentDescription = "Tutorial ${tutorialStep + 1}",
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(if (isTablet) 700.dp else 600.dp),
+                                        contentScale = ContentScale.FillWidth
+                                    )
                                 }
                             },
                             confirmButton = {
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     if (tutorialStep < 2) {
-                                        TextButton(onClick = { tutorialStep++ }) { Text("Next") }
+                                        TextButton(
+                                            onClick = { tutorialStep++ },
+                                            colors = ButtonDefaults.textButtonColors(
+                                                contentColor = if (ThemeManager.isDarkMode) Color(0xFFFF9999) else Color(0xFFFF9999)
+                                            )
+                                        ) { 
+                                            Text("Next") 
+                                        }
                                     } else {
                                         Button(
                                             onClick = {
                                                 tutorialPrefs.edit().putBoolean("seen", true).apply()
                                                 showTutorial = false
                                             },
-                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFB6C1), contentColor = Color.White)
-                                        ) { Text("Start swiping") }
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = Color(0xFFFFB6C1), 
+                                                contentColor = Color.White
+                                            )
+                                        ) { 
+                                            Text("Start swiping") 
+                                        }
                                     }
                                 }
                             },
                             dismissButton = {
                                 if (tutorialStep > 0) {
-                                    TextButton(onClick = { tutorialStep-- }) { Text("Back") }
+                                    TextButton(
+                                        onClick = { tutorialStep-- },
+                                        colors = ButtonDefaults.textButtonColors(
+                                            contentColor = if (ThemeManager.isDarkMode) Color(0xFFFF9999) else Color(0xFFFF9999)
+                                        )
+                                    ) { 
+                                        Text("Back") 
+                                    }
                                 } else {
-                                    TextButton(onClick = { showTutorial = false }) { Text("Close") }
+                                    TextButton(
+                                        onClick = { 
+                                            tutorialPrefs.edit().putBoolean("seen", true).apply()
+                                            showTutorial = false 
+                                        },
+                                        colors = ButtonDefaults.textButtonColors(
+                                            contentColor = if (ThemeManager.isDarkMode) Color(0xFFFF9999) else Color(0xFFFF9999)
+                                        )
+                                    ) { 
+                                        Text("Close") 
+                                    }
                                 }
                             }
                         )
@@ -1271,145 +1303,114 @@ fun SwipeablePetCard(
                 ) {
                     Card(
                         modifier = Modifier
-                            .fillMaxWidth(if (isTablet) 0.75f else 0.92f)
-                            .padding(if (isTablet) 24.dp else 16.dp),
-                        shape = RoundedCornerShape(28.dp),
+                            .fillMaxWidth(if (isTablet) 0.85f else 0.94f)
+                            .fillMaxHeight(0.88f)
+                            .padding(if (isTablet) 24.dp else 12.dp),
+                        shape = RoundedCornerShape(32.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = if (ThemeManager.isDarkMode) Color(0xFF1E1E1E) else Color.White
+                            containerColor = if (ThemeManager.isDarkMode) Color(0xFF2A2A2A) else Color(0xFFFFFAFB)
                         ),
                         elevation = CardDefaults.cardElevation(defaultElevation = 24.dp)
                     ) {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.padding(if (isTablet) 32.dp else 24.dp)
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(if (isTablet) 32.dp else 24.dp)
                         ) {
-                            // Pet avatar with animated border
-                            Box(
-                                contentAlignment = Alignment.Center
-                            ) {
-                                val borderColor by animateColorAsState(
-                                    targetValue = if (pet.type == "dog") Color(0xFF4CAF50) else Color(0xFF9C27B0),
-                                    animationSpec = tween(1000),
-                                    label = "border_color"
-                                )
-
-                                Box(
-                                    modifier = Modifier
-                                        .size(if (isTablet) 120.dp else 100.dp)
-                                        .background(
-                                            borderColor.copy(alpha = 0.2f),
-                                            androidx.compose.foundation.shape.CircleShape
-                                        )
-                                        .padding(4.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = if (pet.type == "dog") "🐕" else "🐱",
-                                        fontSize = if (isTablet) 60.sp else 50.sp
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(if (isTablet) 24.dp else 20.dp))
-
-                            // Pet name with gradient background
                             Box(
                                 modifier = Modifier
+                                    .size(if (isTablet) 150.dp else 130.dp)
                                     .background(
-                                        Color(0xFFFFB6C1).copy(alpha = 0.15f),
-                                        RoundedCornerShape(16.dp)
-                                    )
-                                    .padding(horizontal = 20.dp, vertical = 12.dp)
+                                        androidx.compose.ui.graphics.Brush.radialGradient(
+                                            colors = listOf(
+                                                Color(0xFFFFB6C1).copy(alpha = 0.3f),
+                                                Color(0xFFFFB6C1).copy(alpha = 0.1f),
+                                                Color.Transparent
+                                            )
+                                        ),
+                                        androidx.compose.foundation.shape.CircleShape
+                                    ),
+                                contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text =  pet.name ?: "Unknown",
-                                    fontSize = if (isTablet) 32.sp else 28.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFFFF9999),
-                                    textAlign = TextAlign.Center
+                                    text = if (pet.type == "dog") "🐕" else "🐱",
+                                    fontSize = if (isTablet) 80.sp else 70.sp
                                 )
                             }
 
                             Spacer(modifier = Modifier.height(if (isTablet) 24.dp else 20.dp))
 
-                            // Enhanced info chips with better layout
-                            Column(
+                            Text(
+                                text = pet.name ?: "Unknown",
+                                fontSize = if (isTablet) 40.sp else 36.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color(0xFFFF9999),
+                                textAlign = TextAlign.Center,
+                                letterSpacing = 0.5.sp
+                            )
+
+                            Spacer(modifier = Modifier.height(if (isTablet) 32.dp else 28.dp))
+
+                            Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalAlignment = Alignment.CenterHorizontally
+                                horizontalArrangement = Arrangement.spacedBy(if (isTablet) 12.dp else 10.dp)
                             ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceEvenly
-                                ) {
-                                    EnhancedInfoChip("🎂", "Age", pet.age ?: "N/A", isTablet)
-                                    EnhancedInfoChip("🧬", "Breed", pet.breed ?: "Unknown", isTablet)
-                                }
-                                Spacer(modifier = Modifier.height(if (isTablet) 16.dp else 12.dp))
-                                EnhancedInfoChip(
-                                    if (pet.type.equals("dog", ignoreCase = true)) "🐕" else "🐱",
-                                    "Type",
-                                    pet.type?.replaceFirstChar { it.uppercase() } ?: "Unknown",
-                                    isTablet
+                                InfoCard(
+                                    icon = "🎂",
+                                    label = "Age",
+                                    value = pet.age ?: "N/A",
+                                    isTablet = isTablet,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                InfoCard(
+                                    icon = if (pet.type.equals("dog", ignoreCase = true)) "🐕" else "🐱",
+                                    label = "Type",
+                                    value = pet.type?.replaceFirstChar { it.uppercase() } ?: "Unknown",
+                                    isTablet = isTablet,
+                                    modifier = Modifier.weight(1f)
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(if (isTablet) 28.dp else 24.dp))
+                            Spacer(modifier = Modifier.height(if (isTablet) 12.dp else 10.dp))
 
-                            // About section with better styling
-                            Column(
+                            InfoCard(
+                                icon = "🧬",
+                                label = "Breed",
+                                value = pet.breed ?: "Unknown",
+                                isTablet = isTablet,
                                 modifier = Modifier.fillMaxWidth()
+                            )
+
+                            Spacer(modifier = Modifier.height(if (isTablet) 32.dp else 28.dp))
+
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(
+                                        if (ThemeManager.isDarkMode) 
+                                            Color(0xFF3A3A3A).copy(alpha = 0.5f)
+                                        else 
+                                            Color(0xFFFFB6C1).copy(alpha = 0.08f),
+                                        RoundedCornerShape(20.dp)
+                                    )
+                                    .padding(if (isTablet) 24.dp else 20.dp),
+                                horizontalAlignment = Alignment.Start
                             ) {
                                 Text(
-                                    text = "📖 About ${pet.name}",
+                                    text = "About ${pet.name}",
                                     fontSize = if (isTablet) 22.sp else 20.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFFFF9999),
-                                    modifier = Modifier.padding(bottom = if (isTablet) 12.dp else 8.dp)
+                                    modifier = Modifier.padding(bottom = if (isTablet) 12.dp else 10.dp)
                                 )
 
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .background(
-                                            Color.Gray.copy(alpha = 0.1f),
-                                            RoundedCornerShape(12.dp)
-                                        )
-                                        .padding(16.dp)
-                                ) {
-                                    Text(
-                                        text = pet.description ?: "unknown",
-                                        fontSize = if (isTablet) 18.sp else 16.sp,
-                                        color = if (ThemeManager.isDarkMode) Color.White.copy(alpha = 0.9f) else Color.Gray,
-                                        lineHeight = if (isTablet) 26.sp else 24.sp,
-                                        textAlign = TextAlign.Start
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(if (isTablet) 24.dp else 20.dp))
-
-                            // Instructions with icon
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center,
-                                modifier = Modifier
-                                    .background(
-                                        Color(0xFFFFB6C1).copy(alpha = 0.08f),
-                                        RoundedCornerShape(20.dp)
-                                    )
-                                    .padding(16.dp)
-                            ) {
                                 Text(
-                                    text = "👆",
-                                    fontSize = if (isTablet) 20.sp else 18.sp,
-                                    modifier = Modifier.padding(end = 8.dp)
-                                )
-                                Text(
-                                    text = "Tap left/right to see more photos",
-                                    fontSize = if (isTablet) 16.sp else 14.sp,
-                                    color = Color(0xFFFF9999),
-                                    fontWeight = FontWeight.Medium,
-                                    textAlign = TextAlign.Center
+                                    text = pet.description ?: "No description available",
+                                    fontSize = if (isTablet) 17.sp else 15.sp,
+                                    color = if (ThemeManager.isDarkMode) Color.White.copy(alpha = 0.90f) else Color(0xFF555555),
+                                    lineHeight = if (isTablet) 26.sp else 22.sp,
+                                    textAlign = TextAlign.Start
                                 )
                             }
                         }
@@ -1419,7 +1420,7 @@ fun SwipeablePetCard(
 
             Box(
                 modifier = Modifier
-                    .align(Alignment.BottomStart) // fills the width at the bottom
+                    .align(Alignment.BottomStart)
                     .fillMaxWidth()
                     .background(
                         androidx.compose.ui.graphics.Brush.verticalGradient(
@@ -1434,7 +1435,6 @@ fun SwipeablePetCard(
                     )
                     .padding(cardPadding)
             ) {
-                // Pet info column on the left
                 Column(
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                     modifier = Modifier.align(Alignment.BottomStart)
@@ -1481,17 +1481,21 @@ fun SwipeablePetCard(
                     )
                 }
 
-                // Shelter name on the bottom-right
-                Text(
-                    text = " Shelter: ${shelterName}",
-                    color = Color.White.copy(alpha = 0.85f),
-                    fontSize = infoSize,
-                    fontWeight = FontWeight.Medium,
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color.White.copy(alpha = 0.2f)
+                    ),
+                    shape = RoundedCornerShape(12.dp),
                     modifier = Modifier
-                        .align(Alignment.BottomEnd) // now valid because we're in BoxScope
-                        .padding(end = 12.dp, bottom = 8.dp),
-                    textAlign = TextAlign.End
-                )
+                        .align(Alignment.BottomEnd)
+                ) {
+                    Text(
+                        text = "Shelter: $shelterName",
+                        color = Color.White,
+                        fontSize = descSize,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                    )
+                }
             }
 
         }
@@ -1499,35 +1503,54 @@ fun SwipeablePetCard(
         }
 
 @Composable
-fun InfoChip(
+fun InfoCard(
+    icon: String,
     label: String,
     value: String,
-    isTablet: Boolean
+    isTablet: Boolean,
+    modifier: Modifier = Modifier
 ) {
+    val isDarkMode = ThemeManager.isDarkMode
+    
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFB6C1).copy(alpha = 0.15f)),
-        shape = RoundedCornerShape(16.dp)
+        modifier = modifier,
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDarkMode) Color(0xFF3A3A3A) else Color(0xFFFFB6C1).copy(alpha = 0.12f)
+        ),
+        shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(
-                horizontal = if (isTablet) 16.dp else 12.dp,
-                vertical = if (isTablet) 12.dp else 8.dp
-            )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(
+                    horizontal = if (isTablet) 20.dp else 16.dp,
+                    vertical = if (isTablet) 20.dp else 16.dp
+                ),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
         ) {
             Text(
-                text = label,
-                fontSize = if (isTablet) 14.sp else 12.sp,
-                color = Color.Gray,
-                fontWeight = FontWeight.Medium
+                text = icon,
+                fontSize = if (isTablet) 32.sp else 28.sp,
+                modifier = Modifier.padding(end = if (isTablet) 16.dp else 12.dp)
             )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = value,
-                fontSize = if (isTablet) 16.sp else 14.sp,
-                color = Color(0xFFFF9999),
-                fontWeight = FontWeight.Bold
-            )
+            Column(
+                horizontalAlignment = Alignment.Start
+            ) {
+                Text(
+                    text = label,
+                    fontSize = if (isTablet) 13.sp else 11.sp,
+                    color = if (isDarkMode) Color.LightGray.copy(alpha = 0.7f) else Color.Gray.copy(alpha = 0.7f),
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = value,
+                    fontSize = if (isTablet) 20.sp else 18.sp,
+                    color = Color(0xFFFF9999),
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
     }
 }
@@ -1539,6 +1562,7 @@ fun EnhancedInfoChip(
     value: String,
     isTablet: Boolean
 ) {
+    val isDarkMode = ThemeManager.isDarkMode
     val animatedScale by animateFloatAsState(
         targetValue = 1f,
         animationSpec = spring(
@@ -1549,35 +1573,37 @@ fun EnhancedInfoChip(
     )
 
     Card(
-        modifier = Modifier.scale(animatedScale),
+        modifier = Modifier
+            .scale(animatedScale)
+            .widthIn(min = 110.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFFFB6C1).copy(alpha = 0.12f)
+            containerColor = if (isDarkMode) Color(0xFF3A3A3A) else Color(0xFFFFB6C1).copy(alpha = 0.15f)
         ),
-        shape = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.padding(
-                horizontal = if (isTablet) 20.dp else 16.dp,
-                vertical = if (isTablet) 16.dp else 12.dp
+                horizontal = if (isTablet) 24.dp else 20.dp,
+                vertical = if (isTablet) 20.dp else 16.dp
             )
         ) {
             Text(
                 text = icon,
-                fontSize = if (isTablet) 24.sp else 20.sp,
-                modifier = Modifier.padding(bottom = 4.dp)
+                fontSize = if (isTablet) 32.sp else 28.sp,
+                modifier = Modifier.padding(bottom = 8.dp)
             )
             Text(
                 text = label,
-                fontSize = if (isTablet) 12.sp else 10.sp,
-                color = Color.Gray,
+                fontSize = if (isTablet) 14.sp else 12.sp,
+                color = if (isDarkMode) Color.LightGray.copy(alpha = 0.8f) else Color.Gray.copy(alpha = 0.8f),
                 fontWeight = FontWeight.Medium
             )
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = value,
-                fontSize = if (isTablet) 16.sp else 14.sp,
+                fontSize = if (isTablet) 18.sp else 16.sp,
                 color = Color(0xFFFF9999),
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
@@ -1652,10 +1678,12 @@ fun GemPurchaseDialog(
                 horizontalArrangement = Arrangement.Center,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(
-                    text = "💎",
-                    fontSize = 24.sp,
-                    modifier = Modifier.padding(end = 8.dp)
+                Image(
+                    painter = painterResource(id = R.drawable.diamond),
+                    contentDescription = "Gem",
+                    modifier = Modifier
+                        .size(24.dp)
+                        .padding(end = 8.dp)
                 )
                 Text(
                     text = "Buy Gems",
@@ -1668,7 +1696,7 @@ fun GemPurchaseDialog(
         text = {
             Column {
                 Text(
-                    text = "You need 5 gems to like pets! Choose a package:",
+                    text = "Choose a gem package:",
                     fontSize = 16.sp,
                     color = Color.Gray,
                     textAlign = TextAlign.Center,
@@ -1699,14 +1727,24 @@ fun GemPurchaseDialog(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Image(
+                                        painter = painterResource(id = R.drawable.diamond),
+                                        contentDescription = "Gem",
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Text(
+                                        text = "${packageType.gemAmount} Gems",
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFFF9999)
+                                    )
+                                }
                                 Text(
-                                    text = "💎 ${packageType.gemAmount} Gems",
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFFFF9999)
-                                )
-                                Text(
-                                    text = "Perfect for ${packageType.gemAmount / 5} likes",
+                                    text = "Bonus gems package",
                                     fontSize = 12.sp,
                                     color = Color.Gray
                                 )

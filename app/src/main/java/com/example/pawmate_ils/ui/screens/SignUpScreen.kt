@@ -1,96 +1,95 @@
-    package com.example.pawmate_ils.ui.screens
+package com.example.pawmate_ils.ui.screens
 
-    import android.content.Context
-    import androidx.activity.compose.rememberLauncherForActivityResult
-    import androidx.activity.result.contract.ActivityResultContracts
-    import androidx.compose.foundation.background
-    import androidx.compose.foundation.layout.*
-    import androidx.compose.foundation.rememberScrollState
-    import androidx.compose.foundation.verticalScroll
-    import androidx.compose.foundation.shape.RoundedCornerShape
-    import androidx.compose.foundation.text.KeyboardOptions
-    import androidx.compose.material3.*
-    import androidx.compose.runtime.*
-    import androidx.compose.ui.Alignment
-    import androidx.compose.ui.Modifier
-    import androidx.compose.ui.graphics.Color
-    import androidx.compose.ui.text.font.FontWeight
-    import androidx.compose.ui.text.input.ImeAction
-    import androidx.compose.ui.text.input.KeyboardType
-    import androidx.compose.ui.text.style.TextAlign
-    import androidx.compose.ui.unit.dp
-    import androidx.compose.ui.unit.sp
-    import androidx.navigation.NavController
-    import kotlinx.coroutines.delay
-    import kotlinx.coroutines.launch
-    import androidx.compose.foundation.BorderStroke
-    import androidx.compose.foundation.Image
-    import androidx.compose.ui.text.input.PasswordVisualTransformation
-    import androidx.compose.runtime.livedata.observeAsState
-    import androidx.compose.ui.platform.LocalContext
-    import androidx.compose.ui.res.painterResource
-    import com.example.pawmate_ils.Firebase_Utils.AuthViewModel
-    import com.example.pawmate_ils.SharedViewModel
-    import com.example.pawmate_ils.Firebase_Utils.FirestoreRepository
-    import com.example.pawmate_ils.firebase_models.User
-    import com.google.firebase.auth.FirebaseAuth
-    import com.example.pawmate_ils.R
-    import com.example.pawmate_ils.ui.theme.DarkBrown
-    import androidx.lifecycle.viewmodel.compose.viewModel
-    import com.example.pawmate_ils.AdopShelDataStruc.AdopterRepository
-    import com.example.pawmate_ils.AdopShelDataStruc.ShelterRepository
-    import com.example.pawmate_ils.Firebase_Utils.HomeViewModel
-    import com.example.pawmate_ils.SettingsManager
-    import com.google.android.gms.auth.api.signin.GoogleSignIn
-    import com.google.android.gms.auth.api.signin.GoogleSignInClient
-    import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-    import com.google.android.gms.common.api.ApiException
-    import com.google.firebase.Timestamp
-
-
-    @OptIn(ExperimentalMaterial3Api::class)
-    @Composable
-    fun SignUpScreen(
-        navController: NavController,
-        onSignUpClick: (String, String, String, String) -> Unit,
-        onLoginClick: () -> Unit,
-        onSellerAuthClick: () -> Unit,
-        sharedViewModel: SharedViewModel,
-
-        ) {
-        //FIREBASE AUTHENTICATION
-        val context = LocalContext.current
-        val AuthViewModel : AuthViewModel = viewModel()
-        val authState  = AuthViewModel.authState.observeAsState()
-        val firestoreRepo = remember { FirestoreRepository() }
-        val authViewModel: AuthViewModel = viewModel()
-        val homeViewModel: HomeViewModel = viewModel ()
+import android.content.Context
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import com.example.pawmate_ils.Firebase_Utils.AuthViewModel
+import com.example.pawmate_ils.SharedViewModel
+import com.example.pawmate_ils.Firebase_Utils.FirestoreRepository
+import com.example.pawmate_ils.firebase_models.User
+import com.google.firebase.auth.FirebaseAuth
+import com.example.pawmate_ils.R
+import com.example.pawmate_ils.ui.theme.DarkBrown
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.pawmate_ils.AdopShelDataStruc.AdopterRepository
+import com.example.pawmate_ils.AdopShelDataStruc.ShelterRepository
+import com.example.pawmate_ils.Firebase_Utils.HomeViewModel
+import com.example.pawmate_ils.SettingsManager
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInClient
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
+import com.google.firebase.Timestamp
 
 
-        var currentStep by remember { mutableStateOf(1) } // 1: Email, 2: About You
-        var email by remember { mutableStateOf("") }
-        var password by remember {mutableStateOf("")} //MOCK UP LANG TO GA, PERO I NEED YOU TO ADD PASSWORD AS WELL SA SIGN UP FOR AUTHENTICATION
-        var firstName by remember { mutableStateOf("") }
-        var lastName by remember { mutableStateOf("") }
-        var mobileNumber by remember { mutableStateOf("") }
-        var address by remember { mutableStateOf("") }
-        var age by remember { mutableStateOf("") }
-        var isLoading by remember { mutableStateOf(false) }
-        var errorMessage by remember { mutableStateOf<String?>(null) }
-        val scrollState = rememberScrollState()
-        val scope = rememberCoroutineScope()
-        var isGoogleLoading by remember {mutableStateOf(false)}
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SignUpScreen(
+    navController: NavController,
+    onSignUpClick: (String, String, String, String) -> Unit,
+    onLoginClick: () -> Unit,
+    onSellerAuthClick: () -> Unit,
+    sharedViewModel: SharedViewModel,
+) {
+    //FIREBASE AUTHENTICATION
+    val context = LocalContext.current
+    val AuthViewModel : AuthViewModel = viewModel()
+    val authState  = AuthViewModel.authState.observeAsState()
+    val firestoreRepo = remember { FirestoreRepository() }
+    val authViewModel: AuthViewModel = viewModel()
+    val homeViewModel: HomeViewModel = viewModel ()
 
 
-        // ADDED SECTION
-        val newUser  by AuthViewModel.newUser.observeAsState()
+    var currentStep by remember { mutableStateOf(1) } // 1: Email, 2: About You
+    var email by remember { mutableStateOf("") }
+    var password by remember {mutableStateOf("")} //MOCK UP LANG TO GA, PERO I NEED YOU TO ADD PASSWORD AS WELL SA SIGN UP FOR AUTHENTICATION
+    var firstName by remember { mutableStateOf("") }
+    var lastName by remember { mutableStateOf("") }
+    var mobileNumber by remember { mutableStateOf("") }
+    var address by remember { mutableStateOf("") }
+    var age by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
+    var isGoogleLoading by remember {mutableStateOf(false)}
+
+
+    // ADDED SECTION
+    val newUser  by AuthViewModel.newUser.observeAsState()
 
 
 
-        //GOOGLE SIGN-UP/SIGN-IN HANDLER
-        val launcher = rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.StartActivityForResult()
-        ) { result ->
+    //GOOGLE SIGN-UP/SIGN-IN HANDLER
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
             val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
             try {
                 val account = task.getResult(ApiException::class.java)
@@ -117,33 +116,33 @@
         }
 
 
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    androidx.compose.ui.graphics.Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0xFFFFF0F5),
-                            Color(0xFFFFE4E9),
-                            Color(0xFFFFD6E0)
-                        )
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                androidx.compose.ui.graphics.Brush.verticalGradient(
+                    colors = listOf(
+                        Color(0xFFFFF0F5),
+                        Color(0xFFFFE4E9),
+                        Color(0xFFFFD6E0)
                     )
                 )
+            )
+    ) {
+        Column(
+            modifier = Modifier
+                .verticalScroll(scrollState)
+                .fillMaxSize()
+                .padding(horizontal = 32.dp, vertical = 48.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            Column(
-                modifier = Modifier
-                    .verticalScroll(scrollState)
-                    .fillMaxSize()
-                    .padding(horizontal = 32.dp, vertical = 48.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(40.dp))
 
-                when (currentStep) {
-                    1 -> {
+            when (currentStep) {
+                1 -> {
                         Image(
-                            painter = painterResource(id = R.drawable.pawmate_logo),
+                            painter = painterResource(id = R.drawable.blackpawmateicon3),
                             contentDescription = "PawMate Logo",
                             modifier = Modifier
                                 .size(100.dp)
@@ -367,7 +366,7 @@
                         )
                     }
 
-                    2 -> {
+                2 -> {
                         Text(
                             text = "About You",
                             fontSize = 32.sp,
@@ -679,39 +678,36 @@
                             }
                         }
                     }
-                }
-
-                errorMessage?.let {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = Color(0xFFFFEBEE)
-                        ),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text(
-                            text = it,
-                            color = Color(0xFFC62828),
-                            fontSize = 14.sp,
-                            modifier = Modifier.padding(12.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(40.dp))
             }
+
+            errorMessage?.let {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color(0xFFFFEBEE)
+                    ),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        text = it,
+                        color = Color(0xFFC62828),
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(12.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(40.dp))
         }
     }
+}
 
-        fun getGoogleSignInClient(context: Context): GoogleSignInClient {
-            val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                .requestIdToken(context.getString(R.string.default_web_client_id))
-                .requestEmail()
-                .build()
-            return GoogleSignIn.getClient(context, gso)
-        }
-    
-    
-    
+fun getGoogleSignInClient(context: Context): GoogleSignInClient {
+    val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+        .requestIdToken(context.getString(R.string.default_web_client_id))
+        .requestEmail()
+        .build()
+    return GoogleSignIn.getClient(context, gso)
+}

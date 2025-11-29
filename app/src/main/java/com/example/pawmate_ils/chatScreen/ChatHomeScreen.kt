@@ -72,17 +72,16 @@ fun HomeScreen(
                             Icon(
                                 Icons.Default.Pets,
                                 contentDescription = "Swipe",
-                                tint = Color(0xFFFF9999)
+                                tint = Color.Gray.copy(alpha = 0.6f)
                             )
                         },
                         label = {
                             Text(
                                 "Swipe",
-                                color = Color(0xFFFF9999),
-                                fontWeight = FontWeight.Bold
+                                color = Color.Gray.copy(alpha = 0.6f)
                             )
                         },
-                        selected = true,
+                        selected = false,
                         onClick = {
                             navController.navigate("pet_swipe")
                         },
@@ -166,12 +165,12 @@ fun HomeScreen(
                                 contentDescription = "Message",
                                 modifier = Modifier.size(24.dp),
                                 colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(
-                                    Color.Gray.copy(alpha = 0.6f)
+                                    Color(0xFFFF9999)
                                 )
                             )
                         },
-                        label = { Text("Message", color = Color.Gray.copy(alpha = 0.6f)) },
-                        selected = false,
+                        label = { Text("Message", color = Color(0xFFFF9999), fontWeight = FontWeight.Bold) },
+                        selected = true,
                         onClick = {
                             navController.navigate("chat_home")
                         },
@@ -194,14 +193,14 @@ fun HomeScreen(
                 CenterAlignedTopAppBar(
                     title = {
                         Text(
-                            text = "Message",
+                            text = "Messages",
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (isDarkMode) Color.White else Color.White
+                            color = Color.White
                         )
                     },
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                        containerColor = if (isDarkMode) primaryColor else Color(0xFFFFB6C1) // 🌸 Pink for light mode
+                        containerColor = if (isDarkMode) Color(0xFF2A2A2A) else Color(0xFFFFB6C1)
                     )
                 )
 

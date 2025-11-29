@@ -12,23 +12,22 @@ class GemManager {
         private const val PREFS_NAME = "gem_prefs"
         private const val KEY_GEM_COUNT = "gem_count"
 
-        private val _gemCount = MutableStateFlow(10) // ✅ NEW: Replace mutableStateOf with StateFlow
-        val gemCount: StateFlow<Int> get() = _gemCount  // ✅ NEW: Expose as observable flow
+        private val _gemCount = MutableStateFlow(10)
+        val gemCount: StateFlow<Int> get() = _gemCount
 
         private var _isPurchaseDialogOpen by mutableStateOf(false)
         val isPurchaseDialogOpen: Boolean get() = _isPurchaseDialogOpen
 
         private lateinit var context: Context
 
-        // Initialize GemManager with Context (call this in Application or first screen)
         fun init(appContext: Context) {
             context = appContext
             loadGemCount()
         }
 
-        private fun loadGemCount() {                                 // ✅ MODIFIED
+        private fun loadGemCount() {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            _gemCount.value = prefs.getInt(KEY_GEM_COUNT, 10)       // ✅ FIXED: update .value instead of assignment
+            _gemCount.value = prefs.getInt(KEY_GEM_COUNT, 10)
         }
         private fun saveGemCount() {                                 // ✅ MODIFIED
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -39,6 +38,16 @@ class GemManager {
             return if (_gemCount.value > 0) {
                 _gemCount.value--                                    // ✅ MODIFIED: update StateFlow value
                 saveGemCount()                                       // ✅ MODIFIED: persist change
+                true
+            } else {
+                false
+            }
+        }
+
+        fun consumeGems(amount: Int): Boolean {
+            return if (_gemCount.value >= amount) {
+                _gemCount.value -= amount
+                saveGemCount()
                 true
             } else {
                 false

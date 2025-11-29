@@ -86,7 +86,7 @@ fun UserTypeSelectionScreen(
             Spacer(modifier = Modifier.height(40.dp))
 
             Image(
-                painter = painterResource(id = R.drawable.pawmate_logo),
+                painter = painterResource(id = R.drawable.blackpawmateicon3),
                 contentDescription = "PawMate Logo",
                 modifier = Modifier
                     .size(120.dp)
