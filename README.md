@@ -2,7 +2,7 @@
 
 PawMate is a modern Android application built with Jetpack Compose that connects pet adopters with adoption centers. The app features a Tinder-like swiping interface for browsing pets, real-time chat functionality, educational resources, and a gem-based reward system.
 
-## 📱 Key Features
+## Key Features
 
 ### 1. **Pet Swiping Interface**
 - Tinder-style card swiping to browse available pets
@@ -41,6 +41,7 @@ PawMate is a modern Android application built with Jetpack Compose that connects
 ### 5. **Adoption Center Dashboard** (Shelter Role)
 - Add new pets to the platform
 - View all listed pets
+- View and manage pet listings (still working, not yet functioning)
 - Manage adoption applications
 - Track pet listings and status
 
@@ -58,7 +59,7 @@ PawMate is a modern Android application built with Jetpack Compose that connects
 - Gem count synced with Firestore
 - Persistent storage via SharedPreferences
 
-## 📋 Requirements
+## Requirements
 
 ### System Requirements
 - **Operating System**: Windows 10/11, macOS 10.15+, or Linux (Ubuntu 18.04+)
@@ -166,7 +167,7 @@ PawMate is a modern Android application built with Jetpack Compose that connects
 - **ADB (Android Debug Bridge)**: Included with Android SDK Platform-Tools
   - Used for device debugging and APK installation
 
-## 🚀 Installation
+## Installation
 
 ### Prerequisites
 - All requirements listed above must be met
@@ -207,7 +208,7 @@ PawMate is a modern Android application built with Jetpack Compose that connects
    gradlew.bat installDebug
    ```
 
-## 🔐 Permissions Required
+## Permissions Required
 
 The app requires the following permissions (declared in `AndroidManifest.xml`):
 
@@ -224,7 +225,7 @@ The app requires the following permissions (declared in `AndroidManifest.xml`):
 <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
 ```
 
-## 🗄️ Database Structure
+## Database Structure
 
 ### Firebase Firestore Collections
 
@@ -318,46 +319,46 @@ The app requires the following permissions (declared in `AndroidManifest.xml`):
 - **Theme Preference**: Managed by `ThemeManager`
 - **User Settings**: Managed by `SettingsManager`
 
-## 🐛 Recent Bug Fixes and Improvements
+## Recent Bug Fixes and Improvements
 
 ### Authentication & User Management
-- ✅ **Fixed gem count persistence on login**: Gems now properly sync from Firestore to local storage when users log in
-- ✅ **Fixed onboarding flow**: Onboarding screen now appears only once for first-time users
-- ✅ **Fixed welcome popup**: Welcome popup correctly shows for authenticated returning users
-- ✅ **Fixed user role fetching**: User role now fetched directly from Firestore instead of relying on cached state
+- **Fixed gem count persistence on login**: Gems now properly sync from Firestore to local storage when users log in
+- **Fixed onboarding flow**: Onboarding screen now appears only once for first-time users
+- **Fixed welcome popup**: Welcome popup correctly shows for authenticated returning users
+- **Fixed user role fetching**: User role now fetched directly from Firestore instead of relying on cached state
 
 ### UI/UX Improvements
-- ✅ **Redesigned pet detail modal**: Improved "hold screen" with larger icons, better typography, and custom info cards
-- ✅ **Fixed navigation bar highlighting**: Bottom navigation bar now accurately reflects the current active screen
-- ✅ **Dark mode consistency**: Implemented consistent dark mode theming across all screens
-- ✅ **Fixed tutorial dialog styling**: Added dark mode support to tutorial AlertDialogs
-- ✅ **Replaced app logo**: Updated to `blackpawmateicon3.png` across all screens
-- ✅ **Replaced gem icon**: Changed from emoji to `diamond.png` image asset
+- **Redesigned pet detail modal**: Improved "hold screen" with larger icons, better typography, and custom info cards
+- **Fixed navigation bar highlighting**: Bottom navigation bar now accurately reflects the current active screen
+- **Dark mode consistency**: Implemented consistent dark mode theming across all screens
+- **Fixed tutorial dialog styling**: Added dark mode support to tutorial AlertDialogs
+- **Replaced app logo**: Updated to `blackpawmateicon3.png` across all screens
+- **Replaced gem icon**: Changed from emoji to `diamond.png` image asset
 
 ### Educational Screen
-- ✅ **Added tutorial images**: Implemented `educationaltuto1.png` and `eductionaltuto2.png` that appear only once
-- ✅ **Fixed video playback**: Integrated YouTube player library with fallback to external app/browser
-- ✅ **Error handling**: Added robust error handling for YouTube embedding restrictions (Error Code 15)
+- **Added tutorial images**: Implemented `educationaltuto1.png` and `eductionaltuto2.png` that appear only once
+- **Fixed video playback**: Integrated YouTube player library with fallback to external app/browser
+- **Error handling**: Added robust error handling for YouTube embedding restrictions (Error Code 15)
 
 ### Gem System
-- ✅ **Restored full gem system**: Re-implemented gem counter, purchase dialog, and consumption logic
-- ✅ **Fixed gem synchronization**: Gems now properly sync between Firestore and local storage
-- ✅ **Starting balance**: New users receive 10 gems on signup
-- ✅ **Swipe cost**: Set to 5 gems per swipe
+- **Restored full gem system**: Re-implemented gem counter, purchase dialog, and consumption logic
+- **Fixed gem synchronization**: Gems now properly sync between Firestore and local storage
+- **Starting balance**: New users receive 10 gems on signup
+- **Swipe cost**: Set to 5 gems per swipe
 
 ### Crash Fixes
-- ✅ **Fixed AdopterLikeScreen crashes**: Implemented `SafePetImage` composable to handle invalid image resources
-- ✅ **Fixed navigation crashes**: Resolved "Navigation destination not found" errors
-- ✅ **Fixed WebView crashes**: Enhanced WebView configuration and added proper error handling
-- ✅ **Fixed property delegate errors**: Corrected state management in MainActivity
+- **Fixed AdopterLikeScreen crashes**: Implemented `SafePetImage` composable to handle invalid image resources
+- **Fixed navigation crashes**: Resolved "Navigation destination not found" errors
+- **Fixed WebView crashes**: Enhanced WebView configuration and added proper error handling
+- **Fixed property delegate errors**: Corrected state management in MainActivity
 
 ### Code Quality
-- ✅ **Fixed Material3 API usage**: Updated `Icons.Default.*` to `Icons.Filled.*` for consistency
-- ✅ **Fixed button colors**: Changed `TextButtonDefaults` to `ButtonDefaults.textButtonColors()`
-- ✅ **Removed unused imports**: Cleaned up unused import directives
-- ✅ **Fixed duplicate definitions**: Removed duplicate `isTablet` definitions
+- **Fixed Material3 API usage**: Updated `Icons.Default.*` to `Icons.Filled.*` for consistency
+- **Fixed button colors**: Changed `TextButtonDefaults` to `ButtonDefaults.textButtonColors()`
+- **Removed unused imports**: Cleaned up unused import directives
+- **Fixed duplicate definitions**: Removed duplicate `isTablet` definitions
 
-## 🛠️ Technical Stack
+## Technical Stack
 
 - **Language**: Kotlin
 - **UI Framework**: Jetpack Compose
@@ -372,7 +373,7 @@ The app requires the following permissions (declared in `AndroidManifest.xml`):
 - **Navigation**: Jetpack Navigation Compose
 - **Dependency Injection**: Manual (ViewModelFactory pattern)
 
-## 📦 Key Dependencies
+## Key Dependencies
 
 - Jetpack Compose BOM: 2025.06.01
 - Material3: Latest
@@ -382,7 +383,7 @@ The app requires the following permissions (declared in `AndroidManifest.xml`):
 - Navigation Compose: Latest
 - Lifecycle ViewModel: 2.9.1
 
-## 📝 Notes
+## Notes
 
 - Minimum SDK: 31 (Android 12)
 - Target SDK: 35
@@ -390,7 +391,7 @@ The app requires the following permissions (declared in `AndroidManifest.xml`):
 - The app uses hardware acceleration for better performance
 - Cleartext traffic is enabled for development (disable in production)
 
-## 👥 User Roles
+## User Roles
 
 ### Adopter
 - Browse and swipe through pets
@@ -401,12 +402,12 @@ The app requires the following permissions (declared in `AndroidManifest.xml`):
 
 ### Shelter/Adoption Center
 - Add new pets to the platform
-- View and manage pet listings
+- View and manage pet listings (still working, not yet functioning)
 - View adoption applications
 - Chat with potential adopters
-- Manage shelter profile
+- Manage shelter profile (still working, not yet functional and implemented)
 
-## 🔄 Future Improvements
+## Future Improvements
 
 - Push notifications for new matches and messages
 - Advanced pet filtering (age, breed, size)
