@@ -33,17 +33,26 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.layout.ContentScale
 import coil.compose.rememberAsyncImagePainter
 import com.example.pawmate_ils.SettingsManager
 import androidx.compose.ui.platform.LocalContext
+import coil.compose.AsyncImage
 import com.example.pawmate_ils.Firebase_Utils.LikedPetsViewModel
 import com.example.pawmate_ils.GemManager
+import com.cloudinary.android.MediaManager
+import com.cloudinary.android.callback.ErrorInfo
+import com.cloudinary.android.callback.UploadCallback
+import com.example.pawmate_ils.Firebase_Utils.AuthViewModel
 
 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileSettingsScreen(navController: NavController, username: String = "User") {
+fun ProfileSettingsScreen(navController: NavController, username: String = "User",
+        authViewModel: AuthViewModel = viewModel()
+) {
+
     val context = LocalContext.current
     LaunchedEffect(Unit) { GemManager.init(context) }
     val likedPetsViewModel: LikedPetsViewModel = viewModel()
@@ -55,14 +64,29 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
     var privacyEnabled by remember { mutableStateOf(settings.isPrivacyEnabled()) }
     var editableName by remember { mutableStateOf(settings.getUsername()) }
     var profilePhotoUri by remember { mutableStateOf(settings.getProfilePhotoUri()?.let { Uri.parse(it) }) }
+
+    val userOnlineData by authViewModel.userData.collectAsState()
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) {
-            profilePhotoUri = uri
-            settings.setProfilePhotoUri(uri.toString())
+        uri?.let { localUri ->
+            // Directly upload and save to the cloud
+            authViewModel.uploadToCloudinary(context, localUri) { permanentUrl ->
+                // Update Firestore so it manifests for the shelter instantly
+                authViewModel.updateProfile(newPhotoUri = permanentUrl) { success, _ ->
+                    if (success) {
+                        // Update local cache for offline speed
+                        settings.setProfilePhotoUri(permanentUrl)
+                    }
+                }
+            }
         }
     }
+
+
     val likedPets by likedPetsViewModel.likedPets.collectAsState()
     val likedPetsCount = likedPets.size
+
+    //Observe online
+
 
 
 
@@ -133,13 +157,13 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                             .clickable { imagePicker.launch("image/*") },
                         contentAlignment = Alignment.Center
                     ) {
-                        if (profilePhotoUri != null) {
-                            Image(
-                                painter = rememberAsyncImagePainter(profilePhotoUri),
+                        val photoUrl = userOnlineData?.photoUri
+                        if (!photoUrl.isNullOrEmpty()) {
+                            AsyncImage(
+                                model = photoUrl,
                                 contentDescription = "Profile Photo",
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clip(CircleShape)
+                                modifier = Modifier.fillMaxSize().clip(CircleShape),
+                                contentScale = ContentScale.Crop
                             )
                         } else {
                             Icon(

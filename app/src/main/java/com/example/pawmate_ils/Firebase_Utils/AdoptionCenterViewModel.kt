@@ -20,9 +20,56 @@ class AdoptionCenterViewModel(
     private val _addPetStatus = MutableStateFlow<Result<String>?>(null)
     val addPetStatus: StateFlow<Result<String>?> = _addPetStatus
 
-    /* adds a new pet to Firestore (root-level "pets" collection)
-      and attaches the current shelter info from authViewModel.
-     */
+
+    private val _shelterPets = MutableStateFlow<List<PetData>>(emptyList())
+    val shelterPets: StateFlow<List<PetData>> = _shelterPets
+
+    private val _uploadedPetsCount = MutableStateFlow(0) // THE DYNAMIC COUNTER
+    val uploadedPetsCount: StateFlow<Int> = _uploadedPetsCount
+
+// ------------------------------------
+
+    init {
+        val currentUser = authViewModel.currentUser
+        if (currentUser != null) {
+            val uid = currentUser.uid
+
+            // LOGIC 1: THE DYNAMIC COUNTER (Firestore Only)
+            // This ensures the count starts at 0 and ignores local samples
+            db.collection("pets")
+                .whereEqualTo("shelterId", uid)
+                .addSnapshotListener { snapshot, _ ->
+                    _uploadedPetsCount.value = snapshot?.size() ?: 0
+                }
+
+            // THE SPEED FIX: START LISTENING FOR LIST CHANGES
+            // This ensures new pets appear in the Manage List instantly without restart
+            observePets(shelterId = uid) { updatedList ->
+                _shelterPets.value = updatedList
+            }
+        }
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     fun addPet(
         NewPet : PetData
     ) {
@@ -35,11 +82,15 @@ class AdoptionCenterViewModel(
         val shelterName = currentUser.displayName ?: "Unknown Shelter"
         val petId = db.collection("pets").document().id
 
-
+        val petWithOwner = NewPet.copy(
+            petId = petId,
+            shelterId = shelterId,
+            shelterName = shelterName
+        )
         viewModelScope.launch {
             db.collection("pets")
                 .document(petId)
-                .set(NewPet)
+                .set(petWithOwner)
                 .addOnSuccessListener {
                     _addPetStatus.value = Result.success("Pet added successfully")
                 }
@@ -108,6 +159,44 @@ class AdoptionCenterViewModel(
                 onUpdate(pets)
             }
     }
+
+    // --- LOGIC 2: THE DELETE FUNCTION ---
+    fun deletePet(petId: String) {
+        viewModelScope.launch {
+            db.collection("pets")
+                .document(petId) // Finds the specific target
+                .delete()
+                .addOnSuccessListener {
+                    // Success! Logic #1 will automatically update the UI count
+                    _addPetStatus.value = Result.success("Pet deleted successfully")
+                }
+                .addOnFailureListener { e ->
+                    _addPetStatus.value = Result.failure(e)
+                }
+        }
+    }
+//UPDATE PETS IMPLEMENTATION ALLOW THE USERS TO MODIFY THE PET
+// Logic #3: THE UPDATE FUNCTION
+fun updatePet(petId: String, updatedData: Map<String, Any>) {
+    viewModelScope.launch {
+        db.collection("pets")
+            .document(petId)
+            .update(updatedData) // Overwrites only the specified fields
+            .addOnSuccessListener {
+                _addPetStatus.value = Result.success("Pet updated successfully")
+            }
+            .addOnFailureListener { e ->
+                _addPetStatus.value = Result.failure(e)
+            }
+    }
+}
+
+
+
+
+
+
+
 
 }
 

@@ -251,13 +251,13 @@ fun SellerSignUpScreen(
                             }
                             errorMessage = null
                             AuthViewModel.signUp(email, password) { success, message ->
+                                isLoading = false
                                 if (success) {
                                     currentStep = 2 // Move to "About You" step
                                 } else {
                                     errorMessage = message ?: "Sign-up failed. Please try again."
                                 }
                             }
-                            currentStep = 2 // Move to About You step
                         },
                         modifier = Modifier
                             .fillMaxWidth()

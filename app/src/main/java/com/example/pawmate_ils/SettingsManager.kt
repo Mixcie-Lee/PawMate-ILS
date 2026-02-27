@@ -25,6 +25,12 @@ class SettingsManager(private val context: Context) {
         prefs.edit().putString(KEY_PFP_URI, uri).apply()
     }
 
+
+    // for image handling
+    fun clear() {
+        prefs.edit().clear().apply()
+    }
+
     companion object {
         private const val KEY_NOTIFICATIONS = "notifications_enabled"
         private const val KEY_PRIVACY = "privacy_enabled"
