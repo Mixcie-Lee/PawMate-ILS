@@ -12,6 +12,9 @@ class GemManager {
         private const val PREFS_NAME = "gem_prefs"
         private const val KEY_GEM_COUNT = "gem_count"
 
+        private var _pendingPackage by mutableStateOf<GemPackage?>(null)
+        val pendingPackage: GemPackage? get() = _pendingPackage
+
         private val _gemCount = MutableStateFlow(10)
         val gemCount: StateFlow<Int> get() = _gemCount
 
@@ -80,8 +83,39 @@ class GemManager {
             addGems(packageType.gemAmount)
             closePurchaseDialog()
         }
+        fun initiatePurchase(packageType: GemPackage){
+          _pendingPackage = packageType
+        }
+        fun cancelPurchase() {
+            _pendingPackage = null
+        }
+        fun confirmPurchase(){
+            _pendingPackage?.let {
+                addGems(it.gemAmount)
+                _pendingPackage = null
+                 closePurchaseDialog()
+            }
+
+        }
     }
 }
+/*
+private fun loadGemCount() {
+    // Check if initialized first to prevent lateinit crash
+    if (!::context.isInitialized) return
+
+    val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    _gemCount.value = prefs.getInt(KEY_GEM_COUNT, 10)
+}
+
+private fun saveGemCount() {
+    if (!::context.isInitialized) return // 🔹 Prevents the crash!
+
+    val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    prefs.edit().putInt(KEY_GEM_COUNT, _gemCount.value).apply()
+}
+*/
+
 
 /**
  * Gem packages available for purchase

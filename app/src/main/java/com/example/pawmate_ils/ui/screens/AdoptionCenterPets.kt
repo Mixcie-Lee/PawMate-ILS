@@ -1,5 +1,6 @@
 package com.example.pawmate_ils.ui.screens
 
+import TinderLogic_PetSwipe.PetData
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -11,127 +12,163 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.pawmate_ils.ui.theme.DarkBrown
+import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+import com.example.pawmate_ils.Firebase_Utils.AdoptionCenterViewModel
+
+// Data class preserved to fix unresolved references
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdoptionCenterPets(
+    navController: NavController,
     onBackClick: () -> Unit,
+    viewModel: AdoptionCenterViewModel,
     onAddPet: () -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
-    val pets = remember {
+
+    val pets by viewModel.shelterPets.collectAsState()
+
+    /*val pets = remember {
         mutableStateListOf(
-            Pet1("Max", "Dog", "Golden Retriever", "2 years", "Male"),
-            Pet1("Luna", "Cat", "Siamese", "1 year", "Female"),
-            Pet1("Rocky", "Dog", "German Shepherd", "3 years", "Male")
+            Pet1("Max", "Dog", "Aspin", "2 years old", "Male"),
+            Pet1("Salt", "Cat", "Siamese cat", "1 year old", "Female"),
+            Pet1("Bella", "Dog", "Poodle", "3 years old", "Female"),
+            Pet1("Charlie", "Dog", "Golden Retriever", "1 year old", "Male")
         )
-    }
+    }*/
 
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Manage Pets") },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, "Back")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = onAddPet) {
-                        Icon(Icons.Default.Add, "Add Pet")
-                    }
-                }
-            )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            // Search bar
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                placeholder = { Text("Search pets...") },
-                leadingIcon = { Icon(Icons.Default.Search, "Search") },
-                singleLine = true
-            )
-
+    Box(modifier = Modifier.fillMaxSize().background(Color.White)) {
+        Scaffold(
+            topBar = {
+                CenterAlignedTopAppBar(
+                    title = {
+                        Text(
+                            text = "Manage Pets",
+                            style = MaterialTheme.typography.headlineLarge.copy(
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color(0xFFD67A7A),
+                                fontSize = 32.sp
+                            )
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBackClick) {
+                            Icon(Icons.Default.ArrowBackIosNew, "Back", modifier = Modifier.size(20.dp))
+                        }
+                    },
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.White)
+                )
+            }
+            // REMOVED: floatingActionButton parameter is completely deleted here
+        ) { padding ->
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                items(pets) { pet ->
-                    PetCard(pet)
+                item {
+                    TextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        placeholder = { Text("Search", color = Color.Gray) },
+                        leadingIcon = { Icon(Icons.Default.Search, "Search", tint = Color.Gray) },
+                        shape = RoundedCornerShape(20.dp),
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color(0xFFEFEFEF),
+                            unfocusedContainerColor = Color(0xFFEFEFEF),
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent
+                        )
+                    )
                 }
+
+                val filteredPets = pets.filter {
+                    it.name?.contains(searchQuery, ignoreCase = true) == true
+                }
+                items(filteredPets) { pet ->
+                    // 2. Pass the real PetData object
+                    PetManagementRow(
+                        navController = navController,
+                        pet = pet,
+                        onDelete = { pet.petId?.let { id -> viewModel.deletePet(id) } },
+                    )
+                    HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray.copy(alpha = 0.4f))
+                }
+
+                // Keeps enough space so the bottom pet isn't blocked by the FloatingNavBar
+                item { Spacer(modifier = Modifier.height(110.dp)) }
             }
         }
+
+        // Shared Floating Navigation Bar remains correctly positioned
+        FloatingNavBar(
+            navController = navController,
+            selectedTab = 2,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
     }
 }
 
 @Composable
-fun PetCard(pet: Pet1) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp)),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
+fun PetManagementRow(
+    pet: PetData,
+    onDelete: () -> Unit,
+    navController: NavController
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(
-                    text = pet.name,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold
-                    )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = pet.name ?: "Unnamed Pet",
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 24.sp
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "${pet.breed} • ${pet.age}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                )
-                Text(
-                    text = "${pet.type} • ${pet.gender}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                )
-            }
+            )
+            Text(
+                text = "${pet.breed ?: "Unknown Breed"} • ${pet.age ?: "Unknown Age"}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.Gray
+            )
+            Text(
+                text = "${pet.type ?: "Pet"} • ${pet.gender ?: "Unknown"}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.Gray
+            )        }
 
-            Row {
-                IconButton(onClick = { /* Edit pet */ }) {
-                    Icon(Icons.Default.Edit, "Edit", tint = Color(0xFFFFB6C1))
-                }
-                IconButton(onClick = { /* Delete pet */ }) {
-                    Icon(Icons.Default.Delete, "Delete", tint = Color.Red)
-                }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = { navController.navigate("edit_pet_screen/${pet.petId}")  }) {
+                Icon(Icons.Default.Edit, "Edit", tint = Color(0xFFF1C89B), modifier = Modifier.size(24.dp))
+            }
+            IconButton(onClick = onDelete ) {
+                Icon(Icons.Default.Delete, "Delete", tint = Color(0xFFD67A7A), modifier = Modifier.size(24.dp))
             }
         }
     }
 }
 
-data class Pet1(
-    val name: String,
-    val type: String,
-    val breed: String,
-    val age: String,
-    val gender: String
-) 
+/*@Preview(showBackground = true, name = "Manage Pets Design Preview")
+@Composable
+fun AdoptionCenterPetsPreview() {
+    MaterialTheme {
+        AdoptionCenterPets(
+            navController = rememberNavController(),
+            onBackClick = {},
+            onAddPet = {}
+        )
+    }
+}
+*/

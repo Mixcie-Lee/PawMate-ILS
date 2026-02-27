@@ -1,13 +1,17 @@
 package com.example.pawmate_ils.chatScreen
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
@@ -15,17 +19,19 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import com.example.pawmate_ils.Firebase_Utils.AuthViewModel
 import com.example.pawmate_ils.Firebase_Utils.ChatViewModel
 import com.example.pawmate_ils.firebase_models.Message
-import androidx.compose.material3.TextFieldDefaults
 import com.example.pawmate_ils.ThemeManager
+import com.example.pawmate_ils.AdopShelDataStruc.DateUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,45 +44,64 @@ fun ChatScreen(
     val isDarkMode = ThemeManager.isDarkMode
     val backgroundColor = if (isDarkMode) Color(0xFF1A1A1A) else Color(0xFFFFF0F5)
 
-
-    val textColor = if (isDarkMode) Color.White else Color.Black
-    val cardColor = if (isDarkMode) Color(0xFF2A2A2A) else Color.White
-    val navBarColor = if (isDarkMode) Color(0xFF1E1E1E) else Color.White
-    val primaryColor = if (isDarkMode) Color(0xFFFF9999) else Color(0xFFFFB6C1)
-    val accentColor = if (isDarkMode) Color(0xFFB39DDB) else Color(0xFFDDA0DD)
-
-
-
-
-
     val messages by chatViewModel.messages.collectAsState()
     var messageText by remember { mutableStateOf(TextFieldValue("")) }
     val currentUserId = authViewModel.currentUser?.uid ?: ""
 
-    // 🔥 Fetch channel info from Firebase
-    var chatPartnerName by remember { mutableStateOf("") }
+    val listState = rememberLazyListState()
+
+    // Header & Avatar State
+    var chatPartnerName by remember { mutableStateOf("Loading...") }
+    var chatPartnerPhoto by remember { mutableStateOf<String?>(null) }
     var adopterId by remember { mutableStateOf("") }
     var shelterId by remember { mutableStateOf("") }
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+        onResult = { uri ->
+            uri?.let { selectedUri ->
+                val receiverId = if (currentUserId == adopterId) shelterId else adopterId
+                chatViewModel.sendImageMessage(channelId, selectedUri, receiverId)
+            }
+        }
+    )
 
     LaunchedEffect(channelId) {
         authViewModel.fetchUserRole()
         chatViewModel.listenForMessages(channelId)
+
         chatViewModel.getChannelInfo(channelId) { channel ->
             adopterId = channel.adopterId
             shelterId = channel.shelterId
-            val userRole = authViewModel.currentUserRole.value
-            println("🔥 ChatScreen Debug → userRole: $userRole")
-            println("🔥 adopterName: ${channel.adopterName}, shelterName: ${channel.shelterName}")
 
+            val userRole = authViewModel.currentUserRole.value
+
+            // Re-sync logic remains intact
             if (channel.adopterName == "Unknown" || channel.shelterName == "Unknown") {
                 chatViewModel.updateChannelNamesFromFirestore(channelId)
             }
 
-            chatPartnerName = when (userRole) {
-                "shelter" -> channel.adopterName.ifEmpty { "Adopter" }
-                "adopter" -> channel.shelterName.ifEmpty { "Shelter" }
-                else -> "Unknown User"
+            // Lively manifestation of Partner Info
+            when (userRole) {
+                "shelter" -> {
+                    chatPartnerName = channel.adopterName.ifEmpty { "Adopter" }
+                    chatPartnerPhoto = channel.adopterPhotoUri
+                }
+                "adopter" -> {
+                    chatPartnerName = channel.shelterName.ifEmpty { "Shelter" }
+                    chatPartnerPhoto = channel.shelterPhotoUri
+                }
+                else -> {
+                    chatPartnerName = "Chat"
+                    chatPartnerPhoto = null
+                }
             }
+        }
+    }
+
+    LaunchedEffect(messages.size) {
+        if (messages.isNotEmpty()) {
+            listState.animateScrollToItem(messages.size - 1)
         }
     }
 
@@ -84,40 +109,45 @@ fun ChatScreen(
         modifier = Modifier.imePadding(),
         topBar = {
             TopAppBar(
-                modifier = Modifier.background(backgroundColor),
                 title = {
-                    Text(
-                        text = chatPartnerName  ,
-                        color = Color.White,
-                        fontSize = 18.sp
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        // TopAppBar Avatar
+                        AsyncImage(
+                            model = chatPartnerPhoto ?: "https://via.placeholder.com/150",
+                            contentDescription = "Partner Profile",
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(Color.White.copy(alpha = 0.2f)),
+                            contentScale = ContentScale.Crop
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(text = chatPartnerName, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                    }
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Back",
-                            tint = Color.White
-                        )
+                        Icon(Icons.Default.ArrowBack, "Back", tint = Color.White)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFFD95C5C)
-                )
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFFD95C5C))
             )
         },
-        containerColor = Color.Transparent,
         bottomBar = {
             ChatInputBar(
                 messageText = messageText,
                 onMessageChange = { messageText = it },
                 onSendClick = {
                     if (messageText.text.isNotBlank()) {
-                        // ✅ Determine receiver based on who is logged in
                         val receiverId = if (currentUserId == adopterId) shelterId else adopterId
                         chatViewModel.sendMessage(channelId, messageText.text, receiverId)
                         messageText = TextFieldValue("")
                     }
+                },
+                onGalleryClick = {
+                    photoPickerLauncher.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    )
                 }
             )
         }
@@ -125,25 +155,22 @@ fun ChatScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(Color(0xFFFFF1F1), Color(0xFFFFE4E1))
-                    )
-                )
+                .background(backgroundColor)
                 .padding(paddingValues)
         ) {
             LazyColumn(
+                state = listState,
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(backgroundColor)
-                    .padding(12.dp),
+                    .padding(horizontal = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
-                reverseLayout = true
+                contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp)
             ) {
-                items(messages.reversed()) { message ->
+                items(messages) { message ->
                     ChatBubble(
                         message = message,
-                        isUserMe = message.senderId == currentUserId
+                        isUserMe = message.senderId == currentUserId,
+                        partnerPhotoUri = chatPartnerPhoto // Pass photo to bubbles
                     )
                 }
             }
@@ -152,32 +179,67 @@ fun ChatScreen(
 }
 
 @Composable
-fun ChatBubble(message: Message, isUserMe: Boolean) {
+fun ChatBubble(message: Message, isUserMe: Boolean, partnerPhotoUri: String?) {
     val bubbleColor = if (isUserMe) Color(0xFFD95C5C) else Color.White
     val textColor = if (isUserMe) Color.White else Color.Black
     val shape = if (isUserMe) {
-        RoundedCornerShape(12.dp, 0.dp, 12.dp, 12.dp)
-        RoundedCornerShape(12.dp, 0.dp, 12.dp, 12.dp)
+        RoundedCornerShape(12.dp, 12.dp, 0.dp, 12.dp)
     } else {
-        RoundedCornerShape(0.dp, 12.dp, 12.dp, 12.dp)
+        RoundedCornerShape(12.dp, 12.dp, 12.dp, 0.dp)
     }
 
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (isUserMe) Arrangement.End else Arrangement.Start
+        horizontalArrangement = if (isUserMe) Arrangement.End else Arrangement.Start,
+        verticalAlignment = Alignment.Bottom // Avatar aligns to bottom of message
     ) {
-        Box(
-            modifier = Modifier
-                .clip(shape)
-                .background(bubbleColor)
-                .padding(12.dp)
-                .widthIn(max = 250.dp)
+        // Messenger Style: Avatar beside incoming bubbles
+        if (!isUserMe) {
+            AsyncImage(
+                model = partnerPhotoUri ?: "https://via.placeholder.com/150",
+                contentDescription = null,
+                modifier = Modifier
+                    .padding(end = 8.dp, bottom = 4.dp)
+                    .size(28.dp)
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop
+            )
+        }
+
+        Column(
+            horizontalAlignment = if (isUserMe) Alignment.End else Alignment.Start,
+            modifier = Modifier.widthIn(max = 280.dp)
         ) {
             Text(
-                text = message.messageText,
-                color = textColor,
-                fontSize = 15.sp
+                text = DateUtils.formatToPST(message.createdAt),
+                fontSize = 10.sp,
+                color = if (ThemeManager.isDarkMode) Color.LightGray else Color.Gray,
+                modifier = Modifier.padding(bottom = 2.dp, start = 4.dp, end = 4.dp)
             )
+
+            if (!message.imageUrl.isNullOrEmpty()) {
+                AsyncImage(
+                    model = message.imageUrl,
+                    contentDescription = "Shared Image",
+                    modifier = Modifier
+                        .padding(bottom = 4.dp)
+                        .size(220.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color.LightGray),
+                    contentScale = ContentScale.Crop
+                )
+            }
+
+            if (message.messageText.isNotEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .clip(shape)
+                        .background(bubbleColor)
+                        .padding(12.dp)
+                ) {
+                    Text(text = message.messageText, color = textColor, fontSize = 15.sp)
+                }
+            }
         }
     }
 }
@@ -186,39 +248,39 @@ fun ChatBubble(message: Message, isUserMe: Boolean) {
 fun ChatInputBar(
     messageText: TextFieldValue,
     onMessageChange: (TextFieldValue) -> Unit,
-    onSendClick: () -> Unit
+    onSendClick: () -> Unit,
+    onGalleryClick: () -> Unit
 ) {
     val isDarkMode = ThemeManager.isDarkMode
     val textFieldBg = if (isDarkMode) Color(0xFF2A2A2A) else Color(0xFFFFF1F1)
     val textFieldTextColor = if (isDarkMode) Color.White else Color.Black
-    val textFieldPlaceholder = if (isDarkMode) Color.LightGray else Color.Gray
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.White)
+            .background(if (isDarkMode) Color(0xFF1E1E1E) else Color.White)
             .padding(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        IconButton(onClick = onGalleryClick) {
+            Icon(Icons.Default.AddAPhoto, "Gallery", tint = Color(0xFFD95C5C))
+        }
+
         TextField(
             value = messageText,
             onValueChange = onMessageChange,
             modifier = Modifier
                 .weight(1f)
-                .clip(RoundedCornerShape(24.dp))
-                .background(textFieldBg),
+                .clip(RoundedCornerShape(24.dp)),
             placeholder = { Text(text = "Type a message...") },
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = textFieldBg,
                 unfocusedContainerColor = textFieldBg,
-                disabledContainerColor = textFieldBg,
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent,
                 cursorColor = Color(0xFFD95C5C),
                 focusedTextColor = textFieldTextColor,
-                unfocusedTextColor = textFieldTextColor,
-                focusedPlaceholderColor = textFieldPlaceholder,
-                unfocusedPlaceholderColor = textFieldPlaceholder
+                unfocusedTextColor = textFieldTextColor
             )
         )
         Spacer(modifier = Modifier.width(8.dp))
@@ -229,11 +291,7 @@ fun ChatInputBar(
                 .clip(CircleShape)
                 .background(Color(0xFFD95C5C))
         ) {
-            Icon(
-                imageVector = Icons.Default.Send,
-                contentDescription = "Send",
-                tint = Color.White
-            )
+            Icon(Icons.Default.Send, "Send", tint = Color.White)
         }
     }
 }

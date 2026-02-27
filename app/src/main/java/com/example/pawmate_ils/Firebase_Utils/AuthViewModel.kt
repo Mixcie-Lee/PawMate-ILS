@@ -7,6 +7,9 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cloudinary.android.MediaManager
+import com.cloudinary.android.callback.ErrorInfo
+import com.cloudinary.android.callback.UploadCallback
 import com.example.pawmate_ils.GemManager
 import com.example.pawmate_ils.SettingsManager
 import com.example.pawmate_ils.firebase_models.Channel
@@ -17,6 +20,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -28,6 +32,10 @@ open class AuthViewModel : ViewModel() {
     private val db: FirebaseFirestore = FirebaseFirestore.getInstance()
 
     open val currentUser get() = auth.currentUser
+
+    //keeping track user data for profile image and stuff
+    private val _userData = MutableStateFlow<User?>(null)
+    val userData: StateFlow<User?> = _userData
 
 
     private val _profilePhotoUrl = MutableLiveData<String?>()
@@ -51,6 +59,9 @@ open class AuthViewModel : ViewModel() {
     val likedPetsCount: StateFlow<Int> = _likedPetsCount
 
 
+    private var userListenerRegistration: com.google.firebase.firestore.ListenerRegistration? = null
+
+
     init {
         checkAuthStatus()
     }
@@ -66,12 +77,14 @@ open class AuthViewModel : ViewModel() {
     private fun checkAuthStatus() {
         if (auth.currentUser != null) {
             _authState.value = AuthState.Authenticated
+            startUserProfileListener()
             //GET ROLE AFTER A SUCCESFUL LOGIN
             viewModelScope.launch {
                 try {
                     val uid = auth.currentUser!!.uid
                     val snapshot = db.collection("users").document(uid).get().await()
                     _currentUserRole.value = snapshot.getString("role")
+
                 } catch (e: Exception) {
                     android.util.Log.e("AuthViewModel", "Failed to fetch role: ${e.message}")
                 }
@@ -96,11 +109,13 @@ open class AuthViewModel : ViewModel() {
                                 val repo = FirestoreRepository()
                                 val userDoc = repo.getUserById(user.uid)
                                 updateNewUserState(userDoc)
+                                startUserProfileListener()
 
                                 if (userDoc == null) {
                                     // 🔹 Gem Distribution Logic for new email sign-up
                                     val userData = hashMapOf(
                                         "email" to email,
+                                        "name" to "New User",
                                         "role" to "adopter",
                                         "gems" to 10,
                                         "likedPetsCount" to 0,
@@ -121,6 +136,7 @@ open class AuthViewModel : ViewModel() {
                                 _authState.value = AuthState.Authenticated
                                 onResult(true, null)
                             } catch (e: Exception) {
+                                auth.signOut()
                                 _authState.value =
                                     AuthState.Error(e.message ?: "Firestore setup failed")
                                 onResult(false, e.message)
@@ -159,10 +175,13 @@ open class AuthViewModel : ViewModel() {
                                     GemManager.setGemCount(userDoc.gems)
 
                                     updateNewUserState(userDoc)
+                                    startUserProfileListener()
 
                                     if (userDoc.isNewUser == true) {
+                                        val updateData = mapOf("isNewUser" to false)
                                         db.collection("users").document(user.uid)
-                                            .update("isNewUser", false).await()
+                                            .set(updateData, SetOptions.merge()) // <--- CHANGE HERE
+                                            .await()
                                     }
 
                                     _authState.value = AuthState.Authenticated
@@ -217,7 +236,7 @@ open class AuthViewModel : ViewModel() {
                                 // 🔹 Gem Distribution Logic for new Google sign-in
                                 val newUser = User(
                                     id = user.uid,
-                                    name = user.displayName ?: "",
+                                    name = user.displayName ?: "New User",
                                     email = user.email ?: "",
                                     role = "adopter",
                                     MobileNumber = "",
@@ -240,6 +259,7 @@ open class AuthViewModel : ViewModel() {
                                 onResult(true, null)
                             }
                         } catch (e: Exception) {
+                            auth.signOut()
                             _authState.value =
                                 AuthState.Error(e.message ?: "Firestore check failed")
                             onResult(false, e.message)
@@ -254,6 +274,10 @@ open class AuthViewModel : ViewModel() {
     }
 
     fun signOut(onComplete: (() -> Unit)? = null) {
+
+        userListenerRegistration?.remove() // 🆕 Stop the live pipe
+        userListenerRegistration = null
+        _userData.value = null
         auth.signOut()
         _authState.value = AuthState.Unauthenticated
         clearLocalUserData()
@@ -539,8 +563,88 @@ open class AuthViewModel : ViewModel() {
         }
     }
 
+    //handler of profile images
+    fun uploadToCloudinary(context: Context, uri: Uri, onComplete: (String) -> Unit) {
+        com.cloudinary.android.MediaManager.get().upload(uri)
+            .unsigned("profile_pic") // ✅ Your verified preset
+            .callback(object : com.cloudinary.android.callback.UploadCallback {
 
+                override fun onStart(requestId: String?) {
+                    android.util.Log.d("Cloudinary", "Upload started")
+                }
 
+                override fun onProgress(requestId: String?, bytes: Long, totalBytes: Long) {
+                    // Keep this empty or add a progress log
+                }
+
+                override fun onSuccess(requestId: String?, resultData: MutableMap<out Any?, Any?>?) {
+                    val url = resultData?.get("secure_url") as? String ?: ""
+                    android.util.Log.d("Cloudinary", "Upload success: $url")
+                    onComplete(url)
+                }
+
+                override fun onError(requestId: String?, error: com.cloudinary.android.callback.ErrorInfo?) {
+                    android.util.Log.e("Cloudinary", "Upload failed: ${error?.description}")
+                }
+
+                override fun onReschedule(requestId: String?, error: com.cloudinary.android.callback.ErrorInfo?) {
+                    android.util.Log.d("Cloudinary", "Upload rescheduled")
+                }
+            }).dispatch()
+    }
+//for profile settings making it lively
+    fun updateProfile(
+        newName: String? = null,
+        newPhotoUri: String? = null,
+        onResult: (Boolean, String?) -> Unit
+    ) {
+        val uid = auth.currentUser?.uid ?: return onResult(false, "No user logged in")
+
+        viewModelScope.launch {
+            try {
+                val updates = mutableMapOf<String, Any>()
+
+                // Only add to the map if the value isn't null
+                newName?.let { updates["name"] = it }
+                newPhotoUri?.let { updates["photoUri"] = it }
+
+                // Update lastActive whenever the profile is touched
+                updates["lastActive"] = System.currentTimeMillis()
+
+                db.collection("users").document(uid)
+                    .update(updates)
+                    .await()
+
+                // Optional: If you use a StateFlow for the User object,
+                // you should refresh it here to make the UI "lively"
+                onResult(true, "Profile updated successfully")
+            } catch (e: Exception) {
+                Log.e("AuthViewModel", "Update failed: ${e.message}")
+                onResult(false, e.message)
+            }
+        }
+    }
+    fun startUserProfileListener() {
+        val uid = auth.currentUser?.uid ?: return
+
+        // Use a SnapshotListener for real-time "lively" updates
+        db.collection("users").document(uid)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e("AuthViewModel", "Profile listen failed", error)
+                    return@addSnapshotListener
+                }
+                if (snapshot != null && snapshot.exists()) {
+                    val user = snapshot.toObject(User::class.java)
+                    _userData.value = user // ✅ This triggers the StateFlow and refreshes the UI
+
+                    // Keep other states in sync
+                    _currentUserRole.value = user?.role
+                    _userGems.value = user?.gems ?: 0
+                    _likedPetsCount.value = user?.likedPetsCount ?: 0
+                }
+            }
+    }
 
 
     sealed class AuthState {

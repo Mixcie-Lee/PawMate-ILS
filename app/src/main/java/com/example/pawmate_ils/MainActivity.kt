@@ -33,13 +33,15 @@
     import com.example.pawmate_ils.SharedViewModel
     import com.example.pawmate_ils.ThemeManager
     import com.example.pawmate_ils.ui.screens.AdoptionCenterDashboard
-    import com.example.pawmate_ils.ui.screens.AdoptionCenterApplications
-    import com.example.pawmate_ils.ui.screens.AdoptionCenterPets
+    import com.example.pawmate_ils.ui.screens.AddPetScreen
     import com.example.pawmate_ils.ui.theme.PawMateILSTheme
     import TinderLogic_PetSwipe.AdopterLikeScreen
+    import android.util.Log
     import androidx.compose.runtime.livedata.observeAsState
     import androidx.navigation.NavType
     import androidx.navigation.navArgument
+    import com.example.pawmate_ils.Firebase_Utils.AdoptionCenterViewMdelFactory
+    import com.example.pawmate_ils.Firebase_Utils.AdoptionCenterViewModel
     import com.example.pawmate_ils.Firebase_Utils.AuthViewModel
     import com.example.pawmate_ils.Firebase_Utils.ChatViewModel
     import com.example.pawmate_ils.Firebase_Utils.ChatViewModelFactory
@@ -51,12 +53,15 @@
     import com.example.pawmate_ils.onboard.OnboardingScreen
     import com.example.pawmate_ils.onboard.OnboardingUtil
     //import com.example.pawmate_ils.chatScreen.ChatScreen
+    //import com.example.pawmate_ils.ui.screens.AdoptionCenterApplications
     import com.example.pawmate_ils.chatScreen.HomeScreen
     import com.example.pawmate_ils.ui.screens.EducationalScreen
     import com.example.pawmate_ils.ui.screens.EducationalDetailScreen
     import com.example.pawmate_ils.ui.screens.SellerLoginScreen
     import com.example.pawmate_ils.ui.screens.SellerSignUpScreen
-    import com.example.pawmate_ils.ui.screens.AddPetScreen
+    import com.example.pawmate_ils.ui.screens.AdoptionCenterPets
+    import com.example.pawmate_ils.ui.screens.EditPetScreen
+    import com.example.pawmate_ils.ui.screens.ShelterProfileScreen
     import com.google.firebase.Firebase
     import com.google.firebase.app
     import com.google.firebase.auth.FirebaseAuth
@@ -65,11 +70,25 @@
     import kotlinx.coroutines.tasks.await
     import kotlinx.coroutines.withContext
 
+    import androidx.compose.runtime.getValue
+    import androidx.compose.runtime.setValue
+    import androidx.compose.material3.AlertDialog
+    import androidx.compose.material3.Button
+    import androidx.compose.material3.ButtonDefaults
+    import androidx.compose.material3.TextButton
+    import androidx.compose.ui.graphics.Color
+    import androidx.compose.ui.text.font.FontWeight
+    import androidx.compose.foundation.shape.RoundedCornerShape
+    import androidx.compose.runtime.collectAsState
+    import androidx.compose.ui.unit.dp
+
 
     class MainActivity : ComponentActivity() {
         private val sharedViewModel: SharedViewModel by viewModels()
         override fun onCreate(savedInstanceState: Bundle?) {
             super.onCreate(savedInstanceState)
+            GemManager.init(applicationContext)
+            CloudinaryHelper.init(this)
             // EXTREME fullscreen - hide everything
             window.setFlags(
                 WindowManager.LayoutParams.FLAG_FULLSCREEN or
@@ -82,7 +101,7 @@
                         WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
                         WindowManager.LayoutParams.FLAG_LAYOUT_INSET_DECOR or
                         WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS
-            )
+                   )
 
             // Force hide system UI
             window.decorView.systemUiVisibility = (
@@ -106,16 +125,24 @@
                         val authViewModel: AuthViewModel = viewModel()
                         val authState = authViewModel.authState.observeAsState()
                         val db = remember { FirestoreRepository() }
+                        val adoptionCenterViewModel: AdoptionCenterViewModel = viewModel(
+                            factory = AdoptionCenterViewMdelFactory(authViewModel)
+                        )
 
 
                         val context = LocalContext.current
                         val navController = rememberNavController()
-                        val onboardingUtil = OnboardingUtil(context)
+                        val onboardingUtil = OnboardingUtil(applicationContext)
+
+                        //HANDLER FUNCTION THAT CHECKS IF THE NEW USER HAVE PHOTOURI because without this the image
+                        //in the message would not load leaving the profile icon blank
+
+
 
                         val startDestination = remember {
                             val isUserAuthenticated = FirebaseAuth.getInstance().currentUser != null
                             val isCompleted = onboardingUtil.isOnboardingCompleted()
-                            
+
                             when {
                                 !isCompleted && !isUserAuthenticated -> "onboarding"
                                 isUserAuthenticated -> "welcome_popup"
@@ -129,27 +156,34 @@
                             val currentUser = FirebaseAuth.getInstance().currentUser
                             if (currentUser != null) {
                                 try {
-                                    // call your repository suspend function (safe)
                                     val user = withContext(Dispatchers.IO) {
                                         db.getUserById(currentUser.uid)
                                     }
 
-                                    val role = user?.role
+                                    // 🔹 GHOST REDIRECTION LOGIC 🔹
+                                    // If the user exists in Auth but not in Firestore, or has no name,
+                                    // they are a ghost. Force them to the correct Sign-Up Step 2.
+                                    if (user == null || user.name.isNullOrEmpty() || user.name == "New User") {
+                                        navController.navigate("signup") { // Sends them back to fill About You
+                                            popUpTo(0)
+                                        }
+                                        return@LaunchedEffect
+                                    }
+
+                                    val role = user.role
                                     val destination = when (role) {
                                         "adopter" -> "pet_swipe"
                                         "shelter" -> "adoption_center_dashboard"
                                         else -> "user_type"
                                     }
 
-                                    if (destination != "user_type") {
-                                        navController.navigate(destination) {
-                                            popUpTo("user_type") { inclusive = true }
-                                        }
+                                    navController.navigate(destination) {
+                                        popUpTo(0) { inclusive = true }
                                     }
                                 } catch (e: Exception) {
-                                    // log or handle error; stay on user_type
+                                    Log.e("AUTH_DEBUG", "Auto-login failed: ${e.message}")
                                 }
-                            } // else not authenticated -> stay on user_type
+                            }
                         }
 
 
@@ -298,21 +332,33 @@
                             composable("adoption_center_dashboard") {
                                 AdoptionCenterDashboard(
                                     navController = navController,
+                                    adoptionCenterViewModel = adoptionCenterViewModel,
                                     centerName = "Your Shelter"
                                 )
                             }
                             composable("adoption_center_pets") {
                                 AdoptionCenterPets(
+                                    navController = navController,
+                                    viewModel = adoptionCenterViewModel,
                                     onBackClick = { navController.popBackStack() },
                                     onAddPet = { navController.navigate("add_pet") }
                                 )
                             }
-                            composable("adoption_center_applications") {
+                           /* composable("adoption_center_applications") {
                                 AdoptionCenterApplications(
                                     onBackClick = { navController.popBackStack() }
                                 )
                             }
-                            composable("settings") { Text("Settings - Coming Soon") }
+                            */
+                            composable("ShelterProfSettings") {
+                                // No need to redeclare authViewModel; it's already defined at the top of setContent
+                                ShelterProfileScreen(
+                                    navController = navController,
+                                    authViewModel = authViewModel // ✅ Shared instance for lively data
+                                )
+                            }
+
+
                             composable("add_pet"){
                                 val authViewModel: AuthViewModel = viewModel()
                                 AddPetScreen(navController = navController, authViewModel = authViewModel)
@@ -357,7 +403,7 @@
 
                             composable("welcome_popup") {
                                 val userRoleState = remember { mutableStateOf("adopter") }
-                                
+
                                 LaunchedEffect(Unit) {
                                     val currentUser = FirebaseAuth.getInstance().currentUser
                                     if (currentUser != null) {
@@ -371,7 +417,7 @@
                                         }
                                     }
                                 }
-                                
+
                                 WelcomePopupScreen(
                                     navController = navController,
                                     userType = userRoleState.value
@@ -386,11 +432,11 @@
                                     username = sharedViewModel.username.value ?: "User",
                                 )
                             }
-                            composable("account_settings") { 
-                                AccountSettingsScreen(navController = navController) 
+                            composable("account_settings") {
+                                AccountSettingsScreen(navController = navController)
                             }
-                            composable("educational") { 
-                                EducationalScreen(navController = navController) 
+                            composable("educational") {
+                                EducationalScreen(navController = navController)
                             }
                             composable(
                                 route = "educational_detail/{articleId}",
@@ -406,12 +452,29 @@
                                     articleId = articleId
                                 )
                             }
-                            composable("help_support") { 
-                                Text("Help & Support - Coming Soon") 
+                            composable("help_support") {
+                                Text("Help & Support - Coming Soon")
                             }
-                            composable("about_app") { 
-                                Text("About - Coming Soon") 
+                            composable("about_app") {
+                                Text("About - Coming Soon")
                             }
+                            //COMPOSABLE FOR EDIT PET SCREEN
+                            // Inside your NavHost in MainActivity.kt
+                            composable(
+                                route = "edit_pet_screen/{petId}",
+                                arguments = listOf(navArgument("petId") { type = NavType.StringType })
+                            ) { backStackEntry ->
+                                val petId = backStackEntry.arguments?.getString("petId") ?: ""
+                                EditPetScreen(
+                                    navController = navController,
+                                    viewModel = adoptionCenterViewModel,
+                                    petId = petId
+                                )
+                            }
+
+
+
+
                             }
                         }
                     }

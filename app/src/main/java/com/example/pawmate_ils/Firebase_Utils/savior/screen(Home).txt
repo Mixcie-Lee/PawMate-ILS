@@ -1,0 +1,153 @@
+package com.example.pawmate_ils.chatScreen
+
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
+import com.example.pawmate_ils.Firebase_Utils.AuthViewModel
+import com.example.pawmate_ils.Firebase_Utils.ChatViewModel
+import com.example.pawmate_ils.Firebase_Utils.HomeViewModel
+import com.example.pawmate_ils.R
+import com.example.pawmate_ils.ThemeManager
+import com.google.firebase.auth.FirebaseAuth
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HomeScreen(
+    navController: NavController,
+    authViewModel: AuthViewModel,
+    chatViewModel: ChatViewModel
+) {
+    // 🔹 Ensure we use the shared/persisted HomeViewModel
+    val homeViewModel: HomeViewModel = viewModel()
+    val channels by homeViewModel.channels.collectAsState()
+    val currentUserRole by authViewModel.currentUserRole.collectAsState()
+
+    val isDarkMode = ThemeManager.isDarkMode
+    val backgroundColor = if (isDarkMode) Color(0xFF1A1A1A) else Color(0xFFFFF0F5)
+    val textColor = if (isDarkMode) Color.White else Color.Black
+    val navBarColor = if (isDarkMode) Color(0xFF1E1E1E) else Color.White
+
+    // ✅ Firestore Migration: The listener is started once.
+    // As data changes in Firestore, the 'channels' state updates automatically.
+    LaunchedEffect(Unit) {
+        authViewModel.fetchUserRole()
+        homeViewModel.listenToChannels()
+    }
+
+    Scaffold(
+        containerColor = Color.Transparent,
+        bottomBar = {
+            // ... (Your existing NavigationBar code stays the same)
+            NavigationBar(
+                containerColor = navBarColor,
+                contentColor = textColor,
+                tonalElevation = 8.dp
+            ) {
+                // (Keeping your NavigationBarItems as they are)
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.Pets, "Swipe", tint = Color.Gray.copy(alpha = 0.6f)) },
+                    label = { Text("Swipe", color = Color.Gray.copy(alpha = 0.6f)) },
+                    selected = false,
+                    onClick = { navController.navigate("pet_swipe") }
+                )
+                // ... other items ...
+                NavigationBarItem(
+                    icon = {
+                        Image(
+                            painter = painterResource(id = R.drawable.message_square),
+                            contentDescription = "Message",
+                            modifier = Modifier.size(24.dp),
+                            colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(Color(0xFFFF9999))
+                        )
+                    },
+                    label = { Text("Message", color = Color(0xFFFF9999), fontWeight = FontWeight.Bold) },
+                    selected = true,
+                    onClick = { /* Already here */ }
+                )
+            }
+        }
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(backgroundColor)
+                .padding(paddingValues)
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                CenterAlignedTopAppBar(
+                    title = {
+                        Text("Messages", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    },
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                        containerColor = if (isDarkMode) Color(0xFF2A2A2A) else Color(0xFFFFB6C1)
+                    )
+                )
+
+                when {
+                    // 🔹 Loading State
+                    currentUserRole.isNullOrEmpty() -> {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = Color(0xFFFFB6C1))
+                        }
+                    }
+
+                    // 🔹 Empty State
+                    channels.isEmpty() -> {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("No messages yet", color = Color.Gray, fontSize = 16.sp)
+                        }
+                    }
+
+                    // 🔹 List State
+                    else -> {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(channels, key = { it.channelId }) { channel ->
+                                val displayName = when (currentUserRole) {
+                                    "shelter" -> "${channel.adopterName} • ${channel.petName}"
+                                    "adopter" -> "${channel.shelterName} • ${channel.petName}"
+                                    else -> "Chat • ${channel.petName}"
+                                }
+
+                                ChatListItem(
+                                    shelterName = displayName,
+                                    lastMessage = channel.lastMessage,
+                                    timeAgo = null, // You can add formatting logic for channel.timestamp here
+                                    unreadCount = channel.unreadCount,
+                                    onClick = {
+                                        // Resetting unread count now happens in Firestore
+                                        homeViewModel.resetUnreadCount(channel.channelId)
+                                        navController.navigate("message/${channel.channelId}")
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

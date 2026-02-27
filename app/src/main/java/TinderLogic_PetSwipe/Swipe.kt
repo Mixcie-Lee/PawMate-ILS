@@ -62,18 +62,21 @@ import com.example.pawmate_ils.Firebase_Utils.FirestoreRepository
 import com.example.pawmate_ils.Firebase_Utils.HomeViewModel
 import com.example.pawmate_ils.Firebase_Utils.LikedPet
 import com.example.pawmate_ils.Firebase_Utils.LikedPetsViewModel
-import com.example.pawmate_ils.Firebase_Utils.PetRepository
+import com.example.pawmate_ils.Firebase_Utils.PetsRepository
 import com.example.pawmate_ils.R
 import com.example.pawmate_ils.firebase_models.Channel
+import com.example.pawmate_ils.ui.screens.ProfileRequirementDialog
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import com.google.firebase.Timestamp
 
 data class PetData(
+    val petId: String? = null,
     val name: String? = null,
     val breed: String? = null,
     val age: String? = null,
+    val gender: String? = null,
     val description: String? = null,
     val type: String? = null,
     val imageRes: Int = 0,
@@ -111,8 +114,9 @@ fun PetSwipeScreen(navController: NavController) {
     val chatViewModel: ChatViewModel = viewModel(factory = factory)
     val firestoreRepo = remember { FirestoreRepository() }
     val likedPetsViewmodel: LikedPetsViewModel = viewModel()
-    val petRepository : PetRepository = viewModel()
-
+    val petRepository : PetsRepository = viewModel()
+    //INITIALIZING THE VARIABLE USED FOR CONFIMATION PURCHASE DIALOG
+    val pendingBuy =  GemManager.pendingPackage
 
     val homeViewModel: HomeViewModel = viewModel()
     val scope = rememberCoroutineScope()
@@ -211,6 +215,14 @@ fun PetSwipeScreen(navController: NavController) {
     }
 
 
+    //This is the handler for a dialog that ask the user to upload or create their profile picture
+    //without this the avatar icon wouldnt appear if they change it mid use
+    ProfileRequirementDialog(
+        authViewModel = authViewModel,
+        navController = navController,
+        canShow = !showTutorial
+    )
+
 
 
     @SuppressLint("SuspiciousIndentation")
@@ -250,6 +262,9 @@ fun PetSwipeScreen(navController: NavController) {
                         }
 
                         val adopterId = authViewModel.currentUser?.uid ?: return@launch
+                        val adopterUser = allUsers.find { it.id == adopterId }
+                        val adopterPhoto = adopterUser?.photoUri // 🆕 GRAB THE ADOPTER PHOTO
+                        val shelterPhoto = shelterUser.photoUri
                         val adopterName = authViewModel.currentUser?.displayName ?: "Unknown"
                         val petName = currentPet.name
 
@@ -268,8 +283,10 @@ fun PetSwipeScreen(navController: NavController) {
                             channelId = "$adopterId-$shelterId-${petName ?: "Unknown"}",
                             adopterId = adopterId,
                             adopterName = adopterName,
+                            adopterPhotoUri = adopterPhoto,
                             shelterId = shelterId,
                             shelterName = shelterUser.name,
+                            shelterPhotoUri = shelterPhoto, // ✅ ADD THIS
                             petName = petName ?: "Unknown",
                             lastMessage = "",
                             timestamp = System.currentTimeMillis(),
@@ -942,12 +959,43 @@ fun PetSwipeScreen(navController: NavController) {
                     Spacer(modifier = Modifier.height(60.dp))
                 }
             }
+          //PURCHASE CONFIRMATION DIALOG
+            // Listen for the pending package from GemManager
+            val pendingBuy = GemManager.pendingPackage
+
+            if (pendingBuy != null) {
+                AlertDialog(
+                    onDismissRequest = { GemManager.cancelPurchase() },
+                    title = { Text("Confirm Purchase", fontWeight = FontWeight.Bold) },
+                    text = {
+                        Text("Invest ${pendingBuy.price} for ${pendingBuy.gemAmount} Gems to help more pets?")
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = { GemManager.confirmPurchase() },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFB6C1))
+                        ) {
+                            Text("Confirm")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { GemManager.cancelPurchase() }) {
+                            Text("Cancel")
+                        }
+                    },
+                    shape = RoundedCornerShape(24.dp)
+                )
+            }
+
+
+
+
 
             if (showGemDialog) {
                 GemPurchaseDialog(
                     onDismiss = { showGemDialog = false },
                     onPurchase = { packageType ->
-                        GemManager.purchaseGems(packageType)
+                        GemManager.initiatePurchase(packageType)
                         GemManager.gemCount
                         showGemDialog = false
                     }
@@ -1097,7 +1145,13 @@ fun SwipeablePetCard(
                         }
                     },
                     onLongPress = {
+                      val requiredGems = 5
                         isHolding = true
+                        if(GemManager.consumeGems(requiredGems)){
+                            isHolding = true
+                        }else{
+                            GemManager.openPurchaseDialog()
+                        }
                     },
                     onPress = {
                         tryAwaitRelease()

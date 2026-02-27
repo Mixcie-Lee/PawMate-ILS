@@ -18,6 +18,10 @@ import androidx.compose.ui.unit.dp
 import com.example.pawmate_ils.ui.theme.DarkBrown
 import com.example.pawmate_ils.ui.models.Application
 
+  #NAKA TEXT FILE MUNA TO SINCE MAG DEDECIDE PAKO IF ISASAMA PATO DAHIL MERON NG MANAGEMENT NG
+  APPLICATIONS SA HOMEPAGE NG SHELTER
+
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdoptionCenterApplications(

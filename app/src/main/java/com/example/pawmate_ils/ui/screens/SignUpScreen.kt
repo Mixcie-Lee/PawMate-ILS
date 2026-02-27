@@ -59,10 +59,9 @@ fun SignUpScreen(
 ) {
     //FIREBASE AUTHENTICATION
     val context = LocalContext.current
-    val AuthViewModel : AuthViewModel = viewModel()
-    val authState  = AuthViewModel.authState.observeAsState()
-    val firestoreRepo = remember { FirestoreRepository() }
     val authViewModel: AuthViewModel = viewModel()
+    val authState  = authViewModel.authState.observeAsState()
+    val firestoreRepo = remember { FirestoreRepository() }
     val homeViewModel: HomeViewModel = viewModel ()
 
 
@@ -82,7 +81,7 @@ fun SignUpScreen(
 
 
     // ADDED SECTION
-    val newUser  by AuthViewModel.newUser.observeAsState()
+    val newUser by authViewModel.newUser.observeAsState()
 
 
 
@@ -98,7 +97,7 @@ fun SignUpScreen(
                     errorMessage = "Failed to get Google ID Token."
                     return@rememberLauncherForActivityResult
                 }
-                AuthViewModel.signUpWithGoogle(idToken) { success, message ->
+                authViewModel.signUpWithGoogle(idToken) { success, message ->
                     isGoogleLoading = false
                     if (success) {
                         // If user is new → continue to About You
@@ -246,10 +245,11 @@ fun SignUpScreen(
                                     return@Button
                                 }
                                 errorMessage = null
-                                AuthViewModel.signUp(email, password) { success, message ->
+                                isLoading = true
+                                authViewModel.signUp(email, password) { success, message ->
+                                    isLoading = false
                                     if (success) {
                                         homeViewModel.clearChannels()
-                                        homeViewModel.getChannels()
                                         homeViewModel.listenToChannels()
                                         currentStep = 2 // Move to "About You" step
                                     } else {
@@ -257,6 +257,7 @@ fun SignUpScreen(
                                     }
                                 }
                             },
+                            enabled = !isLoading,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(56.dp),
@@ -266,7 +267,6 @@ fun SignUpScreen(
                                 disabledContainerColor = Color(0xFFFFB6C1).copy(alpha = 0.6f)
                             ),
                             shape = RoundedCornerShape(28.dp),
-                            enabled = !isLoading,
                             elevation = ButtonDefaults.buttonElevation(
                                 defaultElevation = 0.dp,
                                 pressedElevation = 2.dp
@@ -302,7 +302,7 @@ fun SignUpScreen(
                            //Google Button
                         OutlinedButton(
                             onClick = {
-                                AuthViewModel.fetchUserRole()
+                                authViewModel.fetchUserRole()
                                 /* Handle Google Sign In */
                                 isGoogleLoading = true
                                 val gsoClient = getGoogleSignInClient(context)
