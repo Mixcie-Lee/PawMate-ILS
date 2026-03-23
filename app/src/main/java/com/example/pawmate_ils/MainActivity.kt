@@ -56,6 +56,7 @@
     //import com.example.pawmate_ils.ui.screens.AdoptionCenterApplications
     import com.example.pawmate_ils.chatScreen.HomeScreen
     import com.example.pawmate_ils.ui.screens.EducationalScreen
+    import com.example.pawmate_ils.ui.screens.ShopScreen
     import com.example.pawmate_ils.ui.screens.EducationalDetailScreen
     import com.example.pawmate_ils.ui.screens.SellerLoginScreen
     import com.example.pawmate_ils.ui.screens.SellerSignUpScreen
@@ -437,6 +438,9 @@
                             }
                             composable("educational") {
                                 EducationalScreen(navController = navController)
+                            }
+                            composable("shop") {
+                                ShopScreen(navController = navController)
                             }
                             composable(
                                 route = "educational_detail/{articleId}",

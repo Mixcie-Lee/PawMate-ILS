@@ -30,6 +30,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.navigation.NavController
 import com.example.pawmate_ils.R
 import com.example.pawmate_ils.ThemeManager
+import com.example.pawmate_ils.ui.components.AdopterBottomBar
+import com.example.pawmate_ils.ui.components.PawMateSectionTitle
 import com.example.pawmate_ils.ui.theme.DarkBrown
 
 data class EducationalArticle(
@@ -126,119 +128,9 @@ fun EducationalScreen(navController: NavController) {
     }
 
     Scaffold(
+        containerColor = backgroundColor,
         bottomBar = {
-            NavigationBar(
-                containerColor = navBarColor,
-                contentColor = textColor,
-                tonalElevation = 8.dp
-            ) {
-                NavigationBarItem(
-                    icon = {
-                        Icon(
-                            Icons.Filled.Pets,
-                            contentDescription = "Swipe",
-                            tint = Color.Gray.copy(alpha = 0.6f)
-                        )
-                    },
-                    label = { Text("Swipe", color = Color.Gray.copy(alpha = 0.6f)) },
-                    selected = false,
-                    onClick = { navController.navigate("pet_swipe") },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = Color(0xFFFF9999),
-                        selectedTextColor = Color(0xFFFF9999),
-                        indicatorColor = Color(0xFFFFD6E0)
-                    )
-                )
-                NavigationBarItem(
-                    icon = {
-                        Image(
-                            painter = painterResource(id = R.drawable.heart),
-                            contentDescription = "Liked",
-                            modifier = Modifier.size(24.dp),
-                            colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(
-                                Color.Gray.copy(alpha = 0.6f)
-                            )
-                        )
-                    },
-                    label = { Text("Liked", color = Color.Gray.copy(alpha = 0.6f)) },
-                    selected = false,
-                    onClick = {
-                        navController.navigate("adopter_home")
-                    },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = Color(0xFFFF9999),
-                        selectedTextColor = Color(0xFFFF9999),
-                        indicatorColor = Color(0xFFFFD6E0)
-                    )
-                )
-                NavigationBarItem(
-                    icon = {
-                        Image(
-                            painter = painterResource(id = R.drawable.book_open),
-                            contentDescription = "Learn",
-                            modifier = Modifier.size(24.dp),
-                            colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(
-                                Color(0xFFFF9999)
-                            )
-                        )
-                    },
-                    label = { Text("Learn", color = Color(0xFFFF9999), fontWeight = FontWeight.Bold) },
-                    selected = true,
-                    onClick = {
-                        navController.navigate("educational")
-                    },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = Color(0xFFFF9999),
-                        selectedTextColor = Color(0xFFFF9999),
-                        indicatorColor = Color(0xFFFFD6E0)
-                    )
-                )
-                NavigationBarItem(
-                    icon = {
-                        Image(
-                            painter = painterResource(id = R.drawable.profile_d),
-                            contentDescription = "Profile",
-                            modifier = Modifier.size(24.dp),
-                            colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(
-                                Color.Gray.copy(alpha = 0.6f)
-                            )
-                        )
-                    },
-                    label = { Text("Profile", color = Color.Gray.copy(alpha = 0.6f)) },
-                    selected = false,
-                    onClick = {
-                        navController.navigate("profile_settings")
-                    },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = Color(0xFFFF9999),
-                        selectedTextColor = Color(0xFFFF9999),
-                        indicatorColor = Color(0xFFFFD6E0)
-                    )
-                )
-
-                NavigationBarItem(
-                    icon = {
-                        Image(
-                            painter = painterResource(id = R.drawable.message_square),
-                            contentDescription = "Message",
-                            modifier = Modifier.size(24.dp),
-                            colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(
-                                Color.Gray.copy(alpha = 0.6f)
-                            )
-                        )
-                    },
-                    label = { Text("Message", color = Color.Gray.copy(alpha = 0.6f)) },
-                    selected = false,
-                    onClick = {
-                        navController.navigate("chat_home")
-                    },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = Color(0xFFFF9999),
-                        selectedTextColor = Color(0xFFFF9999),
-                        indicatorColor = Color(0xFFFFD6E0)
-                    )
-                )
-            }
+            AdopterBottomBar(navController = navController, selectedTab = "Education")
         }
     ) { paddingValues ->
         LazyColumn(
@@ -259,12 +151,10 @@ fun EducationalScreen(navController: NavController) {
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Education",
-                        fontSize = 36.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFFFF9999),
-                        textAlign = TextAlign.Center
+                    PawMateSectionTitle(
+                        title = "Education",
+                        subtitle = "Pet care tips and guides",
+                        color = Color(0xFFFF9999)
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     IconButton(

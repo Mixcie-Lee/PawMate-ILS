@@ -39,6 +39,7 @@
     import com.example.pawmate_ils.GemManager
     //import com.example.pawmate_ils.LikedPetsManager
     import com.example.pawmate_ils.ThemeManager
+    import com.example.pawmate_ils.ui.components.AdopterBottomBar
     import kotlinx.coroutines.delay
 
     data class AdoptedPet(
@@ -79,129 +80,24 @@
         val accentColor = if (isDarkMode) Color(0xFFB39DDB) else Color(0xFFDDA0DD)
 
         Scaffold(
+            containerColor = backgroundColor,
             bottomBar = {
-                NavigationBar(
-                    containerColor = navBarColor,
-                    contentColor = textColor,
-                    tonalElevation = 8.dp
-                ) {
-                    NavigationBarItem(
-                        icon = {
-                            Icon(
-                                Icons.Filled.Pets,
-                                contentDescription = "Swipe",
-                                tint = Color.Gray.copy(alpha = 0.6f)
-                            )
-                        },
-                        label = { Text("Swipe", color = Color.Gray.copy(alpha = 0.6f)) },
-                        selected = false,
-                        onClick = {navController.navigate("pet_swipe")},
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = Color(0xFFFF9999),
-                            selectedTextColor = Color(0xFFFF9999),
-                            indicatorColor = Color(0xFFFFD6E0)
-                        )
-                    )
-                    NavigationBarItem(
-                        icon = {
-                            Image(
-                                painter = painterResource(id = R.drawable.heart),
-                                contentDescription = "Liked",
-                                modifier = Modifier.size(24.dp),
-                                colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(
-                                    Color(0xFFFF9999)
-                                )
-                            )
-                        },
-                        label = { Text("Liked", color = Color(0xFFFF9999), fontWeight = FontWeight.Bold) },
-                        selected = true,
-                        onClick = {
-                            navController.navigate("adopter_home")
-                        },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = Color(0xFFFF9999),
-                            selectedTextColor = Color(0xFFFF9999),
-                            indicatorColor = Color(0xFFFFD6E0)
-                        )
-                    )
-                    NavigationBarItem(
-                        icon = {
-                            Image(
-                                painter = painterResource(id = R.drawable.book_open),
-                                contentDescription = "Learn",
-                                modifier = Modifier.size(24.dp),
-                                colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(
-                                    Color.Gray.copy(alpha = 0.6f)
-                                )
-                            )
-                        },
-                        label = { Text("Learn", color = Color.Gray.copy(alpha = 0.6f)) },
-                        selected = false,
-                        onClick = {
-                            navController.navigate("educational")
-                        },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = Color(0xFFFF9999),
-                            selectedTextColor = Color(0xFFFF9999),
-                            indicatorColor = Color(0xFFFFD6E0)
-                        )
-                    )
-                    NavigationBarItem(
-                        icon = {
-                            Image(
-                                painter = painterResource(id = R.drawable.profile_d),
-                                contentDescription = "Profile",
-                                modifier = Modifier.size(24.dp),
-                                colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(
-                                    Color.Gray.copy(alpha = 0.6f)
-                                )
-                            )
-                        },
-                        label = { Text("Profile", color = Color.Gray.copy(alpha = 0.6f)) },
-                        selected = false,
-                        onClick = {
-                            navController.navigate("profile_settings")
-                        },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = Color(0xFFFF9999),
-                            selectedTextColor = Color(0xFFFF9999),
-                            indicatorColor = Color(0xFFFFD6E0)
-                        )
-                    )
-
-                    NavigationBarItem(
-                        icon = {
-                            Image(
-                                painter = painterResource(id = R.drawable.message_square),
-                                contentDescription = "Message",
-                                modifier = Modifier.size(24.dp),
-                                colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(
-                                    Color.Gray.copy(alpha = 0.6f)
-                                )
-                            )
-                        },
-                        label = { Text("Message", color = Color.Gray.copy(alpha = 0.6f)) },
-                        selected = false,
-                        onClick = {
-                            navController.navigate("chat_home")
-                        },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = Color(0xFFFF9999),
-                            selectedTextColor = Color(0xFFFF9999),
-                            indicatorColor = Color(0xFFFFD6E0)
-                        )
-                    )
-                }
+                AdopterBottomBar(navController = navController, selectedTab = "Favorites")
             }
         ) { paddingValues ->
-            Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(backgroundColor)
+                    .padding(paddingValues)
+            ) {
                 Column(
                     modifier = Modifier.fillMaxSize()
                 ) {
                     // Top App Bar
                     CenterAlignedTopAppBar(
                         navigationIcon = {
-                            IconButton(onClick = { navController.popBackStack() }) {
+                            IconButton(onClick = { navController.navigate("pet_swipe") { launchSingleTop = true } }) {
                                 Icon(
                                     imageVector = Icons.Filled.ArrowBack,
                                     contentDescription = "Back",

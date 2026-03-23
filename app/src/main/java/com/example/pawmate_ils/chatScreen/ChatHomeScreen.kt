@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material3.Icon
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,6 +31,7 @@ import com.example.pawmate_ils.Firebase_Utils.ChatViewModel
 import com.example.pawmate_ils.Firebase_Utils.HomeViewModel
 import com.example.pawmate_ils.R
 import com.example.pawmate_ils.ThemeManager
+import com.example.pawmate_ils.ui.components.AdopterBottomBar
 import com.google.firebase.auth.FirebaseAuth
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -54,72 +56,9 @@ fun HomeScreen(
     }
 
     Scaffold(
-        containerColor = Color.Transparent,
+        containerColor = backgroundColor,
         bottomBar = {
-            NavigationBar(
-                containerColor = navBarColor,
-                contentColor = textColor,
-                tonalElevation = 8.dp
-            ) {
-                NavigationBarItem(
-                    icon = { Icon(Icons.Default.Pets, "Swipe", tint = Color.Gray.copy(alpha = 0.6f)) },
-                    label = { Text("Swipe", color = Color.Gray.copy(alpha = 0.6f)) },
-                    selected = false,
-                    onClick = { navController.navigate("pet_swipe") }
-                )
-                NavigationBarItem(
-                    icon = {
-                        Image(
-                            painter = painterResource(id = R.drawable.heart),
-                            contentDescription = "Liked",
-                            modifier = Modifier.size(24.dp),
-                            colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(Color.Gray.copy(alpha = 0.6f))
-                        )
-                    },
-                    label = { Text("Liked", color = Color.Gray.copy(alpha = 0.6f)) },
-                    selected = false,
-                    onClick = { navController.navigate("adopter_home") }
-                )
-                NavigationBarItem(
-                    icon = {
-                        Image(
-                            painter = painterResource(id = R.drawable.book_open),
-                            contentDescription = "Learn",
-                            modifier = Modifier.size(24.dp),
-                            colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(Color.Gray.copy(alpha = 0.6f))
-                        )
-                    },
-                    label = { Text("Learn", color = Color.Gray.copy(alpha = 0.6f)) },
-                    selected = false,
-                    onClick = { navController.navigate("educational") }
-                )
-                NavigationBarItem(
-                    icon = {
-                        Image(
-                            painter = painterResource(id = R.drawable.profile_d),
-                            contentDescription = "Profile",
-                            modifier = Modifier.size(24.dp),
-                            colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(Color.Gray.copy(alpha = 0.6f))
-                        )
-                    },
-                    label = { Text("Profile", color = Color.Gray.copy(alpha = 0.6f)) },
-                    selected = false,
-                    onClick = { navController.navigate("profile_settings") }
-                )
-                NavigationBarItem(
-                    icon = {
-                        Image(
-                            painter = painterResource(id = R.drawable.message_square),
-                            contentDescription = "Message",
-                            modifier = Modifier.size(24.dp),
-                            colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(Color(0xFFFF9999))
-                        )
-                    },
-                    label = { Text("Message", color = Color(0xFFFF9999), fontWeight = FontWeight.Bold) },
-                    selected = true,
-                    onClick = { /* Already on this screen */ }
-                )
-            }
+            AdopterBottomBar(navController = navController, selectedTab = "Message")
         }
     ) { paddingValues ->
         Box(
@@ -152,8 +91,32 @@ fun HomeScreen(
                     }
 
                     channels.isEmpty() -> {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("No messages yet", color = Color.Gray, fontSize = 16.sp)
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(32.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Pets,
+                                contentDescription = null,
+                                modifier = Modifier.size(64.dp),
+                                tint = Color.Gray.copy(alpha = 0.4f)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                "No messages yet",
+                                color = textColor,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                "Adopt a pet to start chatting with shelters.",
+                                color = Color.Gray,
+                                fontSize = 14.sp
+                            )
                         }
                     }
 
