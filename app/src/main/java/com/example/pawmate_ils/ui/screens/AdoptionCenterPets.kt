@@ -13,7 +13,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -42,6 +46,17 @@ fun AdoptionCenterPets(
             Pet1("Charlie", "Dog", "Golden Retriever", "1 year old", "Male")
         )
     }*/
+    val filteredPets = remember(searchQuery, pets) {
+        val currentPets = pets ?: emptyList() // Fallback to avoid null pointer errors
+        currentPets.filter { pet: PetData ->
+            val query = searchQuery.lowercase().trim()
+            val nameMatch = pet.name?.lowercase()?.contains(query) == true
+            val breedMatch = pet.breed?.lowercase()?.contains(query) == true
+            val typeMatch = pet.type?.lowercase()?.contains(query) == true
+
+            nameMatch || breedMatch || typeMatch
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.White)) {
         Scaffold(
@@ -93,14 +108,13 @@ fun AdoptionCenterPets(
                     )
                 }
 
-                val filteredPets = pets.filter {
-                    it.name?.contains(searchQuery, ignoreCase = true) == true
-                }
+
                 items(filteredPets) { pet ->
                     // 2. Pass the real PetData object
                     PetManagementRow(
                         navController = navController,
                         pet = pet,
+                        searchQuery = searchQuery,
                         onDelete = { pet.petId?.let { id -> viewModel.deletePet(id) } },
                     )
                     HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray.copy(alpha = 0.4f))
@@ -124,6 +138,7 @@ fun AdoptionCenterPets(
 fun PetManagementRow(
     pet: PetData,
     onDelete: () -> Unit,
+    searchQuery: String,
     navController: NavController
 ) {
     Row(
@@ -132,8 +147,7 @@ fun PetManagementRow(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = pet.name ?: "Unnamed Pet",
-                style = MaterialTheme.typography.titleLarge.copy(
+                text = getHighlightedText(pet.name ?: "Unnamed Pet", searchQuery),                style = MaterialTheme.typography.titleLarge.copy(
                     fontWeight = FontWeight.ExtraBold,
                     fontSize = 24.sp
                 )
@@ -159,6 +173,26 @@ fun PetManagementRow(
         }
     }
 }
+
+//LOGIC FOR WHEN USER SEARCH A CERTAIN PET THE COLUMN CARD WILL HIGHLIGHT
+@Composable
+fun getHighlightedText(text: String, query: String): AnnotatedString {
+    val pinkHighlight = Color(0xFFFFB6C1) // Your Pet Pink color
+    return buildAnnotatedString {
+        val startIndex = text.indexOf(query, ignoreCase = true)
+        if (query.isNotEmpty() && startIndex != -1) {
+            this.append(text.substring(0, startIndex))
+            withStyle(style = SpanStyle(background = pinkHighlight, fontWeight = FontWeight.Bold)) {
+                append(text.substring(startIndex, startIndex + query.length))
+            }
+            append(text.substring(startIndex + query.length))
+        } else {
+            append(text)
+        }
+    }
+}
+
+
 
 /*@Preview(showBackground = true, name = "Manage Pets Design Preview")
 @Composable

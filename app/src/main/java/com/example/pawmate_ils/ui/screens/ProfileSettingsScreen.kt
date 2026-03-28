@@ -1,10 +1,5 @@
 package com.example.pawmate_ils.ui.screens
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -13,9 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Notifications
@@ -26,7 +19,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -45,7 +37,6 @@ import androidx.compose.ui.layout.ContentScale
 import coil.compose.rememberAsyncImagePainter
 import com.example.pawmate_ils.SettingsManager
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import coil.compose.AsyncImage
 import com.example.pawmate_ils.Firebase_Utils.LikedPetsViewModel
 import com.example.pawmate_ils.GemManager
@@ -53,7 +44,7 @@ import com.cloudinary.android.MediaManager
 import com.cloudinary.android.callback.ErrorInfo
 import com.cloudinary.android.callback.UploadCallback
 import com.example.pawmate_ils.Firebase_Utils.AuthViewModel
-import com.example.pawmate_ils.ui.components.AdopterBottomBar
+import com.example.pawmate_ils.R
 
 
 
@@ -114,10 +105,9 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
         modifier = Modifier.fillMaxSize(),
         color = backgroundColor
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            Column(
-                modifier = Modifier.fillMaxSize()
-            ) {
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
             TopAppBar(
                 title = {
                     Text(
@@ -141,12 +131,12 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                 )
             )
 
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                        .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 120.dp)
-                ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp)
+            ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -169,6 +159,7 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                         contentAlignment = Alignment.Center
                     ) {
                         val photoUrl = userOnlineData?.photoUri
+                        val userGender = userOnlineData?.gender ?: "Other"
                         if (!photoUrl.isNullOrEmpty()) {
                             AsyncImage(
                                 model = photoUrl,
@@ -177,6 +168,14 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                                 contentScale = ContentScale.Crop
                             )
                         } else {
+                            val placeholderRes = when (userGender) {
+                                "Male" -> R.drawable.male
+                                "Female" -> R.drawable.female
+                                else -> R.drawable.avatar // General placeholder
+                            }
+
+
+
                             Icon(
                                 imageVector = Icons.Default.Person,
                                 contentDescription = "Profile",
@@ -447,26 +446,9 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                         )
                     }
                 }
-                }
             }
-            ProfileFloatingBottomBar(
-                navController = navController,
-                modifier = Modifier.align(Alignment.BottomCenter)
-            )
         }
     }
-}
-
-@Composable
-private fun ProfileFloatingBottomBar(
-    navController: NavController,
-    modifier: Modifier = Modifier
-) {
-    AdopterBottomBar(
-        navController = navController,
-        selectedTab = "",
-        modifier = modifier
-    )
 }
 
 @Composable

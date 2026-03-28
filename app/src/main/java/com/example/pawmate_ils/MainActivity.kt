@@ -80,12 +80,31 @@
     import androidx.compose.ui.graphics.Color
     import androidx.compose.ui.text.font.FontWeight
     import androidx.compose.foundation.shape.RoundedCornerShape
+    import androidx.compose.material3.CircularProgressIndicator
     import androidx.compose.runtime.collectAsState
+    import androidx.compose.ui.Alignment
     import androidx.compose.ui.unit.dp
 
 
     class MainActivity : ComponentActivity() {
         private val sharedViewModel: SharedViewModel by viewModels()
+        private val authViewModel: AuthViewModel by viewModels()
+
+        //STATUS OF USER(ONLINE OR OFFLINE) IMMEDIATELY INTIALIZED UPON STARTING
+        override fun onStart() {
+            super.onStart()
+            // 🟢 Set Online when app comes to foreground
+            authViewModel.updateOnlineStatus(true)
+        }
+        override fun onStop() {
+            super.onStop()
+            // 🔴 Set Offline when app goes to background
+            authViewModel.updateOnlineStatus(false)
+        }
+
+
+
+
         override fun onCreate(savedInstanceState: Bundle?) {
             super.onCreate(savedInstanceState)
             GemManager.init(applicationContext)
@@ -113,6 +132,10 @@
                             View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
                             View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                     )
+
+
+
+
             setContent {
                 PawMateILSTheme(darkTheme = ThemeManager.isDarkMode) {
                     Surface(
@@ -140,6 +163,10 @@
 
 
 
+
+
+
+
                         val startDestination = remember {
                             val isUserAuthenticated = FirebaseAuth.getInstance().currentUser != null
                             val isCompleted = onboardingUtil.isOnboardingCompleted()
@@ -151,41 +178,26 @@
                                 else -> "onboarding"
                             }
                         }
-                        LaunchedEffect(authState.value) {
+                        val currentUserRole by authViewModel.currentUserRole.collectAsState()
+
+                        LaunchedEffect(authState.value, currentUserRole) {
+                            // Only proceed if onboarding is done
                             if (!onboardingUtil.isOnboardingCompleted()) return@LaunchedEffect
 
                             val currentUser = FirebaseAuth.getInstance().currentUser
-                            if (currentUser != null) {
-                                try {
-                                    val user = withContext(Dispatchers.IO) {
-                                        db.getUserById(currentUser.uid)
-                                    }
 
-                                    // 🔹 GHOST REDIRECTION LOGIC 🔹
-                                    // If the user exists in Auth but not in Firestore, or has no name,
-                                    // they are a ghost. Force them to the correct Sign-Up Step 2.
-                                    if (user == null || user.name.isNullOrEmpty() || user.name == "New User") {
-                                        navController.navigate("signup") { // Sends them back to fill About You
-                                            popUpTo(0)
-                                        }
-                                        return@LaunchedEffect
-                                    }
+                            if (currentUser != null && authState.value is AuthViewModel.AuthState.Authenticated) {
 
-                                    val role = user.role
-                                    val destination = when (role) {
-                                        "adopter" -> "pet_swipe"
-                                        "shelter" -> "adoption_center_dashboard"
-                                        else -> "user_type"
-                                    }
-
-                                    navController.navigate(destination) {
-                                        popUpTo(0) { inclusive = true }
-                                    }
-                                } catch (e: Exception) {
-                                    Log.e("AUTH_DEBUG", "Auto-login failed: ${e.message}")
+                                // 🚥 THE TRAFFIC CONTROLLER
+                                if (currentUserRole != null) {
+                                    handleRoleBasedNavigation(authViewModel, navController)
+                                } else {
+                                    // If the role isn't loaded yet, ask the ViewModel to go get it
+                                    authViewModel.fetchUserRole()
                                 }
                             }
                         }
+
 
 
                         // Handle authenticated user navigation after NavHost is created
@@ -238,10 +250,7 @@
                                     navController = navController,
 
                                     onSignUpClick = { _, _, _, _ ->
-                                        navController.navigate("pet_swipe") {
-                                            popUpTo("user_type") { inclusive = true }
-                                            launchSingleTop = true
-                                        }
+                                        handleRoleBasedNavigation(authViewModel, navController)
                                     },
                                     onLoginClick = {
                                         navController.navigate("login") {
@@ -249,7 +258,7 @@
                                             restoreState = true
                                         }
                                     },
-                                    onSellerAuthClick = {
+                                    onNavigateToSellerSignUp = {
                                         navController.navigate("seller_signup") {
                                             launchSingleTop = true
                                             restoreState = true
@@ -261,11 +270,8 @@
                             composable("login") {
                                 LoginScreen(
                                     authViewModel = authViewModel,
-                                    onLoginClick = { email, password ->
-                                        navController.navigate("pet_swipe") {
-                                            popUpTo("user_type") { inclusive = true }
-                                            launchSingleTop = true
-                                        }
+                                    onLoginSuccess = {
+                                        handleRoleBasedNavigation(authViewModel, navController)
                                     },
                                     onSignUpClick = {
                                         navController.navigate("signup") {
@@ -273,12 +279,8 @@
                                             restoreState = true
                                         }
                                     },
-                                    onSellerAuthClick = {
-                                        navController.navigate("seller_signup") {
-                                            launchSingleTop = true
-                                            restoreState = true
-                                        }
-                                    }
+                                    onNavigateToShelter = { navController.navigate("seller_login") }
+
                                 )
                             }
                             composable("seller_signup") {
@@ -286,10 +288,7 @@
                                     navController = navController,
                                     authViewModel = authViewModel,
                                     onSignUpClick = { _, _, _, _ ->
-                                        navController.navigate("adoption_center_dashboard") {
-                                            popUpTo("user_type") { inclusive = true }
-                                            launchSingleTop = true
-                                        }
+                                        handleRoleBasedNavigation(authViewModel, navController)
                                     },
                                     onLoginClick = {
                                         navController.navigate("seller_login") {
@@ -297,7 +296,7 @@
                                             restoreState = true
                                         }
                                     },
-                                    onSellerAuthClick = {
+                                    onNavigateToAdopterSignUp = { // ✅ This matches your new parameter name
                                         navController.navigate("signup") {
                                             launchSingleTop = true
                                             restoreState = true
@@ -310,11 +309,9 @@
                             composable("seller_login") {
                                 SellerLoginScreen(
                                     authViewModel = authViewModel,
-                                    onLoginClick = { _, _ ->
-                                        navController.navigate("adoption_center_dashboard") {
-                                            popUpTo("user_type") { inclusive = true }
-                                            launchSingleTop = true
-                                        }
+                                    onLoginSuccess = {
+                                        // 🚥 DYNAMIC NAVIGATION: Same here!
+                                        handleRoleBasedNavigation(authViewModel, navController)
                                     },
                                     onSignUpClick = {
                                         navController.navigate("seller_signup") {
@@ -322,12 +319,10 @@
                                             restoreState = true
                                         }
                                     },
-                                    onSellerAuthClick = {
-                                        navController.navigate("signup") {
-                                            launchSingleTop = true
-                                            restoreState = true
-                                        }
+                                    onNavigateToAdopter = {
+                                        navController.navigate("login") // 💎 This goes back to Adopter side
                                     }
+
                                 )
                             }
                             composable("adoption_center_dashboard") {
@@ -361,7 +356,6 @@
 
 
                             composable("add_pet"){
-                                val authViewModel: AuthViewModel = viewModel()
                                 AddPetScreen(navController = navController, authViewModel = authViewModel)
                             }
                             composable("pet_swipe") {
@@ -475,13 +469,56 @@
                                     petId = petId
                                 )
                             }
+                            // Inside NavHost(navController = navController, ...)
+                            // Inside NavHost(navController = navController, ...) around line 450
+                            composable(
+                                route = "profile_details/{userId}",
+                                arguments = listOf(navArgument("userId") { type = NavType.StringType })
+                            ) { backStackEntry ->
+                                val userId = backStackEntry.arguments?.getString("userId") ?: ""
 
-
-
+                                // 🚀 Use the NEW dynamic screen we built
+                                // This screen handles its own data fetching via the ViewModel
+                                com.example.pawmate_ils.ui.screens.ProfileDetailsScreen(
+                                    targetUserId = userId,
+                                    navController = navController,
+                                    authViewModel = authViewModel
+                                )
+                            }
+                            }
 
                             }
                         }
                     }
                 }
             }
+
+
+    //THIS SECTION IS FOR ORGANIZED ROLE BASED NAVIGATION, WAG TO PAPAKIELAMAN PLEASE HEHEHHE
+    private fun handleRoleBasedNavigation(authViewModel: AuthViewModel, navController: androidx.navigation.NavHostController) {
+        val role = authViewModel.currentUserRole.value
+
+        authViewModel.syncUserDataLocal(navController.context)
+
+        Log.d("NAV_DEBUG", "Navigating based on role: $role")
+
+        when (role) {
+            "shelter" -> {
+                navController.navigate("adoption_center_dashboard") {
+                    popUpTo(0) { inclusive = true }
+                }
+            }
+            "adopter" -> {
+                navController.navigate("pet_swipe") {
+                    popUpTo(0) { inclusive = true }
+                }
+            }
+            else -> {
+                // Fallback for edge cases or "ghost" accounts
+                navController.navigate("user_type") {
+                    popUpTo(0) { inclusive = true }
+                }
+            }
         }
+    }
+

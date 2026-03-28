@@ -19,47 +19,57 @@ class HomeViewModel(
     private val _channels = MutableStateFlow<List<Channel>>(emptyList())
     val channels = _channels.asStateFlow()
 
+    // 🔹 Track results for both roles separately to allow proper merging/deletion
+    private var adopterChannels = emptyList<Channel>()
+    private var shelterChannels = emptyList<Channel>()
+
     init {
         listenToChannels()
     }
 
-    // 🔹 LISTEN TO CHANNELS (Using Firestore Queries)
+    // 🔹 LISTEN TO CHANNELS
     fun listenToChannels() {
         val currentUserId = authViewModel.currentUser?.uid ?: return
 
-        // We use two listeners because Firestore doesn't support
-        // "OR" queries across different fields (adopterId OR shelterId) easily
-        // without a complex index. This is the safest way for a demo.
+        // Listener for Adopter role
+        db.collection("channels")
+            .whereEqualTo("adopterId", currentUserId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e("HOME_VM", "Adopter Listen Failed", error)
+                    return@addSnapshotListener
+                }
+                adopterChannels = snapshot?.documents?.mapNotNull { it.toObject(Channel::class.java) } ?: emptyList()
+                combineAndSort()
+            }
 
-        val adopterQuery = db.collection("channels").whereEqualTo("adopterId", currentUserId)
-        val shelterQuery = db.collection("channels").whereEqualTo("shelterId", currentUserId)
-
-        val handleUpdate = {
-            // This function merges results from both queries
-            // and updates the StateFlow
-        }
-
-        adopterQuery.addSnapshotListener { snapshot, _ ->
-            val list = snapshot?.documents?.mapNotNull { it.toObject(Channel::class.java) } ?: emptyList()
-            updateChannelList(list)
-        }
-
-        shelterQuery.addSnapshotListener { snapshot, _ ->
-            val list = snapshot?.documents?.mapNotNull { it.toObject(Channel::class.java) } ?: emptyList()
-            updateChannelList(list)
-        }
+        // Listener for Shelter role
+        db.collection("channels")
+            .whereEqualTo("shelterId", currentUserId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e("HOME_VM", "Shelter Listen Failed", error)
+                    return@addSnapshotListener
+                }
+                shelterChannels = snapshot?.documents?.mapNotNull { it.toObject(Channel::class.java) } ?: emptyList()
+                combineAndSort()
+            }
     }
 
-    private fun updateChannelList(newList: List<Channel>) {
-        val currentList = _channels.value.toMutableList()
-        newList.forEach { channel ->
-            val index = currentList.indexOfFirst { it.channelId == channel.channelId }
-            if (index != -1) currentList[index] = channel else currentList.add(channel)
-        }
-        _channels.value = currentList.sortedByDescending { it.timestamp }
+    // 🔹 MERGE AND SORT (Handles Deletions and Priority Real-time)
+    private fun combineAndSort() {
+        val combinedList = (adopterChannels + shelterChannels)
+            .distinctBy { it.channelId }
+            .sortedWith(
+                compareByDescending<Channel> { it.isPriority } // 👑 VIPs at the top
+                    .thenByDescending { it.timestamp }         // 🕒 Newest messages next
+            )
+
+        _channels.value = combinedList
+        Log.d("HOME_VM", "🔄 UI Synced. Total: ${combinedList.size}")
     }
 
-    // 🔹 ADD CHANNEL (Using Firestore Collections)
+    // 🔹 ADD CHANNEL
     fun addChannel(channel: Channel) {
         viewModelScope.launch {
             try {
@@ -69,6 +79,8 @@ class HomeViewModel(
                 val newChannel = channel.copy(
                     adopterName = adopterDoc.getString("name") ?: "Adopter",
                     shelterName = shelterDoc.getString("name") ?: "Shelter",
+                    adopterTier = channel.adopterTier,
+                    isPriority = channel.isPriority,
                     createdAt = System.currentTimeMillis(),
                     timestamp = System.currentTimeMillis()
                 )
@@ -80,16 +92,51 @@ class HomeViewModel(
             }
         }
     }
+
     fun resetUnreadCount(channelId: String) {
         db.collection("channels").document(channelId)
             .update("unreadCount", 0)
     }
 
     fun deleteChannel(channel: Channel) {
+        // Deleting from Firestore triggers the addSnapshotListener automatically
         db.collection("channels").document(channel.channelId).delete()
     }
 
     fun clearChannels() {
         _channels.value = emptyList()
     }
+    // 🏷️ THIS IS FOR AD0PTERS WHO SWIPED FIRST BEFORE AVAILING TIER 3, a crown icon appears TO INDICATE USER IS OFFICIALLY TIER 3
+    fun syncExistingChannelsToTier3() {
+        val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: return
+
+        viewModelScope.launch {
+            try {
+                val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+
+                // 🔍 1. Find all channels this user has already created
+                val userChannels = db.collection("channels")
+                    .whereEqualTo("adopterId", uid)
+                    .get()
+                    .await()
+
+                // ⚡ 2. Use a Batch to update them all at once
+                db.runBatch { batch ->
+                    for (document in userChannels.documents) {
+                        val channelRef = db.collection("channels").document(document.id)
+                        batch.update(channelRef, "adopterTier", 3)
+                        batch.update(channelRef, "isPriority", true)
+                    }
+                }.await()
+
+                Log.d("TIER_SYNC", "Successfully upgraded ${userChannels.size()} channels to VIP")
+                listenToChannels()
+            } catch (e: Exception) {
+                Log.e("TIER_SYNC", "Failed to sync old channels: ${e.message}")
+            }
+        }
+    }
+
+
+
 }

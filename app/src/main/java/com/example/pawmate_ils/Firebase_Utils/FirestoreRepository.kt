@@ -208,48 +208,6 @@ class FirestoreRepository {
         }
     }
 
-    // --- NEW ---
-    fun updateEmail(
-        newEmail: String,
-        currentPassword: String,
-        onResult: (Boolean, String?) -> Unit
-    ) {
-        val user = FirebaseAuth.getInstance().currentUser
-        val email = user?.email
-
-        if (user != null && email != null) {
-            // Re-authenticate first
-            val credential = EmailAuthProvider.getCredential(email, currentPassword)
-            user.reauthenticate(credential).addOnCompleteListener { authTask ->
-                if (authTask.isSuccessful) {
-                    // Update email in Firebase Auth
-                    user.updateEmail(newEmail).addOnCompleteListener { updateTask ->
-                        if (updateTask.isSuccessful) {
-                            // Update email in Firestore
-                            FirebaseFirestore.getInstance().collection("users")
-                                .document(user.uid)
-                                .update("email", newEmail)
-                                .addOnSuccessListener {
-                                    onResult(true, "Email updated successfully.")
-                                }
-                                .addOnFailureListener { e ->
-                                    onResult(
-                                        false,
-                                        "Email updated in Auth but Firestore failed: ${e.message}"
-                                    )
-                                }
-                        } else {
-                            onResult(false, updateTask.exception?.message)
-                        }
-                    }
-                } else {
-                    onResult(false, "Reauthentication failed: ${authTask.exception?.message}")
-                }
-            }
-        } else {
-            onResult(false, "No user logged in.")
-        }
-    }
 
 
     // ------------------- UPDATE PHONE NUMBER -------------------
@@ -291,6 +249,74 @@ class FirestoreRepository {
             false
         }
     }
+
+    suspend fun updateShelterPresenceInPets(shelterId: String, isOnline: Boolean) {
+        try {
+            val pets = db.collection("pets")
+                .whereEqualTo("shelterId", shelterId)
+                .get()
+                .await()
+
+            val batch = db.batch()
+            for (doc in pets.documents) {
+                batch.update(doc.reference,
+                    "shelterIsOnline", isOnline,
+                    "shelterLastActive", System.currentTimeMillis()
+                )
+            }
+            batch.commit().await()
+            Log.d("FirestoreRepo", "✅ Syncing presence to all pets for $shelterId")
+        } catch (e: Exception) {
+            Log.e("FirestoreRepo", "❌ Failed to sync pet presence: ${e.message}")
+        }
+    }
+    suspend fun updateAdopterPresenceInChannels(adopterId: String, isOnline: Boolean, timestamp: Long) {
+        try {
+            // Find every chat channel where this user is the adopter
+            val channels = db.collection("channels")
+                .whereEqualTo("adopterId", adopterId)
+                .get()
+                .await()
+
+            if (channels.isEmpty) return
+
+            val batch = db.batch()
+            for (doc in channels.documents) {
+                batch.update(doc.reference,
+                    "online", isOnline,
+                    "lastActive", timestamp
+                )
+            }
+            batch.commit().await()
+            Log.d("FirestoreRepo", "✅ Adopter presence synced to ${channels.size()} channels")
+        } catch (e: Exception) {
+            Log.e("FirestoreRepo", "❌ Error syncing adopter presence: ${e.message}")
+        }
+    }
+    suspend fun updateShelterPresenceInChannels(shelterId: String, isOnline: Boolean, timestamp: Long) {
+        try {
+            // Find every chat channel where this user is the SHELTER
+            val channels = db.collection("channels")
+                .whereEqualTo("shelterId", shelterId)
+                .get()
+                .await()
+
+            if (channels.isEmpty) return
+
+            val batch = db.batch()
+            for (doc in channels.documents) {
+                batch.update(doc.reference,
+                    "online", isOnline,
+                    "lastActive", timestamp
+                )
+            }
+            batch.commit().await()
+            Log.d("FirestoreRepo", "✅ Shelter presence synced to ${channels.size()} channels")
+        } catch (e: Exception) {
+            Log.e("FirestoreRepo", "❌ Error syncing shelter channel presence: ${e.message}")
+        }
+    }
+
 
 }
 

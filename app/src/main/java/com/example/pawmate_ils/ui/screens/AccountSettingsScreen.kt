@@ -248,7 +248,8 @@ fun AccountSettingsScreen(navController: NavController) {
             Button(
                 onClick = {
                     isLoggingOut = true
-                    authViewModel.signOut {
+                    com.example.pawmate_ils.GemManager.clearData()
+                    authViewModel.signOut(context) {
                         isLoggingOut = false
                         Toast.makeText(context, "Logged out successfully", Toast.LENGTH_SHORT).show()
                         navController.navigate("signup") {

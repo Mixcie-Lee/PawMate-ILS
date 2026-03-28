@@ -2,6 +2,7 @@ package com.example.pawmate_ils.ui.screens
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -31,6 +32,7 @@ import com.example.pawmate_ils.firebase_models.Channel
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.draw.clip
+import com.example.pawmate_ils.firebase_models.User
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -45,15 +47,26 @@ fun AdoptionCenterDashboard(
     var selectedTab by remember { mutableIntStateOf(0) }
     val channels by homeViewModel.channels.collectAsState(initial = emptyList())
     val pets by adoptionCenterViewModel.shelterPets.collectAsState(initial = emptyList())
-    LaunchedEffect(Unit) { homeViewModel.listenToChannels() }
+    val uploadedCount by adoptionCenterViewModel.uploadedPetsCount.collectAsState()
+    LaunchedEffect(Unit) {
+
+        homeViewModel.listenToChannels()
+        val currentShelterId = authViewModel.currentUser?.uid ?: ""
+        if (currentShelterId.isNotEmpty()) {
+            adoptionCenterViewModel.listenToUploadedPetsCount(currentShelterId)
+        }
+
+    }
+
 
     StatelessFullDashboard(
         selectedTab = selectedTab,
         channels = channels,
-        petCount = pets.size,
+        petCount = uploadedCount,
         centerName = centerName,
         navController = navController,
-        onDeleteChannel = { ch -> homeViewModel.deleteChannel(ch) }
+        onDeleteChannel = { ch -> homeViewModel.deleteChannel(ch) },
+        authViewModel= authViewModel
     )
 
     //This is the handler for a dialog that ask the user to upload or create their profile picture
@@ -76,7 +89,8 @@ private fun StatelessFullDashboard(
     petCount: Int,
     centerName: String,
     navController: NavController,
-    onDeleteChannel: (Channel) -> Unit
+    onDeleteChannel: (Channel) -> Unit,
+    authViewModel: AuthViewModel
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
@@ -109,7 +123,8 @@ private fun StatelessFullDashboard(
                 navController = navController,
                 channels = channels,
                 petCount = petCount,
-                onDeleteChannel = onDeleteChannel
+                onDeleteChannel = onDeleteChannel,
+                authViewModel = authViewModel
             )
         }
 
@@ -220,8 +235,22 @@ private fun StatelessDashboardContent(
     navController: NavController,
     channels: List<Channel>,
     petCount: Int,
+    authViewModel: AuthViewModel,
     onDeleteChannel: (Channel) -> Unit
 ) {
+    val sortedChannels by remember(channels) {
+        derivedStateOf {
+            channels.sortedWith(
+                compareByDescending<Channel> { it.isPriority }
+                    .thenByDescending { it.timestamp }
+            )
+        }
+    }
+
+
+
+
+
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(paddingValues).padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -242,8 +271,34 @@ private fun StatelessDashboardContent(
                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold, fontSize = 24.sp)
             )
         }
-        items(items = channels, key = { it.channelId }) { channel ->
-            ChannelCardDesign(channel = channel, onClick = { navController.navigate("message/${channel.channelId}") }, onDelete = { onDeleteChannel(it) })
+
+        if (sortedChannels.isEmpty()) {
+            item {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(top = 60.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(Icons.Default.Inbox, contentDescription = null, modifier = Modifier.size(64.dp), tint = Color.LightGray)
+                    Text("No applications yet", color = Color.Gray, fontWeight = FontWeight.Medium)
+                    Text("Your pet listings will appear here once matched.", fontSize = 12.sp, color = Color.LightGray)
+                }
+            }
+        }
+
+
+
+
+        items(
+            items = sortedChannels,
+            key = { it.channelId }
+        ) { channel ->
+            ChannelCardDesign(
+                channel = channel,
+                onClick = { navController.navigate("message/${channel.channelId}") },
+                onDelete = { onDeleteChannel(it) },
+                authViewModel = authViewModel,
+                navController = navController
+            )
             HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray.copy(alpha = 0.4f))
         }
         item { Spacer(modifier = Modifier.height(110.dp)) }
@@ -251,8 +306,23 @@ private fun StatelessDashboardContent(
 }
 
 @Composable
-fun ChannelCardDesign(channel: Channel, onClick: () -> Unit, onDelete: (Channel) -> Unit) {
-    Row(modifier = Modifier.fillMaxWidth().clickable { onClick() }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+fun ChannelCardDesign(
+    channel: Channel,
+    onClick: () -> Unit,
+    onDelete: (Channel) -> Unit,
+    navController: NavController,
+    authViewModel: AuthViewModel // 🟢 ADD THIS PARAMETER
+){
+    val isLive = authViewModel.isUserActuallyOnline(
+        User(isOnline = channel.isOnline, lastActive = channel.lastActive)
+    )
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         Box(modifier = Modifier.size(50.dp)) {
             coil.compose.AsyncImage(
                 model = channel.adopterPhotoUri ?: "https://via.placeholder.com/150",
@@ -260,20 +330,59 @@ fun ChannelCardDesign(channel: Channel, onClick: () -> Unit, onDelete: (Channel)
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(CircleShape)
+                    .clickable{
+                        if (!channel.adopterId.isNullOrEmpty()) {
+                            navController.navigate("profile_details/${channel.adopterId}")
+                        }
+                    }
                     .background(Color.LightGray.copy(alpha = 0.2f)),
                 contentScale = androidx.compose.ui.layout.ContentScale.Crop
+
             )
+            if (isLive) {
+                Box(
+                    modifier = Modifier
+                        .size(14.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF4ADE80))
+                        .border(2.dp, Color.White, CircleShape)
+                        .align(Alignment.BottomEnd)
+                )
+            }
+
+
+
         }
-        Spacer(modifier = Modifier.width(12.dp)) // 🆕 Add this for breathing room
-
-
-
+        Spacer(modifier = Modifier.width(12.dp))
 
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = channel.adopterName, fontWeight = FontWeight.Bold)
-            Text(text = channel.petName, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+            // Fix: Wrapped Name and VIP Badge in a Row so they sit side-by-side
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(text = channel.adopterName, fontWeight = FontWeight.Bold)
+
+                if (channel.isPriority && channel.adopterTier == 3) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Icon(
+                        imageVector = Icons.Default.Stars,
+                        contentDescription = "Priority",
+                        tint = Color(0xFFFFD700), // Gold
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = "VIP",
+                        color = Color(0xFFFFD700),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Black,
+                        modifier = Modifier.padding(start = 2.dp)
+                    )
+                }
+            }
+
+            // Fix: Kept these inside the Column brackets
+            Text(text = "Interested in: ${channel.petName}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
             Text(text = channel.lastMessage.ifEmpty { "No messages yet" }, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
         }
+
         if (channel.unreadCount > 0) {
             Surface(shape = CircleShape, color = Color(0xFF2DDA53), modifier = Modifier.size(26.dp)) {
                 Box(contentAlignment = Alignment.Center) {
@@ -287,6 +396,7 @@ fun ChannelCardDesign(channel: Channel, onClick: () -> Unit, onDelete: (Channel)
     }
 }
 
+/*
 @Preview(showBackground = true, name = "Full Design Preview")
 @Composable
 fun FullDashboardPreview() {
@@ -297,7 +407,9 @@ fun FullDashboardPreview() {
     MaterialTheme {
         StatelessFullDashboard(
             selectedTab = 0, channels = mockChannels, petCount = 100,
-            centerName = "Happy Paws Shelter", navController = rememberNavController(), onDeleteChannel = {}
+            centerName = "Happy Paws Shelter", navController = rememberNavController(), onDeleteChannel = {},
+
         )
     }
 }
+*/
