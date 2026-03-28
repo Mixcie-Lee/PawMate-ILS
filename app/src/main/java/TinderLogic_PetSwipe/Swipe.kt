@@ -40,6 +40,12 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.navigation.NavController
 import android.content.res.Configuration
 import android.util.Log
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.rememberNavController
 import com.example.pawmate_ils.ui.theme.DarkBrown
@@ -48,6 +54,8 @@ import com.example.pawmate_ils.GemPackage
 import com.example.pawmate_ils.LikedPetsManager
 import com.example.pawmate_ils.ThemeManager
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.unit.Dp
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
@@ -70,22 +78,42 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import com.google.firebase.Timestamp
+import kotlinx.coroutines.delay
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import com.example.pawmate_ils.firebase_models.User
+import com.google.firebase.database.PropertyName
 
 data class PetData(
     val petId: String? = null,
     val name: String? = null,
     val breed: String? = null,
     val age: String? = null,
-    val gender: String? = null,
+    val gender: String? = null, // Maps to "Sex" in the UI
     val description: String? = null,
+    val healthStatus: String? = null, // Can be parsed for bullet points
     val type: String? = null,
     val imageRes: Int = 0,
     val additionalImages: List<Int> = emptyList(),
+
+    // Shelter Info for the New Design
     val shelterId: String? = null,
     val shelterName: String? = null,
-    val validationStatus: Boolean = false
+    val shelterAddress: String? = null, // 🆕 Added for the Address Box
 
+    val validationStatus: Boolean = false,
+
+    // Heartbeat System (Verified & Working)
+    @get:PropertyName("shelterIsOnline")
+    @set:PropertyName("shelterIsOnline")
+    var shelterIsOnline: Boolean = false,
+
+    @get:PropertyName("shelterLastActive")
+    @set:PropertyName("shelterLastActive")
+    var shelterLastActive: Long? = null
 )
+
 enum class PetFilter {
     ALL, DOGS, CATS
 }
@@ -102,6 +130,8 @@ fun PetSwipeScreen(navController: NavController) {
     var rotation by remember(currentPetIndex) { mutableFloatStateOf(0f) }
     var isDragging by remember { mutableStateOf(false) }
     var showGemDialog by remember { mutableStateOf(false) }
+    var showGCashFlow by remember { mutableStateOf(false) } // This triggers the NEW multi-step flow
+    var selectedPkg by remember { mutableStateOf(GemPackage.MEDIUM) }
     //track which icon is selected(swipe...etc)
     var selectedItem by remember { mutableStateOf("Swipe") }
 
@@ -138,6 +168,9 @@ fun PetSwipeScreen(navController: NavController) {
     }
     LaunchedEffect(Unit) { GemManager.init(context) } // ensure saved gem count is loaded
     val gemCount by GemManager.gemCount.collectAsState()
+    val currentTier by GemManager.currentTier.collectAsState()
+
+
 
 
 
@@ -179,13 +212,19 @@ fun PetSwipeScreen(navController: NavController) {
     val adoptionViewModel: AdoptionCenterViewModel = viewModel(
         factory = AdoptionCenterViewMdelFactory(authViewModel)
     )
-    var firestorePets by remember { mutableStateOf<List<PetData>>(emptyList()) }
-    LaunchedEffect(Unit) {
-        adoptionViewModel.observePets { pets ->
-            firestorePets = pets
+    val firestorePets by adoptionViewModel.shelterPets.collectAsState()
+    val allPets by petRepository.allPets.collectAsState()
+
+// 3. COMBINE THEM (Important so both show up in the swipe stack)
+    val combinedPets by remember(allPets, firestorePets) {
+        derivedStateOf {
+            // Put firestorePets FIRST so they take priority in distinctBy
+            (firestorePets + allPets).distinctBy {
+                // Use petId if available, otherwise fallback to a unique combo of name and shelter
+                it.petId ?: "${it.name}-${it.shelterId}"
+            }
         }
     }
-     val allPets by petRepository.allPets.collectAsState()
 
 
         /* val allPets: List<PetData> by remember {
@@ -199,12 +238,12 @@ fun PetSwipeScreen(navController: NavController) {
 
 
    //TO ESSENTIAL TOOLS TO KEEP DDING PETS DYNAMIC, IF SHELTER ADD PET A BLANK CARD WILL APPEAR
-    val filteredPets by remember(allPets, petFilter) {
+    val filteredPets by remember(combinedPets, petFilter) {
         derivedStateOf {
             when (petFilter) {
-                PetFilter.ALL -> allPets
-                PetFilter.DOGS -> allPets.filter { it.type == "dog" }
-                PetFilter.CATS -> allPets.filter { it.type == "cat" }
+                PetFilter.ALL -> combinedPets
+                PetFilter.DOGS -> combinedPets.filter { it.type == "dog" }
+                PetFilter.CATS -> combinedPets.filter { it.type == "cat" }
             }
         }
     }
@@ -230,6 +269,7 @@ fun PetSwipeScreen(navController: NavController) {
         if (isDragging || currentPetIndex >= filteredPets.size) return
 
         if (direction > 0) {
+
             val hasGem = GemManager.consumeGems(5)
             if (hasGem) {
                 val currentPet = filteredPets[currentPetIndex]
@@ -278,6 +318,7 @@ fun PetSwipeScreen(navController: NavController) {
                             Log.d("PetSwipe", "⚠️ Channel already exists. Skipping creation.")
                             return@launch
                         }
+                        Log.d("PetSwipe", "💎 Current User Tier Level: ${currentTier.level}")
 
                         val channel = Channel(
                             channelId = "$adopterId-$shelterId-${petName ?: "Unknown"}",
@@ -291,7 +332,10 @@ fun PetSwipeScreen(navController: NavController) {
                             lastMessage = "",
                             timestamp = System.currentTimeMillis(),
                             unreadCount = 0,
-                            createdAt = System.currentTimeMillis()
+                            createdAt = System.currentTimeMillis() ,
+                            //VIP    PRIORITY in CHAT
+                            adopterTier = currentTier.level,
+                            isPriority = currentTier.level == 3
                         )
 
                         Log.d("PetSwipe", "✅ Creating channel: $channel")
@@ -301,8 +345,17 @@ fun PetSwipeScreen(navController: NavController) {
                         Log.e("PetSwipe", "❌ Error creating channel", e)
                     }
                 }
-            } else {
-                showGemDialog = true
+            }else {
+                // ❌ STOP: The user doesn't have enough "Fuel"
+                android.widget.Toast.makeText(
+                    context,
+                    "You're out of gems! Buy a pack to keep swiping or unlock Tiers.",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+
+                // 🛍️ Open the shop so they can refill immediately
+                GemManager.openPurchaseDialog()
+
                 return
             }
         }
@@ -784,6 +837,9 @@ fun PetSwipeScreen(navController: NavController) {
                                 onDrag = { },
                                 onDragEnd = { },
                                 isTablet = isTablet,
+                                userTier = currentTier.level,
+                                navController = navController,
+                                authViewModel = authViewModel,
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .scale(backgroundScale)
@@ -814,208 +870,237 @@ fun PetSwipeScreen(navController: NavController) {
                                 }
                             },
                             isTablet = isTablet,
+                            userTier = currentTier.level,
+                            navController = navController,
+                            authViewModel = authViewModel,
                             modifier = Modifier.fillMaxSize()
-                        )
-                    }
+                            )
+                        }
 
-                    // Tutorial (Dialog + screen arrows)
-                    if (showTutorial) {
-                        var tutorialStep by rememberSaveable { mutableStateOf(0) }
+                        // Tutorial (Dialog + screen arrows)
+                        if (showTutorial) {
+                            var tutorialStep by rememberSaveable { mutableStateOf(0) }
 
-                        // Arrow overlays pointing to UI
-                        Box(modifier = Modifier.fillMaxSize()) {
-                            when (tutorialStep) {
-                                0 -> { // Info button (top-right)
-                                    Column(
-                                        modifier = Modifier
-                                            .align(Alignment.TopEnd)
-                                            .padding(top = 56.dp, end = 24.dp),
-                                        horizontalAlignment = Alignment.End
-                                    ) {
-                                        Text("⬅", fontSize = 28.sp, color = Color.White)
-                                        Text("Info", fontSize = 14.sp, color = Color.White)
+                            // Arrow overlays pointing to UI
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                when (tutorialStep) {
+                                    0 -> { // Info button (top-right)
+                                        Column(
+                                            modifier = Modifier
+                                                .align(Alignment.TopEnd)
+                                                .padding(top = 56.dp, end = 24.dp),
+                                            horizontalAlignment = Alignment.End
+                                        ) {
+                                            Text("⬅", fontSize = 28.sp, color = Color.White)
+                                            Text("Info", fontSize = 14.sp, color = Color.White)
+                                        }
                                     }
-                                }
-                                1 -> { // Filter button (top-right)
-                                    Column(
-                                        modifier = Modifier
-                                            .align(Alignment.TopEnd)
-                                            .padding(top = 56.dp, end = 72.dp),
-                                        horizontalAlignment = Alignment.End
-                                    ) {
-                                        Text("⬅", fontSize = 28.sp, color = Color.White)
-                                        Text("Filter", fontSize = 14.sp, color = Color.White)
+                                    1 -> { // Filter button (top-right)
+                                        Column(
+                                            modifier = Modifier
+                                                .align(Alignment.TopEnd)
+                                                .padding(top = 56.dp, end = 72.dp),
+                                            horizontalAlignment = Alignment.End
+                                        ) {
+                                            Text("⬅", fontSize = 28.sp, color = Color.White)
+                                            Text("Filter", fontSize = 14.sp, color = Color.White)
+                                        }
                                     }
-                                }
-                                2 -> { // Buy Gems small FAB (top row right)
-                                    Column(
-                                        modifier = Modifier
-                                            .align(Alignment.TopEnd)
-                                            .padding(top = 60.dp, end = 16.dp),
-                                        horizontalAlignment = Alignment.End
-                                    ) {
-                                        Text("⬅", fontSize = 28.sp, color = Color.White)
-                                        Text("Buy Gems", fontSize = 14.sp, color = Color.White)
+                                    2 -> { // Buy Gems small FAB (top row right)
+                                        Column(
+                                            modifier = Modifier
+                                                .align(Alignment.TopEnd)
+                                                .padding(top = 60.dp, end = 16.dp),
+                                            horizontalAlignment = Alignment.End
+                                        ) {
+                                            Text("⬅", fontSize = 28.sp, color = Color.White)
+                                            Text("Buy Gems", fontSize = 14.sp, color = Color.White)
+                                        }
                                     }
                                 }
                             }
-                        }
 
-                        AlertDialog(
-                            onDismissRequest = { 
-                                tutorialPrefs.edit().putBoolean("seen", true).apply()
-                                showTutorial = false 
-                            },
-                            containerColor = if (ThemeManager.isDarkMode) Color(0xFF2A2A2A) else Color.White,
-                            title = {
-                                Text(
-                                    text = when (tutorialStep) {
-                                        0 -> "Welcome to PawMate"
-                                        1 -> "How to Swipe"
-                                        2 -> "Discover Pets"
-                                        else -> "Welcome to Swipe"
-                                    },
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (ThemeManager.isDarkMode) Color(0xFFFF9999) else Color(0xFFFF9999)
-                                )
-                            },
-                            text = {
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Image(
-                                        painter = painterResource(
-                                            id = when (tutorialStep) {
-                                                0 -> R.drawable.tutorial1
-                                                1 -> R.drawable.tutorial2
-                                                2 -> R.drawable.tutorial3
-                                                else -> R.drawable.tutorial1
-                                            }
-                                        ),
-                                        contentDescription = "Tutorial ${tutorialStep + 1}",
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(if (isTablet) 700.dp else 600.dp),
-                                        contentScale = ContentScale.FillWidth
+                            AlertDialog(
+                                onDismissRequest = {
+                                    tutorialPrefs.edit().putBoolean("seen", true).apply()
+                                    showTutorial = false
+                                },
+                                containerColor = if (ThemeManager.isDarkMode) Color(0xFF2A2A2A) else Color.White,
+                                title = {
+                                    Text(
+                                        text = when (tutorialStep) {
+                                            0 -> "Welcome to PawMate"
+                                            1 -> "How to Swipe"
+                                            2 -> "Discover Pets"
+                                            else -> "Welcome to Swipe"
+                                        },
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (ThemeManager.isDarkMode) Color(0xFFFF9999) else Color(0xFFFF9999)
                                     )
-                                }
-                            },
-                            confirmButton = {
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    if (tutorialStep < 2) {
+                                },
+                                text = {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Image(
+                                            painter = painterResource(
+                                                id = when (tutorialStep) {
+                                                    0 -> R.drawable.tutorial1
+                                                    1 -> R.drawable.tutorial2
+                                                    2 -> R.drawable.tutorial3
+                                                    else -> R.drawable.tutorial1
+                                                }
+                                            ),
+                                            contentDescription = "Tutorial ${tutorialStep + 1}",
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(if (isTablet) 700.dp else 600.dp),
+                                            contentScale = ContentScale.FillWidth
+                                        )
+                                    }
+                                },
+                                confirmButton = {
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        if (tutorialStep < 2) {
+                                            TextButton(
+                                                onClick = { tutorialStep++ },
+                                                colors = ButtonDefaults.textButtonColors(
+                                                    contentColor = if (ThemeManager.isDarkMode) Color(0xFFFF9999) else Color(0xFFFF9999)
+                                                )
+                                            ) {
+                                                Text("Next")
+                                            }
+                                        } else {
+                                            Button(
+                                                onClick = {
+                                                    tutorialPrefs.edit().putBoolean("seen", true).apply()
+                                                    showTutorial = false
+                                                },
+                                                colors = ButtonDefaults.buttonColors(
+                                                    containerColor = Color(0xFFFFB6C1),
+                                                    contentColor = Color.White
+                                                )
+                                            ) {
+                                                Text("Start swiping")
+                                            }
+                                        }
+                                    }
+                                },
+                                dismissButton = {
+                                    if (tutorialStep > 0) {
                                         TextButton(
-                                            onClick = { tutorialStep++ },
+                                            onClick = { tutorialStep-- },
                                             colors = ButtonDefaults.textButtonColors(
                                                 contentColor = if (ThemeManager.isDarkMode) Color(0xFFFF9999) else Color(0xFFFF9999)
                                             )
-                                        ) { 
-                                            Text("Next") 
+                                        ) {
+                                            Text("Back")
                                         }
                                     } else {
-                                        Button(
+                                        TextButton(
                                             onClick = {
                                                 tutorialPrefs.edit().putBoolean("seen", true).apply()
                                                 showTutorial = false
                                             },
-                                            colors = ButtonDefaults.buttonColors(
-                                                containerColor = Color(0xFFFFB6C1), 
-                                                contentColor = Color.White
+                                            colors = ButtonDefaults.textButtonColors(
+                                                contentColor = if (ThemeManager.isDarkMode) Color(0xFFFF9999) else Color(0xFFFF9999)
                                             )
-                                        ) { 
-                                            Text("Start swiping") 
+                                        ) {
+                                            Text("Close")
                                         }
                                     }
                                 }
-                            },
-                            dismissButton = {
-                                if (tutorialStep > 0) {
-                                    TextButton(
-                                        onClick = { tutorialStep-- },
-                                        colors = ButtonDefaults.textButtonColors(
-                                            contentColor = if (ThemeManager.isDarkMode) Color(0xFFFF9999) else Color(0xFFFF9999)
-                                        )
-                                    ) { 
-                                        Text("Back") 
-                                    }
-                                } else {
-                                    TextButton(
-                                        onClick = { 
-                                            tutorialPrefs.edit().putBoolean("seen", true).apply()
-                                            showTutorial = false 
-                                        },
-                                        colors = ButtonDefaults.textButtonColors(
-                                            contentColor = if (ThemeManager.isDarkMode) Color(0xFFFF9999) else Color(0xFFFF9999)
-                                        )
-                                    ) { 
-                                        Text("Close") 
-                                    }
-                                }
-                            }
-                        )
-                    }
+                            )
+                        }
 
-                    Spacer(modifier = Modifier.height(60.dp))
+                        Spacer(modifier = Modifier.height(60.dp))
+                    }
                 }
-            }
-          //PURCHASE CONFIRMATION DIALOG
-            // Listen for the pending package from GemManager
-            val pendingBuy = GemManager.pendingPackage
+              //PURCHASE CONFIRMATION DIALOG
+                // Listen for the pending package from GemManager
+                val pendingBuy = GemManager.pendingPackage
 
-            if (pendingBuy != null) {
-                AlertDialog(
-                    onDismissRequest = { GemManager.cancelPurchase() },
-                    title = { Text("Confirm Purchase", fontWeight = FontWeight.Bold) },
-                    text = {
-                        Text("Invest ${pendingBuy.price} for ${pendingBuy.gemAmount} Gems to help more pets?")
-                    },
-                    confirmButton = {
-                        Button(
-                            onClick = { GemManager.confirmPurchase() },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFB6C1))
-                        ) {
-                            Text("Confirm")
+                if (pendingBuy != null) {
+                    AlertDialog(
+                        onDismissRequest = { GemManager.cancelPurchase() },
+                        title = { Text("Confirm Purchase", fontWeight = FontWeight.Bold) },
+                        text = {
+                            Text("Invest ${pendingBuy.price} for ${pendingBuy.gemAmount} Gems to help more pets?")
+                        },
+                        confirmButton = {
+                            Button(
+                                onClick = {
+                                    // 💎 FIX: Get the UID from your AuthViewModel
+                                    val currentUid = authViewModel.currentUser?.uid ?: ""
+
+                                    if (currentUid.isNotEmpty()) {
+                                        GemManager.confirmPurchase(currentUid) {
+                                            // This calls the function you showed me in HomeViewModel
+                                            homeViewModel.syncExistingChannelsToTier3()
+                                        }
+                                    } else {
+                                        Log.e("PetSwipe", "Cannot confirm purchase: User ID is null")
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFB6C1))
+                            ) {
+                                Text("Confirm")
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { GemManager.cancelPurchase() }) {
+                                Text("Cancel")
+                            }
+                        },
+                        shape = RoundedCornerShape(24.dp)
+                    )
+                }
+
+
+
+
+
+                if (showGemDialog) {
+                    GemPurchaseDialog(
+                        onDismiss = { showGemDialog = false },
+                        onPurchase = { packageType ->
+                            // 1. Store the package they picked
+                            selectedPkg = packageType
+                            // 2. Close the "Shop" list
+                            showGemDialog = false
+                            // 3. Open the "GCash" multi-step flow
+                            showGCashFlow = true
                         }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { GemManager.cancelPurchase() }) {
-                            Text("Cancel")
-                        }
-                    },
-                    shape = RoundedCornerShape(24.dp)
-                )
-            }
+                    )
+                }
+
+                if (showFilterDialog) {
+                    FilterDialog(
+                        currentFilter = petFilter,
+                        onFilterSelected = { selectedFilter ->
+                            petFilter = selectedFilter
+                            currentPetIndex = 0
+                            showFilterDialog = false
+                        },
+                        onDismiss = { showFilterDialog = false }
+                    )
+                }
+                if (showGCashFlow) {
+                    GCashMultiStepDialog(
+                        packageType = selectedPkg,
+                        onDismiss = { showGCashFlow = false },
+                        homeViewModel = homeViewModel,
+                        authViewModel = authViewModel
+                    )
+                }
 
 
 
-
-
-            if (showGemDialog) {
-                GemPurchaseDialog(
-                    onDismiss = { showGemDialog = false },
-                    onPurchase = { packageType ->
-                        GemManager.initiatePurchase(packageType)
-                        GemManager.gemCount
-                        showGemDialog = false
-                    }
-                )
-            }
-
-            if (showFilterDialog) {
-                FilterDialog(
-                    currentFilter = petFilter,
-                    onFilterSelected = { selectedFilter ->
-                        petFilter = selectedFilter
-                        currentPetIndex = 0
-                        showFilterDialog = false
-                    },
-                    onDismiss = { showFilterDialog = false }
-                )
             }
         }
     }
-}
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
@@ -1026,37 +1111,40 @@ fun SwipeablePetCard(
     onDrag: (Float) -> Unit,
     onDragEnd: () -> Unit,
     isTablet: Boolean = false,
-    modifier: Modifier = Modifier
+    userTier: Int,
+    navController: NavController, // Ensure this is passed in
+    modifier: Modifier = Modifier,
+    authViewModel: AuthViewModel
 ) {
-    //MAKING SHELTER NAME APPEAR IN THE BOTTOM RIGHT, "SHELTER OWNERSHIP LOGIC", SHELTER 1 OWNS PET 1
-    //SHELTER 2 OWNS PET 2
     var currentImageIndex by remember(pet.name) { mutableIntStateOf(0) }
     var isHolding by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
-     var shelterName by remember {mutableStateOf("Loading")}
+    var shelterName by remember { mutableStateOf("Loading") }
     val scope = rememberCoroutineScope()
     val shelterRepository = remember { ShelterRepository() }
+
+    val isShelterLive = authViewModel.isUserActuallyOnline(
+        User(
+            isOnline = pet.shelterIsOnline,
+            lastActive = pet.shelterLastActive
+        )
+    )
+
 
     LaunchedEffect(pet.shelterId) {
         if (pet.shelterId.isNullOrEmpty()) {
             shelterName = "No shelter found"
             return@LaunchedEffect
         }
-
         try {
-            Log.d("SwipeablePetCard", "Fetching shelter for petId=${pet.name}, shelterId=${pet.shelterId}")
-            val name = shelterRepository.getShelterNameById(pet.shelterId!!) // now safe because we checked
-            Log.d("SwipeablePetCard", "Found shelter name: $name")
+            val name = shelterRepository.getShelterNameById(pet.shelterId!!)
             shelterName = name ?: "Unknown Shelter"
         } catch (e: Exception) {
-            Log.e("SwipeablePetCard", "Error fetching shelter name: ${e.message}")
             shelterName = "No shelter found"
         }
     }
 
-
-
-    // Dynamic scale with subtle pulse when idle
     val idlePulse by rememberInfiniteTransition(label = "idle_pulse").animateFloat(
         initialValue = 1f,
         targetValue = 1.02f,
@@ -1074,14 +1162,10 @@ fun SwipeablePetCard(
             abs(offsetX) < 10f -> idlePulse
             else -> 1f
         },
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
         label = "card_scale"
     )
 
-    // Dynamic elevation based on interaction
     val elevation by animateFloatAsState(
         targetValue = when {
             isHolding -> 24f
@@ -1092,20 +1176,13 @@ fun SwipeablePetCard(
         label = "card_elevation"
     )
 
-    // Responsive sizing for card content
     val nameSize = if (isTablet) 32.sp else 28.sp
     val infoSize = if (isTablet) 20.sp else 16.sp
     val descSize = if (isTablet) 18.sp else 14.sp
-    val overlayTitleSize = if (isTablet) 40.sp else 32.sp
-    val overlayBodySize = if (isTablet) 24.sp else 20.sp
-    val overlayDescSize = if (isTablet) 20.sp else 16.sp
-    val overlayHintSize = if (isTablet) 18.sp else 14.sp
     val cardPadding = if (isTablet) 24.dp else 16.dp
-    val overlayPadding = if (isTablet) 32.dp else 24.dp
     val indicatorSize = if (isTablet) 12.dp else 8.dp
     val indicatorSpacing = if (isTablet) 12.dp else 8.dp
-    val cardWidth = if (isTablet) 400.dp else 320.dp  // NEW: width
-    val cardHeight = if (isTablet) 520.dp else Dp.Unspecified
+    val cardWidth = if (isTablet) 400.dp else 320.dp
 
     Card(
         modifier = modifier
@@ -1118,45 +1195,30 @@ fun SwipeablePetCard(
                 shadowElevation = elevation
             }
             .pointerInput(pet.name) {
-                detectHorizontalDragGestures(
-                    onDragEnd = { onDragEnd() }
-                ) { _, dragAmount ->
-                    onDrag(dragAmount)
-                }
+                detectHorizontalDragGestures(onDragEnd = { onDragEnd() }) { _, dragAmount -> onDrag(dragAmount) }
             }
-            .pointerInput(pet.name + "_tap") {
+            .pointerInput(pet.name + "_tap", userTier) {
                 detectTapGestures(
                     onTap = { offset ->
-                        val cardWidth = size.width
-                        val totalImages = pet.additionalImages.size + 1 // +1 for main image
-
+                        val cardWidthVal = size.width
+                        val totalImages = pet.additionalImages.size + 1
                         if (totalImages > 1) {
-                            if (offset.x < cardWidth / 2) {
-                                // Left tap - previous image
-                                currentImageIndex = if (currentImageIndex > 0) {
-                                    currentImageIndex - 1
-                                } else {
-                                    totalImages - 1 // Wrap to last image
-                                }
+                            if (offset.x < cardWidthVal / 2) {
+                                currentImageIndex = if (currentImageIndex > 0) currentImageIndex - 1 else totalImages - 1
                             } else {
-                                // Right tap - next image
                                 currentImageIndex = (currentImageIndex + 1) % totalImages
                             }
                         }
                     },
                     onLongPress = {
-                      val requiredGems = 5
-                        isHolding = true
-                        if(GemManager.consumeGems(requiredGems)){
-                            isHolding = true
-                        }else{
+                        if (userTier >= 2) { isHolding = true }
+                        else {
+                            isHolding = false
+                            android.widget.Toast.makeText(context, "Detailed Info requires Tier 2 Unlock!", android.widget.Toast.LENGTH_SHORT).show()
                             GemManager.openPurchaseDialog()
                         }
                     },
-                    onPress = {
-                        tryAwaitRelease()
-                        isHolding = false
-                    }
+                    onPress = { tryAwaitRelease(); isHolding = false }
                 )
             },
         shape = RoundedCornerShape(24.dp),
@@ -1173,20 +1235,13 @@ fun SwipeablePetCard(
                 label = "background_overlay"
             )
 
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(backgroundOverlay)
-            )
+            Box(modifier = Modifier.fillMaxSize().background(backgroundOverlay))
 
             val currentImage = when {
                 currentImageIndex == 0 -> pet.imageRes.takeIf { it != 0 } ?: R.drawable.placeholder
-                currentImageIndex <= pet.additionalImages.lastIndex + 1 && pet.additionalImages.isNotEmpty() -> {
-                    pet.additionalImages.getOrNull(currentImageIndex - 1) ?: R.drawable.placeholder
-                }
+                currentImageIndex <= pet.additionalImages.lastIndex + 1 && pet.additionalImages.isNotEmpty() -> pet.additionalImages.getOrNull(currentImageIndex - 1) ?: R.drawable.placeholder
                 else -> R.drawable.placeholder
             }
-
 
             Image(
                 painter = painterResource(id = currentImage),
@@ -1195,164 +1250,126 @@ fun SwipeablePetCard(
                 modifier = Modifier.fillMaxSize()
             )
 
-            // Enhanced photo indicators with animations
+            // 🏠 SHELTER BADGE (TOP LEFT - AS REQUESTED)
+            Row(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(16.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .clickable {
+                        if (!pet.shelterId.isNullOrEmpty()) {
+                            navController.navigate("profile_details/${pet.shelterId}")
+                        }
+                    }
+                    .background(Color.Black.copy(alpha = 0.2f))
+                    .padding(end = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(modifier = Modifier.size(36.dp), contentAlignment = Alignment.Center) {
+                    // Circle Icon
+                    Surface(
+                        modifier = Modifier.size(30.dp),
+                        shape = CircleShape,
+                        color = Color.White.copy(alpha = 0.2f),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.5f))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Home,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.padding(6.dp)
+                        )
+                    }
+                    // Green Dot
+                    if (isShelterLive) {
+                        Box(
+                            modifier = Modifier
+                                .size(10.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF4ADE80)) // PawMate Active Green
+                                .border(1.5.dp, Color.White, CircleShape)
+                                .align(Alignment.BottomEnd)
+                                .offset(x = (-2).dp, y = (-2).dp)
+                        )
+                    }
+                }
+                Text(
+                    text = shelterName,
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(start = 4.dp)
+                )
+            }
+
             if (pet.additionalImages.isNotEmpty()) {
                 Card(
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(cardPadding),
-                    colors = CardDefaults.cardColors(
-                        containerColor = Color.Black.copy(alpha = 0.3f)
-                    ),
+                    modifier = Modifier.align(Alignment.TopCenter).padding(cardPadding),
+                    colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.3f)),
                     shape = RoundedCornerShape(20.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(indicatorSpacing)
-                    ) {
+                    Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(indicatorSpacing)) {
                         repeat(pet.additionalImages.size + 1) { index ->
                             val isSelected = index == currentImageIndex
-                            val indicatorScale by animateFloatAsState(
-                                targetValue = if (isSelected) 1.2f else 1f,
-                                animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                                    stiffness = Spring.StiffnessHigh
-                                ),
-                                label = "indicator_scale_$index"
-                            )
-
-                            Box(
-                                modifier = Modifier
-                                    .size(indicatorSize)
-                                    .scale(indicatorScale)
-                                    .background(
-                                        color = if (isSelected)
-                                            Color.White
-                                        else
-                                            Color.White.copy(alpha = 0.5f),
-                                        shape = androidx.compose.foundation.shape.CircleShape
-                                    )
-                            )
+                            val indicatorScale by animateFloatAsState(targetValue = if (isSelected) 1.2f else 1f, animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessHigh), label = "indicator_scale_$index")
+                            Box(modifier = Modifier.size(indicatorSize).scale(indicatorScale).background(color = if (isSelected) Color.White else Color.White.copy(alpha = 0.5f), shape = CircleShape))
                         }
                     }
                 }
             }
 
-            // Enhanced swipe indicators with animations
-            androidx.compose.animation.AnimatedVisibility(
-                visible = offsetX > 50f,
-                enter = scaleIn(
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessHigh
-                    )
-                ) + fadeIn(),
-                exit = scaleOut() + fadeOut()
-            ) {
-                val likeAlpha by animateFloatAsState(
-                    targetValue = (offsetX / 200f).coerceIn(0.3f, 1f),
-                    label = "like_alpha"
-                )
-                val likeScale by animateFloatAsState(
-                    targetValue = 1f + (offsetX / 400f).coerceIn(0f, 0.3f),
-                    animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-                    label = "like_scale"
-                )
-
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .scale(likeScale)
-                        .background(
-                            Color.Green.copy(alpha = likeAlpha),
-                            RoundedCornerShape(20.dp)
-                        )
-                        .padding(horizontal = 24.dp, vertical = 16.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "💚",
-                            fontSize = 28.sp,
-                            modifier = Modifier.padding(end = 8.dp)
-                        )
-                        Text(
-                            text = "LIKE",
-                            color = Color.White,
-                            fontSize = 28.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+            // Swipe Indicators (Keep as is)
+            androidx.compose.animation.AnimatedVisibility(visible = offsetX > 50f, enter = scaleIn() + fadeIn(), exit = scaleOut() + fadeOut()) {
+                Box(modifier = Modifier.align(Alignment.Center).scale(1f + (offsetX / 400f).coerceIn(0f, 0.3f)).background(Color.Green.copy(alpha = (offsetX / 200f).coerceIn(0.3f, 1f)), RoundedCornerShape(20.dp)).padding(horizontal = 24.dp, vertical = 16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = "💚", fontSize = 28.sp, modifier = Modifier.padding(end = 8.dp))
+                        Text(text = "LIKE", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+            androidx.compose.animation.AnimatedVisibility(visible = offsetX < -50f, enter = scaleIn() + fadeIn(), exit = scaleOut() + fadeOut()) {
+                Box(modifier = Modifier.align(Alignment.Center).scale(1f + (abs(offsetX) / 400f).coerceIn(0f, 0.3f)).background(Color.Red.copy(alpha = (abs(offsetX) / 200f).coerceIn(0.3f, 1f)), RoundedCornerShape(20.dp)).padding(horizontal = 24.dp, vertical = 16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = "💔", fontSize = 28.sp, modifier = Modifier.padding(end = 8.dp))
+                        Text(text = "PASS", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
 
-            androidx.compose.animation.AnimatedVisibility(
-                visible = offsetX < -50f,
-                enter = scaleIn(
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessHigh
+            // Bottom Info overlay
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = if (isHolding) listOf(Color.Transparent, Color.Transparent)
+                            else listOf(Color.Transparent, Color.Black.copy(alpha = 0.4f), Color.Black.copy(alpha = 0.8f))
+                        ),
+                        shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
                     )
-                ) + fadeIn(),
-                exit = scaleOut() + fadeOut()
+                    .padding(cardPadding)
             ) {
-                val passAlpha by animateFloatAsState(
-                    targetValue = (abs(offsetX) / 200f).coerceIn(0.3f, 1f),
-                    label = "pass_alpha"
-                )
-                val passScale by animateFloatAsState(
-                    targetValue = 1f + (abs(offsetX) / 400f).coerceIn(0f, 0.3f),
-                    animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-                    label = "pass_scale"
-                )
-
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .scale(passScale)
-                        .background(
-                            Color.Red.copy(alpha = passAlpha),
-                            RoundedCornerShape(20.dp)
-                        )
-                        .padding(horizontal = 24.dp, vertical = 16.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "💔",
-                            fontSize = 28.sp,
-                            modifier = Modifier.padding(end = 8.dp)
-                        )
-                        Text(
-                            text = "PASS",
-                            color = Color.White,
-                            fontSize = 28.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(text = pet.name ?: "Unknown", style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold, color = Color.White, fontSize = nameSize))
+                    Text(text = pet.age ?: "Unknown", color = Color.White.copy(alpha = 0.9f), fontSize = infoSize, fontWeight = FontWeight.Medium)
+                    Card(colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.2f)), shape = RoundedCornerShape(12.dp)) {
+                        Text(text = pet.breed ?: "Unknown", color = Color.White, fontSize = descSize, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
                     }
+                    Text(text = pet.description ?: "no description", color = Color.White.copy(alpha = 0.85f), fontSize = descSize, lineHeight = (descSize.value * 1.4f).sp)
                 }
             }
 
-            // Enhanced hold information modal
+            // 🟢 HOLD MODAL (Moved to end of Box stack so it stays on top)
             androidx.compose.animation.AnimatedVisibility(
                 visible = isHolding,
-                enter = fadeIn(
-                    animationSpec = tween(300)
-                ) + scaleIn(
-                    initialScale = 0.8f,
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessMedium
-                    )
-                ),
-                exit = fadeOut(animationSpec = tween(200)) + scaleOut(targetScale = 0.8f)
+                enter = fadeIn() + scaleIn(),
+                exit = fadeOut() + scaleOut()
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.85f)),
+                        .background(Color.Black.copy(alpha = 0.7f)), // Dims the background
                     contentAlignment = Alignment.Center
                 ) {
                     Card(
@@ -1362,7 +1379,8 @@ fun SwipeablePetCard(
                             .padding(if (isTablet) 24.dp else 12.dp),
                         shape = RoundedCornerShape(32.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = if (ThemeManager.isDarkMode) Color(0xFF2A2A2A) else Color(0xFFFFFAFB)
+                            // 🛑 SOLID background color to prevent image bleed
+                            containerColor = if (ThemeManager.isDarkMode) Color(0xFF2A2A2A) else Color.White
                         ),
                         elevation = CardDefaults.cardElevation(defaultElevation = 24.dp)
                     ) {
@@ -1370,192 +1388,58 @@ fun SwipeablePetCard(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             modifier = Modifier
                                 .fillMaxSize()
-                                .padding(if (isTablet) 32.dp else 24.dp)
+                                .verticalScroll(rememberScrollState()) // 🟢 Scrollable content
+                                .padding(if (isTablet) 32.dp else 16.dp)
                         ) {
+                            // 🏷️ "Info" Header Tag
                             Box(
                                 modifier = Modifier
-                                    .size(if (isTablet) 150.dp else 130.dp)
-                                    .background(
-                                        androidx.compose.ui.graphics.Brush.radialGradient(
-                                            colors = listOf(
-                                                Color(0xFFFFB6C1).copy(alpha = 0.3f),
-                                                Color(0xFFFFB6C1).copy(alpha = 0.1f),
-                                                Color.Transparent
-                                            )
-                                        ),
-                                        androidx.compose.foundation.shape.CircleShape
-                                    ),
-                                contentAlignment = Alignment.Center
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color(0xFFFFB6C1).copy(alpha = 0.2f))
+                                    .padding(horizontal = 24.dp, vertical = 4.dp)
                             ) {
                                 Text(
-                                    text = if (pet.type == "dog") "🐕" else "🐱",
-                                    fontSize = if (isTablet) 80.sp else 70.sp
+                                    text = "Info",
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFD67A7A)
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(if (isTablet) 24.dp else 20.dp))
+                            Spacer(modifier = Modifier.height(20.dp))
 
-                            Text(
-                                text = pet.name ?: "Unknown",
-                                fontSize = if (isTablet) 40.sp else 36.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Color(0xFFFF9999),
-                                textAlign = TextAlign.Center,
-                                letterSpacing = 0.5.sp
-                            )
+                            // 📋 DYNAMIC SECTIONS
+                            DetailBox(label = "Name", value = pet.name ?: "Unknown")
+                            DetailBox(label = "Age", value = pet.age ?: "N/A")
+                            DetailBox(label = "Sex", value = pet.gender ?: "Unknown")
+                            DetailBox(label = "Shelter", value = pet.shelterName ?: "Private Shelter")
+                            DetailBox(label = "Address", value = pet.shelterAddress ?: "Address Hidden")
 
-                            Spacer(modifier = Modifier.height(if (isTablet) 32.dp else 28.dp))
+                            // 🏥 Health Status Section
+                            HealthStatusBox(status = pet.healthStatus)
 
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(if (isTablet) 12.dp else 10.dp)
-                            ) {
-                                InfoCard(
-                                    icon = "🎂",
-                                    label = "Age",
-                                    value = pet.age ?: "N/A",
-                                    isTablet = isTablet,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                InfoCard(
-                                    icon = if (pet.type.equals("dog", ignoreCase = true)) "🐕" else "🐱",
-                                    label = "Type",
-                                    value = pet.type?.replaceFirstChar { it.uppercase() } ?: "Unknown",
-                                    isTablet = isTablet,
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
+                            Spacer(modifier = Modifier.height(20.dp))
 
-                            Spacer(modifier = Modifier.height(if (isTablet) 12.dp else 10.dp))
-
-                            InfoCard(
-                                icon = "🧬",
-                                label = "Breed",
-                                value = pet.breed ?: "Unknown",
-                                isTablet = isTablet,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-
-                            Spacer(modifier = Modifier.height(if (isTablet) 32.dp else 28.dp))
-
+                            // 📝 Final Description Section
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .background(
-                                        if (ThemeManager.isDarkMode) 
-                                            Color(0xFF3A3A3A).copy(alpha = 0.5f)
-                                        else 
-                                            Color(0xFFFFB6C1).copy(alpha = 0.08f),
+                                        if (ThemeManager.isDarkMode) Color(0xFF3A3A3A) else Color(0xFFFFB6C1).copy(alpha = 0.1f),
                                         RoundedCornerShape(20.dp)
                                     )
-                                    .padding(if (isTablet) 24.dp else 20.dp),
-                                horizontalAlignment = Alignment.Start
+                                    .padding(20.dp)
                             ) {
-                                Text(
-                                    text = "About ${pet.name}",
-                                    fontSize = if (isTablet) 22.sp else 20.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFFFF9999),
-                                    modifier = Modifier.padding(bottom = if (isTablet) 12.dp else 10.dp)
-                                )
-
-                                Text(
-                                    text = pet.description ?: "No description available",
-                                    fontSize = if (isTablet) 17.sp else 15.sp,
-                                    color = if (ThemeManager.isDarkMode) Color.White.copy(alpha = 0.90f) else Color(0xFF555555),
-                                    lineHeight = if (isTablet) 26.sp else 22.sp,
-                                    textAlign = TextAlign.Start
-                                )
+                                Text(text = "About ${pet.name}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFFFF9999))
+                                Text(text = pet.description ?: "No description available", fontSize = 14.sp, color = if (ThemeManager.isDarkMode) Color.White else Color.DarkGray)
                             }
                         }
                     }
                 }
             }
-
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .fillMaxWidth()
-                    .background(
-                        androidx.compose.ui.graphics.Brush.verticalGradient(
-                            colors = if (isHolding) listOf(Color.Transparent, Color.Transparent)
-                            else listOf(
-                                Color.Transparent,
-                                Color.Black.copy(alpha = 0.4f),
-                                Color.Black.copy(alpha = 0.8f)
-                            )
-                        ),
-                        shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
-                    )
-                    .padding(cardPadding)
-            ) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                    modifier = Modifier.align(Alignment.BottomStart)
-                ) {
-                    Text(
-                        text = pet.name ?: "Unknown",
-                        style = MaterialTheme.typography.headlineMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            fontSize = nameSize
-                        )
-                    )
-                    Text(
-                        text = pet.age ?: "Unknown",
-                        color = Color.White.copy(alpha = 0.9f),
-                        fontSize = infoSize,
-                        fontWeight = FontWeight.Medium
-                    )
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Card(
-                            colors = CardDefaults.cardColors(
-                                containerColor = Color.White.copy(alpha = 0.2f)
-                            ),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text(
-                                text = pet.breed ?: "Unknown",
-                                color = Color.White,
-                                fontSize = descSize,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                            )
-                        }
-                    }
-
-                    Text(
-                        text = pet.description ?: "no description",
-                        color = Color.White.copy(alpha = 0.85f),
-                        fontSize = descSize,
-                        lineHeight = (descSize.value * 1.4f).sp
-                    )
-                }
-
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = Color.White.copy(alpha = 0.2f)
-                    ),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                ) {
-                    Text(
-                        text = "Shelter: $shelterName",
-                        color = Color.White,
-                        fontSize = descSize,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                    )
-                }
-            }
-
         }
-            }
-        }
-
+    }
+}
 @Composable
 fun InfoCard(
     icon: String,
@@ -1716,14 +1600,21 @@ fun FilterDialog(
         },
         dismissButton = null
     )
-}
-
+    }@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GemPurchaseDialog(
     onDismiss: () -> Unit,
     onPurchase: (GemPackage) -> Unit
 ) {
+    val currentTier by GemManager.currentTier.collectAsState()
     var selected by remember { mutableStateOf(GemPackage.MEDIUM) }
+    val context = LocalContext.current
+
+    // States for the Eligibility Dialog
+    var showEligibilityDialog by remember { mutableStateOf(false) }
+    var eligibilityDialogData by remember { mutableStateOf("" to "") }
+    var selectedPackageForAction by remember { mutableStateOf<GemPackage?>(null) }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -1734,14 +1625,12 @@ fun GemPurchaseDialog(
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.diamond),
-                    contentDescription = "Gem",
-                    modifier = Modifier
-                        .size(24.dp)
-                        .padding(end = 8.dp)
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp).padding(end = 6.dp)
                 )
                 Text(
-                    text = "Buy Gems",
-                    fontSize = 22.sp,
+                    text = "Upgrade PawMate",
+                    fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFFFF9999)
                 )
@@ -1750,95 +1639,317 @@ fun GemPurchaseDialog(
         text = {
             Column {
                 Text(
-                    text = "Choose a gem package:",
-                    fontSize = 16.sp,
-                    color = Color.Gray,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 20.dp)
-                )
-
-                GemPackage.entries.forEach { packageType ->
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 6.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (packageType == GemPackage.MEDIUM)
-                                Color(0xFFFFB6C1).copy(alpha = 0.2f)
-                            else
-                                Color(0xFFF8F8F8)
-                        ),
-                        shape = RoundedCornerShape(12.dp),
-                        onClick = { selected = packageType }
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Image(
-                                        painter = painterResource(id = R.drawable.diamond),
-                                        contentDescription = "Gem",
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Text(
-                                        text = "${packageType.gemAmount} Gems",
-                                        fontSize = 18.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFFFF9999)
-                                    )
-                                }
-                                Text(
-                                    text = "Bonus gems package",
-                                    fontSize = 12.sp,
-                                    color = Color.Gray
-                                )
-                            }
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                if (selected == packageType) {
-                                    Text("Selected", color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                                }
-                                Text(
-                                    text = packageType.price,
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFFFF9999)
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Text(
-                    text = "💳 Secure payment with your preferred method",
+                    text = "Choose a package to unlock perks:",
                     fontSize = 12.sp,
                     color = Color.Gray,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
                 )
+
+                GemPackage.entries.forEach { packageType ->
+                    val isAlreadyOwned = when (packageType) {
+                        GemPackage.SMALL -> false
+                        GemPackage.MEDIUM -> currentTier.level >= 2
+                        GemPackage.LARGE -> currentTier.level >= 3
+                    }
+
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (selected == packageType)
+                                Color(0xFFFFB6C1).copy(alpha = 0.15f)
+                            else Color(0xFFF8F8F8)
+                        ),
+                        shape = RoundedCornerShape(10.dp),
+                        onClick = { selected = packageType }
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = "${packageType.gemAmount} Gems",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFFF9999)
+                                    )
+                                    if (isAlreadyOwned) {
+                                        Icon(
+                                            imageVector = Icons.Default.CheckCircle,
+                                            contentDescription = null,
+                                            tint = Color(0xFF4CAF50),
+                                            modifier = Modifier.padding(start = 4.dp).size(12.dp)
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = if (isAlreadyOwned) "Incl. Permanent Perks | ${packageType.price}" else packageType.price,
+                                    fontSize = 10.sp,
+                                    color = Color.Gray,
+                                    lineHeight = 12.sp
+                                )
+                            }
+
+                            Text(
+                                text = packageType.price.split("|").first().trim(),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color(0xFFFF9999)
+                            )
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
-            Button(onClick = { onPurchase(selected) }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFB6C1))) {
-                Text("Buy ${selected.gemAmount} Gems • ${selected.price}")
+            val isOwned = when (selected) {
+                GemPackage.SMALL -> false
+                GemPackage.MEDIUM -> currentTier.level >= 2
+                GemPackage.LARGE -> currentTier.level >= 3
+            }
+
+            Button(
+                onClick = {
+                    GemManager.checkTierEligibility(
+                        selectedPackage = selected,
+                        onShowDialog = { title, message ->
+                            // 🟢 FIX: Correctly assigning data to show the dialog
+                            eligibilityDialogData = title to message
+                            selectedPackageForAction = selected
+                            showEligibilityDialog = true
+                        },
+                        onDirectPurchase = {
+                            onPurchase(selected)
+                        }
+                    )
+                },
+                enabled = true,
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier.height(38.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFB6C1))
+            ) {
+                Text(if (isOwned) "Buy More Gems" else "Purchase", fontSize = 12.sp)
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", fontSize = 12.sp, color = Color.Gray)
+            }
+        }
+    )
+
+    // 🟢 NEW ADDITION: The actual Eligibility Dialog UI
+    if (showEligibilityDialog) {
+        AlertDialog(
+            onDismissRequest = { showEligibilityDialog = false },
+            title = { Text(eligibilityDialogData.first, fontWeight = FontWeight.Bold) },
+            text = { Text(eligibilityDialogData.second) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        selectedPackageForAction?.let { pkg -> onPurchase(pkg) }
+                        showEligibilityDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFB6C1))
+                ) {
+                    Text("Continue")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEligibilityDialog = false }) {
+                    Text("Cancel")
+                }
+            },
+            shape = RoundedCornerShape(24.dp)
+        )
+    }
+}@Composable
+fun GCashMultiStepDialog(
+    packageType: GemPackage,
+    onDismiss: () -> Unit,
+    homeViewModel: HomeViewModel,
+    authViewModel: AuthViewModel
+) {
+    // 🚦 0: Final Assurance | 1: QR Code | 2: Processing | 3: Success
+    var currentStep by remember { mutableIntStateOf(0) }
+
+    // 🎨 PAWMATE COLOR PALETTE SYNC
+    val isDarkMode = ThemeManager.isDarkMode
+    val pawMatePink = if (isDarkMode) Color(0xFFFF9999) else Color(0xFFFFB6C1)
+    val pawMateSurface = if (isDarkMode) Color(0xFF2A2A2A) else Color.White
+    val pawMateText = if (isDarkMode) Color.White else Color.Black
+
+    AlertDialog(
+        onDismissRequest = { if (currentStep != 2) onDismiss() },
+        containerColor = pawMateSurface,
+        titleContentColor = pawMatePink,
+        textContentColor = pawMateText,
+        title = {
+            // 🎯 Centering the Title
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = when(currentStep) {
+                        0 -> "Confirm Purchase"
+                        1 -> "GCash Scan to Pay"
+                        2 -> "Verifying..."
+                        else -> "Payment Successful!"
+                    },
+                    fontWeight = FontWeight.Bold,
+                    color = pawMatePink,
+                    textAlign = TextAlign.Center
+                )
+            }
+        },
+        text = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                when (currentStep) {
+                    0 -> { // 🛡️ STEP 0: FINAL ASSURANCE
+                        Text("You are buying ${packageType.gemAmount} Gems for ${packageType.price.split("|")[0]}", textAlign = TextAlign.Center, color = pawMateText)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Are you sure you want to proceed?", fontWeight = FontWeight.SemiBold, color = pawMateText)
+                    }
+                    1 -> { // 📱 STEP 1: QR CODE
+                        Text("Scan this QR with your GCash App", fontSize = 14.sp, color = pawMateText)
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Mock QR Icon themed to your app's accent
+                        Icon(
+                            Icons.Default.QrCodeScanner,
+                            contentDescription = null,
+                            modifier = Modifier.size(160.dp),
+                            tint = pawMatePink.copy(alpha = 0.7f)
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Reference: PM-${System.currentTimeMillis().toString().takeLast(6)}", fontSize = 10.sp, color = Color.Gray)
+                    }
+                    2 -> { // ⏳ STEP 2: PROCESSING
+                        LaunchedEffect(Unit) {
+                            delay(5000)
+                            GemManager.initiatePurchase(packageType)
+                            val uid = authViewModel.currentUser?.uid ?: ""
+                            GemManager.confirmPurchase(uid) {
+                                if (packageType == GemPackage.LARGE) {
+                                    homeViewModel.syncExistingChannelsToTier3()
+                                }
+                            }
+                            currentStep = 3
+                        }
+                        CircularProgressIndicator(color = pawMatePink)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("Waiting for GCash response...", textAlign = TextAlign.Center, color = pawMateText)
+                    }
+                    3 -> { // 🎉 STEP 3: SUCCESS
+                        Icon(
+                            Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            modifier = Modifier.size(60.dp),
+                            tint = Color(0xFF4CAF50) // Keep success green
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Transaction Complete!", fontWeight = FontWeight.Bold, color = pawMateText)
+                        Text("${packageType.gemAmount} Gems have been added to your account.", fontSize = 13.sp, textAlign = TextAlign.Center, color = pawMateText)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (currentStep < 2) currentStep++
+                    else if (currentStep == 3) onDismiss()
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = pawMatePink),
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Text(
+                    text = when(currentStep) {
+                        0 -> "Yes, Proceed"
+                        1 -> "I've Scanned & Paid"
+                        else -> "Done"
+                    },
+                    color = Color.White
+                )
+            }
+        },
+        dismissButton = {
+            if (currentStep < 2) {
+                TextButton(onClick = onDismiss) {
+                    Text("Cancel", color = if (isDarkMode) Color.LightGray else Color.Gray)
+                }
+            }
         }
     )
 }
+@Composable
+fun DetailBox(label: String, value: String) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .border(1.dp, Color(0xFFFFB6C1).copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+            .padding(12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = label,
+            fontWeight = FontWeight.ExtraBold,
+            color = Color(0xFFD67A7A),
+            fontSize = 16.sp
+        )
+        Text(
+            text = value,
+            fontSize = 14.sp,
+            color = if(ThemeManager.isDarkMode) Color.White else Color.Black,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+@Composable
+fun HealthStatusBox(status: String?) {
+    // 🧬 This part handles the dynamic bullet points logic
+    val medicalList = status?.split(",", "\n")?.filter { it.isNotBlank() } ?: emptyList()
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .border(1.dp, Color(0xFFFFB6C1).copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+            .padding(12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "Health Status",
+            fontWeight = FontWeight.ExtraBold,
+            color = Color(0xFFD67A7A),
+            fontSize = 16.sp
+        )
+
+        if (medicalList.isEmpty()) {
+            Text(text = "Healthy", fontSize = 14.sp, color = Color.Gray)
+        } else {
+            medicalList.forEach { point ->
+                Text(
+                    text = "• ${point.trim()}",
+                    fontSize = 13.sp,
+                    color = if(ThemeManager.isDarkMode) Color.White else Color.Black
+                )
+            }
+        }
+    }
+}
+
+
+
 
 @Preview(showBackground = true, apiLevel = 35)
 @Composable

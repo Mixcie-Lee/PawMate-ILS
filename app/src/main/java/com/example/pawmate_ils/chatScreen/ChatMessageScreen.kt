@@ -1,9 +1,12 @@
 package com.example.pawmate_ils.chatScreen
 
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -33,7 +36,7 @@ import com.example.pawmate_ils.firebase_models.Message
 import com.example.pawmate_ils.ThemeManager
 import com.example.pawmate_ils.AdopShelDataStruc.DateUtils
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
 @Composable
 fun ChatScreen(
     navController: NavController,
@@ -45,14 +48,17 @@ fun ChatScreen(
     val backgroundColor = if (isDarkMode) Color(0xFF1A1A1A) else Color(0xFFFFF0F5)
 
     val messages by chatViewModel.messages.collectAsState()
+    val isPartnerTyping by chatViewModel.isPartnerTyping.collectAsState() // 🟢 Collect typing state
     var messageText by remember { mutableStateOf(TextFieldValue("")) }
     val currentUserId = authViewModel.currentUser?.uid ?: ""
 
+    var selectedImageUrl by remember { mutableStateOf<String?>(null) }
     val listState = rememberLazyListState()
 
     // Header & Avatar State
     var chatPartnerName by remember { mutableStateOf("Loading...") }
     var chatPartnerPhoto by remember { mutableStateOf<String?>(null) }
+    var chatPartnerRole by remember { mutableStateOf("") }
     var adopterId by remember { mutableStateOf("") }
     var shelterId by remember { mutableStateOf("") }
 
@@ -60,8 +66,17 @@ fun ChatScreen(
         contract = ActivityResultContracts.PickVisualMedia(),
         onResult = { uri ->
             uri?.let { selectedUri ->
-                val receiverId = if (currentUserId == adopterId) shelterId else adopterId
-                chatViewModel.sendImageMessage(channelId, selectedUri, receiverId)
+                val currentChannel = chatViewModel.currentChannel.value
+                if (currentChannel != null) {
+                    val receiverId = if (currentUserId == currentChannel.adopterId) {
+                        currentChannel.shelterId
+                    } else {
+                        currentChannel.adopterId
+                    }
+                    chatViewModel.sendImageMessage(channelId, selectedUri, receiverId)
+                } else {
+                    Log.e("ChatScreen", "Cannot send image: Channel info is null")
+                }
             }
         }
     )
@@ -69,6 +84,7 @@ fun ChatScreen(
     LaunchedEffect(channelId) {
         authViewModel.fetchUserRole()
         chatViewModel.listenForMessages(channelId)
+        chatViewModel.listenForTyping(channelId) // 🟢 Start listening for partner's typing
 
         chatViewModel.getChannelInfo(channelId) { channel ->
             adopterId = channel.adopterId
@@ -76,24 +92,25 @@ fun ChatScreen(
 
             val userRole = authViewModel.currentUserRole.value
 
-            // Re-sync logic remains intact
             if (channel.adopterName == "Unknown" || channel.shelterName == "Unknown") {
                 chatViewModel.updateChannelNamesFromFirestore(channelId)
             }
 
-            // Lively manifestation of Partner Info
             when (userRole) {
                 "shelter" -> {
                     chatPartnerName = channel.adopterName.ifEmpty { "Adopter" }
                     chatPartnerPhoto = channel.adopterPhotoUri
+                    chatPartnerRole = "Adopter"
                 }
                 "adopter" -> {
                     chatPartnerName = channel.shelterName.ifEmpty { "Shelter" }
                     chatPartnerPhoto = channel.shelterPhotoUri
+                    chatPartnerRole = "Shelter"
                 }
                 else -> {
                     chatPartnerName = "Chat"
                     chatPartnerPhoto = null
+                    chatPartnerRole = ""
                 }
             }
         }
@@ -111,7 +128,6 @@ fun ChatScreen(
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        // TopAppBar Avatar
                         AsyncImage(
                             model = chatPartnerPhoto ?: "https://via.placeholder.com/150",
                             contentDescription = "Partner Profile",
@@ -122,7 +138,17 @@ fun ChatScreen(
                             contentScale = ContentScale.Crop
                         )
                         Spacer(modifier = Modifier.width(10.dp))
-                        Text(text = chatPartnerName, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                        Column {
+                            Text(text = chatPartnerName, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                            if (chatPartnerRole.isNotEmpty()) {
+                                Text(
+                                    text = chatPartnerRole,
+                                    color = Color.White.copy(alpha = 0.8f),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Light
+                                )
+                            }
+                        }
                     }
                 },
                 navigationIcon = {
@@ -136,11 +162,17 @@ fun ChatScreen(
         bottomBar = {
             ChatInputBar(
                 messageText = messageText,
-                onMessageChange = { messageText = it },
+                onMessageChange = {
+                    messageText = it
+                    // 🟢 Triggers typing status based on if field is empty or not
+                    chatViewModel.setTypingStatus(channelId, it.text.isNotEmpty())
+                },
                 onSendClick = {
                     if (messageText.text.isNotBlank()) {
                         val receiverId = if (currentUserId == adopterId) shelterId else adopterId
                         chatViewModel.sendMessage(channelId, messageText.text, receiverId)
+                        // 🟢 Stop typing indicator immediately after sending
+                        chatViewModel.setTypingStatus(channelId, false)
                         messageText = TextFieldValue("")
                     }
                 },
@@ -158,19 +190,61 @@ fun ChatScreen(
                 .background(backgroundColor)
                 .padding(paddingValues)
         ) {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp)
+            Column(modifier = Modifier.fillMaxSize()) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(top = 16.dp, bottom = 8.dp)
+                ) {
+                    items(messages) { message ->
+                        ChatBubble(
+                            message = message,
+                            isUserMe = message.senderId == currentUserId,
+                            partnerPhotoUri = chatPartnerPhoto,
+                            onImageClick = { url -> selectedImageUrl = url }
+                        )
+                    }
+                }
+
+                // 🟢 MESSENGER STYLE TYPING INDICATOR
+                AnimatedVisibility(
+                    visible = isPartnerTyping,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(start = 16.dp, bottom = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "$chatPartnerName is typing...",
+                            fontSize = 12.sp,
+                            color = if (isDarkMode) Color.LightGray else Color.Gray,
+                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                        )
+                    }
+                }
+            }
+
+            // 🟢 FULL SCREEN ZOOM OVERLAY
+            AnimatedVisibility(
+                visible = selectedImageUrl != null,
+                enter = fadeIn() + scaleIn(),
+                exit = fadeOut() + scaleOut()
             ) {
-                items(messages) { message ->
-                    ChatBubble(
-                        message = message,
-                        isUserMe = message.senderId == currentUserId,
-                        partnerPhotoUri = chatPartnerPhoto // Pass photo to bubbles
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.9f))
+                        .clickable { selectedImageUrl = null },
+                    contentAlignment = Alignment.Center
+                ) {
+                    AsyncImage(
+                        model = selectedImageUrl,
+                        contentDescription = "Zoomed Image",
+                        modifier = Modifier.fillMaxSize().padding(16.dp),
+                        contentScale = ContentScale.Fit
                     )
                 }
             }
@@ -179,7 +253,12 @@ fun ChatScreen(
 }
 
 @Composable
-fun ChatBubble(message: Message, isUserMe: Boolean, partnerPhotoUri: String?) {
+fun ChatBubble(
+    message: Message,
+    isUserMe: Boolean,
+    partnerPhotoUri: String?,
+    onImageClick: (String) -> Unit
+) {
     val bubbleColor = if (isUserMe) Color(0xFFD95C5C) else Color.White
     val textColor = if (isUserMe) Color.White else Color.Black
     val shape = if (isUserMe) {
@@ -191,9 +270,8 @@ fun ChatBubble(message: Message, isUserMe: Boolean, partnerPhotoUri: String?) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = if (isUserMe) Arrangement.End else Arrangement.Start,
-        verticalAlignment = Alignment.Bottom // Avatar aligns to bottom of message
+        verticalAlignment = Alignment.Bottom
     ) {
-        // Messenger Style: Avatar beside incoming bubbles
         if (!isUserMe) {
             AsyncImage(
                 model = partnerPhotoUri ?: "https://via.placeholder.com/150",
@@ -225,17 +303,15 @@ fun ChatBubble(message: Message, isUserMe: Boolean, partnerPhotoUri: String?) {
                         .padding(bottom = 4.dp)
                         .size(220.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color.LightGray),
+                        .background(Color.LightGray)
+                        .clickable { onImageClick(message.imageUrl!!) },
                     contentScale = ContentScale.Crop
                 )
             }
 
             if (message.messageText.isNotEmpty()) {
                 Box(
-                    modifier = Modifier
-                        .clip(shape)
-                        .background(bubbleColor)
-                        .padding(12.dp)
+                    modifier = Modifier.clip(shape).background(bubbleColor).padding(12.dp)
                 ) {
                     Text(text = message.messageText, color = textColor, fontSize = 15.sp)
                 }

@@ -44,6 +44,7 @@ import com.cloudinary.android.MediaManager
 import com.cloudinary.android.callback.ErrorInfo
 import com.cloudinary.android.callback.UploadCallback
 import com.example.pawmate_ils.Firebase_Utils.AuthViewModel
+import com.example.pawmate_ils.R
 
 
 
@@ -158,6 +159,7 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                         contentAlignment = Alignment.Center
                     ) {
                         val photoUrl = userOnlineData?.photoUri
+                        val userGender = userOnlineData?.gender ?: "Other"
                         if (!photoUrl.isNullOrEmpty()) {
                             AsyncImage(
                                 model = photoUrl,
@@ -166,6 +168,14 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                                 contentScale = ContentScale.Crop
                             )
                         } else {
+                            val placeholderRes = when (userGender) {
+                                "Male" -> R.drawable.male
+                                "Female" -> R.drawable.female
+                                else -> R.drawable.avatar // General placeholder
+                            }
+
+
+
                             Icon(
                                 imageVector = Icons.Default.Person,
                                 contentDescription = "Profile",

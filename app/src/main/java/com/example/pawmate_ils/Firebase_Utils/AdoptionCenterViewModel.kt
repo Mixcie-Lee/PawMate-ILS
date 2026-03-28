@@ -1,202 +1,139 @@
 package com.example.pawmate_ils.Firebase_Utils
 
 import TinderLogic_PetSwipe.PetData
-import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.Firebase
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.util.UUID
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 
 class AdoptionCenterViewModel(
     private val authViewModel: AuthViewModel
 ) : ViewModel() {
     private val db = FirebaseFirestore.getInstance()
 
-    //Track add pet status
     private val _addPetStatus = MutableStateFlow<Result<String>?>(null)
     val addPetStatus: StateFlow<Result<String>?> = _addPetStatus
-
 
     private val _shelterPets = MutableStateFlow<List<PetData>>(emptyList())
     val shelterPets: StateFlow<List<PetData>> = _shelterPets
 
-    private val _uploadedPetsCount = MutableStateFlow(0) // THE DYNAMIC COUNTER
-    val uploadedPetsCount: StateFlow<Int> = _uploadedPetsCount
+    private val _uploadedPetsCount = MutableStateFlow(0)
+    val uploadedPetsCount: StateFlow<Int> = _uploadedPetsCount.asStateFlow()
 
-// ------------------------------------
 
     init {
+        // 🔹 START DYNAMIC OBSERVER IMMEDIATELY
+        startObservingShelterData()
+    }
+
+    private fun startObservingShelterData() {
         val currentUser = authViewModel.currentUser
         if (currentUser != null) {
             val uid = currentUser.uid
 
-            // LOGIC 1: THE DYNAMIC COUNTER (Firestore Only)
-            // This ensures the count starts at 0 and ignores local samples
+            // 🟢 FIXED: Combined count and list into ONE server-side filtered listener
+            // This is "Push-based" - Firestore tells the app when things change.
             db.collection("pets")
                 .whereEqualTo("shelterId", uid)
-                .addSnapshotListener { snapshot, _ ->
-                    _uploadedPetsCount.value = snapshot?.size() ?: 0
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        Log.e("SHELTER_VM", "Firestore Listen Failed", error)
+                        return@addSnapshotListener
+                    }
+
+                    val pets = snapshot?.documents?.mapNotNull {
+                        it.toObject(PetData::class.java)
+                    } ?: emptyList()
+
+                    // Update UI StateFlows instantly
+                    _shelterPets.value = pets
+                    _uploadedPetsCount.value = pets.size
+
+                    Log.d("SHELTER_VM", "Dynamic Sync: ${pets.size} pets found.")
                 }
-
-            // THE SPEED FIX: START LISTENING FOR LIST CHANGES
-            // This ensures new pets appear in the Manage List instantly without restart
-            observePets(shelterId = uid) { updatedList ->
-                _shelterPets.value = updatedList
-            }
         }
-
-
-
-
-
-
-
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-    fun addPet(
-        NewPet : PetData
-    ) {
-        val currentUser = authViewModel.currentUser
-        if (currentUser == null) {
-            _addPetStatus.value = Result.failure(Exception("user not logged in"))
-            return
-        }
+    fun addPet(newPet: PetData) {
+        val currentUser = authViewModel.currentUser ?: return
         val shelterId = currentUser.uid
         val shelterName = currentUser.displayName ?: "Unknown Shelter"
         val petId = db.collection("pets").document().id
 
-        val petWithOwner = NewPet.copy(
+        val petWithOwner = newPet.copy(
             petId = petId,
             shelterId = shelterId,
             shelterName = shelterName
         )
+
         viewModelScope.launch {
-            db.collection("pets")
-                .document(petId)
-                .set(petWithOwner)
-                .addOnSuccessListener {
-                    _addPetStatus.value = Result.success("Pet added successfully")
+            try {
+                withContext(Dispatchers.IO) {
+                    db.collection("pets")
+                        .document(petId)
+                        .set(petWithOwner)
+                        .await()
                 }
-                .addOnFailureListener { e ->
-                    _addPetStatus.value = Result.failure(e)
-                }
-        }
-        /* Fetch all pets from firestore with optional filters heheh
-
-         */
-
-   /* fun uploadPetImages(uris: List<Uri>, onComplete: (List<String>) -> Unit) {
-        val storage = Firebase.storage.reference
-        val uploadedUrls = mutableListOf<String>()
-
-        uris.forEach { uri ->
-            val ref = storage.child("pets/${UUID.randomUUID()}")
-            ref.putFile(uri).addOnSuccessListener {
-                ref.downloadUrl.addOnSuccessListener { url ->
-                    uploadedUrls.add(url.toString())
-                    if (uploadedUrls.size == uris.size) {
-                        onComplete(uploadedUrls)
-                    }
-                }
+                _addPetStatus.value = Result.success("Pet added successfully")
+            } catch (e: Exception) {
+                _addPetStatus.value = Result.failure(e)
+                Log.e("SHELTER_VM", "Add Pet Failed", e)
             }
         }
     }
-*/
 
-        fun getPets(
-            shelterId: String? = null,
-            type: String? = null,
-            onComplete: (List<PetData>) -> Unit
-        ) {
-            db.collection("pets")
-                .get()
-                .addOnSuccessListener { snapshot ->
-                    val pets = snapshot.documents.mapNotNull { it.toObject(PetData::class.java) }
-                        .filter { pet ->
-                            (shelterId == null || pet.shelterId == shelterId) &&
-                                    (type == null || pet.type == type)
-                        }
-                    onComplete(pets)
-                }
-                .addOnFailureListener {
-                    onComplete(emptyList())
-                }
-        }
-    }
-    fun observePets(
-        shelterId: String? = null,
-        type: String? = null,
-        onUpdate: (List<PetData>) -> Unit
-    ) {
+    // 🟢 FIXED: This function is now properly closed and independent
+    fun listenToUploadedPetsCount(shelterId: String) {
         db.collection("pets")
+            .whereEqualTo("shelterId", shelterId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    onUpdate(emptyList())
+                    Log.e("AdoptionVM", "Count listener failed", error)
                     return@addSnapshotListener
                 }
-                val pets = snapshot?.documents?.mapNotNull { it.toObject(PetData::class.java) }
-                    ?.filter { pet ->
-                        (shelterId == null || pet.shelterId == shelterId) &&
-                                (type == null || pet.type == type)
-                    } ?: emptyList()
-                onUpdate(pets)
+                val count = snapshot?.size() ?: 0
+                _uploadedPetsCount.value = count
             }
     }
 
-    // --- LOGIC 2: THE DELETE FUNCTION ---
+    // 🟢 FIXED: Moved outside of the listener function
     fun deletePet(petId: String) {
         viewModelScope.launch {
-            db.collection("pets")
-                .document(petId) // Finds the specific target
-                .delete()
-                .addOnSuccessListener {
-                    // Success! Logic #1 will automatically update the UI count
-                    _addPetStatus.value = Result.success("Pet deleted successfully")
+            try {
+                withContext(Dispatchers.IO) {
+                    db.collection("pets").document(petId).delete().await()
                 }
-                .addOnFailureListener { e ->
-                    _addPetStatus.value = Result.failure(e)
-                }
-        }
-    }
-//UPDATE PETS IMPLEMENTATION ALLOW THE USERS TO MODIFY THE PET
-// Logic #3: THE UPDATE FUNCTION
-fun updatePet(petId: String, updatedData: Map<String, Any>) {
-    viewModelScope.launch {
-        db.collection("pets")
-            .document(petId)
-            .update(updatedData) // Overwrites only the specified fields
-            .addOnSuccessListener {
-                _addPetStatus.value = Result.success("Pet updated successfully")
-            }
-            .addOnFailureListener { e ->
+                _addPetStatus.value = Result.success("Pet deleted successfully")
+            } catch (e: Exception) {
                 _addPetStatus.value = Result.failure(e)
             }
+        }
+    }
+
+    // 🟢 FIXED: Moved outside of the listener function
+    fun updatePet(petId: String, updatedData: Map<String, Any>) {
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    db.collection("pets")
+                        .document(petId)
+                        .update(updatedData)
+                        .await()
+                }
+                _addPetStatus.value = Result.success("Pet updated successfully")
+                Log.d("SHELTER_VM", "Update Success: $petId")
+            } catch (e: Exception) {
+                _addPetStatus.value = Result.failure(e)
+                Log.e("SHELTER_VM", "Update Failed", e)
+            }
+        }
     }
 }
-
-
-
-
-
-
-
-
-}
-

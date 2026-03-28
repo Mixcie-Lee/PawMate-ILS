@@ -19,21 +19,18 @@ import com.example.pawmate_ils.ui.theme.PawMateILSTheme
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-
 @Composable
 fun AuthScreen(
-     navController: NavController,
+    navController: NavController,
     onAuthComplete: () -> Unit,
-     sharedViewModel: SharedViewModel,
-     onUserAuthClick: () -> Unit,
-     onSignUpClick: (String, String, String, String) -> Unit,
-
-
-     ) {
-  //FOR FIRESTORE PURPOSE PLS DON'T DELETE THIS
+    sharedViewModel: SharedViewModel,
+    onUserAuthClick: () -> Unit,
+    onSignUpClick: (String, String, String, String) -> Unit,
+) {
+    //FOR FIRESTORE PURPOSE PLS DON'T DELETE THIS
     val scope = rememberCoroutineScope()
-    val AuthViewModel : AuthViewModel = viewModel()
-    val authState  = AuthViewModel.authState.observeAsState()
+    val AuthViewModel: AuthViewModel = viewModel()
+    val authState = AuthViewModel.authState.observeAsState()
     val firestoreRepo = remember { FirestoreRepository() }
     val context = LocalContext.current
     var email by remember { mutableStateOf("") }
@@ -46,15 +43,9 @@ fun AuthScreen(
     var password by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-
-
     var showSignUp by remember { mutableStateOf(false) }
     var showShelterOwnerAuth by remember { mutableStateOf(false) }
     var showShelterOwnerSignUp by remember { mutableStateOf(false) }
-
-
-//FIREBASE AUTHENTICATION AGAIN
-
 
     PawMateILSTheme {
         Surface(
@@ -66,59 +57,52 @@ fun AuthScreen(
                     if (showShelterOwnerSignUp) {
                         SellerSignUpScreen(
                             navController = navController,
-                            onSignUpClick = { _,_,_,_ ->
+                            authViewModel = AuthViewModel,
+                            onSignUpClick = { sName, sEmail, oName, mNum ->
                                 onAuthComplete()
                                 scope.launch {
-                                    //ITO ANG SINASABI KO PLEASE WAG BURAHIN, HANGGAT MAARI GA WAG KA MAGCOPY PASTE FROM CURSOR
-                                    //  IF MAG FIX KA NG ERRORS :D
                                     val uid = FirebaseAuth.getInstance().currentUser?.uid
                                     if (uid == null) {
-                                        // user not signed in (maybe Auth step failed)
-                                        errorMessage =
-                                            "User not signed in. Please complete Step 1."
+                                        errorMessage = "User not signed in. Please complete Step 1."
                                         isLoading = false
                                         return@launch
                                     }
                                     val user = User(
                                         id = uid,
-                                        name = "$firstName $lastName",
-                                        email = email,
-                                        MobileNumber = mobileNumber,
+                                        name = "$sName $oName",
+                                        email = sEmail,
+                                        MobileNumber = mNum,
                                         Address = address,
                                         Age = age,
-                                        role = "adopter" // <-- or "shelter" depending on selection
+                                        role = "shelter" // 💎 Fixed: Shelter side should be "shelter"
                                     )
                                     try {
                                         firestoreRepo.addUser(user)
-                                        onSignUpClick(firstName, email, lastName, mobileNumber)
-                                        sharedViewModel.username.value = "$firstName, $lastName"
-                                        delay(50)
-                                        navController.navigate("adoption_center_dashboard") {
-                                            popUpTo("user_type") { inclusive = true }
-                                        }
+                                        onSignUpClick(sName, sEmail, oName, mNum)
+                                        sharedViewModel.username.value = "$sName $oName"
+
                                     } catch (e: Exception) {
                                         errorMessage = e.message ?: "Failed to save user data"
                                     } finally {
                                         isLoading = false
                                     }
                                 }
-
                             },
                             onLoginClick = { showShelterOwnerSignUp = false },
-                            onSellerAuthClick =  { showShelterOwnerAuth = false },
-                            sharedViewModel = sharedViewModel,
-                            authViewModel = AuthViewModel
-
-
+                            // 💎 Changed parameter name to match SellerSignUpScreen
+                            onNavigateToAdopterSignUp = { showShelterOwnerAuth = false },
+                            sharedViewModel = sharedViewModel
                         )
                     } else {
-                       SellerLoginScreen(
-                           authViewModel = AuthViewModel,
-                            onLoginClick = { _, _ ->
+                        SellerLoginScreen(
+                            authViewModel = AuthViewModel,
+                            // 💎 Adjusted to match () -> Unit signature
+                            onLoginSuccess = {
                                 onAuthComplete()
                             },
                             onSignUpClick = { showShelterOwnerSignUp = true },
-                            onSellerAuthClick = { showShelterOwnerAuth = false },
+                            // 💎 Changed parameter name to match SellerLoginScreen
+                            onNavigateToAdopter = { showShelterOwnerAuth = false }
                         )
                     }
                 }
@@ -126,24 +110,24 @@ fun AuthScreen(
                     if (showSignUp) {
                         SignUpScreen(
                             navController = navController,
-                            onSignUpClick = { _, _, _, _ ->
+                            onSignUpClick = { f, e, l, m ->
                                 onAuthComplete()
-                                navController.navigate("pet_selection")
                             },
                             onLoginClick = { showSignUp = false },
-                            onSellerAuthClick = { showShelterOwnerAuth = true },
+                            // 💎 Changed parameter name to match SignUpScreen
+                            onNavigateToSellerSignUp = { showShelterOwnerAuth = true },
                             sharedViewModel = sharedViewModel
                         )
-
                     } else {
                         LoginScreen(
                             authViewModel = AuthViewModel,
-                            onLoginClick = { email, password->
+                            // 💎 Adjusted to match () -> Unit signature
+                            onLoginSuccess = {
                                 onAuthComplete()
                             },
                             onSignUpClick = { showSignUp = true },
-                            onSellerAuthClick = { showShelterOwnerAuth = true }
-
+                            // 💎 Changed parameter name to match LoginScreen
+                            onNavigateToShelter = { showShelterOwnerAuth = true }
                         )
                     }
                 }

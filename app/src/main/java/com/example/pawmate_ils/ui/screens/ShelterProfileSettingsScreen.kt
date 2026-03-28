@@ -179,9 +179,6 @@ fun ShelterProfileScreen(
                     }
                 }
 
-                TextButton(onClick = { authViewModel.signOut { navController.navigate("login") } }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Logout", color = Color(0xFFD95C5C), fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                }
                 Spacer(modifier = Modifier.height(40.dp))
             }
         }
