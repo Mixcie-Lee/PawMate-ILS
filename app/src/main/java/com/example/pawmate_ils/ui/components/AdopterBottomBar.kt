@@ -27,10 +27,12 @@ import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -71,6 +73,7 @@ fun AdopterBottomBar(
         "Education" -> "educational"
         "Shop" -> "shop"
         "Message" -> "chat_home"
+        "Profile" -> "profile_settings"
         else -> ""
     }
     val lastNavAt = remember { mutableLongStateOf(0L) }
@@ -106,7 +109,7 @@ fun AdopterBottomBar(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.Bottom
             ) {
-                Box(modifier = Modifier.width(64.dp), contentAlignment = Alignment.BottomCenter) {
+                Box(modifier = Modifier.width(58.dp), contentAlignment = Alignment.BottomCenter) {
                     AdopterBottomBarItem("Education", selectedTab == "Education", accent, { navigate("educational") }) { tint, selected ->
                         BottomBarIcon(
                             contentDescription = "Education",
@@ -118,7 +121,7 @@ fun AdopterBottomBar(
                         )
                     }
                 }
-                Box(modifier = Modifier.width(64.dp), contentAlignment = Alignment.BottomCenter) {
+                Box(modifier = Modifier.width(58.dp), contentAlignment = Alignment.BottomCenter) {
                     AdopterBottomBarItem("Favorites", selectedTab == "Favorites", accent, { navigate("adopter_home") }) { tint, selected ->
                         BottomBarIcon(
                             contentDescription = "Favorites",
@@ -131,7 +134,7 @@ fun AdopterBottomBar(
                     }
                 }
 
-                Box(modifier = Modifier.width(64.dp), contentAlignment = Alignment.BottomCenter) {
+                Box(modifier = Modifier.width(58.dp), contentAlignment = Alignment.BottomCenter) {
                     AdopterBottomBarItem("Home", selectedTab == "Home", accent, { navigate("pet_swipe") }) { tint, selected ->
                         BottomBarIcon(
                             contentDescription = "Home",
@@ -144,7 +147,7 @@ fun AdopterBottomBar(
                     }
                 }
 
-                Box(modifier = Modifier.width(64.dp), contentAlignment = Alignment.BottomCenter) {
+                Box(modifier = Modifier.width(58.dp), contentAlignment = Alignment.BottomCenter) {
                     AdopterBottomBarItem("Message", selectedTab == "Message", accent, { navigate("chat_home") }) { tint, selected ->
                         BottomBarIcon(
                             contentDescription = "Message",
@@ -157,7 +160,7 @@ fun AdopterBottomBar(
                     }
                 }
 
-                Box(modifier = Modifier.width(64.dp), contentAlignment = Alignment.BottomCenter) {
+                Box(modifier = Modifier.width(58.dp), contentAlignment = Alignment.BottomCenter) {
                     AdopterBottomBarItem("Shop", selectedTab == "Shop", accent, { navigate("shop") }) { tint, selected ->
                         BottomBarIcon(
                             contentDescription = "Shop",
@@ -166,6 +169,18 @@ fun AdopterBottomBar(
                             drawableBaseNames = listOf("shop", "store", "storefront", "shopping", "cart"),
                             selectedFallback = Icons.Default.ShoppingCart,
                             unselectedFallback = Icons.Outlined.ShoppingCart
+                        )
+                    }
+                }
+                Box(modifier = Modifier.width(58.dp), contentAlignment = Alignment.BottomCenter) {
+                    AdopterBottomBarItem("Profile", selectedTab == "Profile", accent, { navigate("profile_settings") }) { tint, selected ->
+                        BottomBarIcon(
+                            contentDescription = "Profile",
+                            tint = tint,
+                            selected = selected,
+                            drawableBaseNames = listOf("profile", "user", "person", "account", "profile_d"),
+                            selectedFallback = Icons.Default.Person, // Ensure to add import for Icons.Default.Person
+                            unselectedFallback = Icons.Outlined.Person
                         )
                     }
                 }

@@ -48,16 +48,14 @@ fun AdoptionCenterDashboard(
     val channels by homeViewModel.channels.collectAsState(initial = emptyList())
     val pets by adoptionCenterViewModel.shelterPets.collectAsState(initial = emptyList())
     val uploadedCount by adoptionCenterViewModel.uploadedPetsCount.collectAsState()
-    LaunchedEffect(Unit) {
 
+    LaunchedEffect(Unit) {
         homeViewModel.listenToChannels()
         val currentShelterId = authViewModel.currentUser?.uid ?: ""
         if (currentShelterId.isNotEmpty()) {
             adoptionCenterViewModel.listenToUploadedPetsCount(currentShelterId)
         }
-
     }
-
 
     StatelessFullDashboard(
         selectedTab = selectedTab,
@@ -66,19 +64,15 @@ fun AdoptionCenterDashboard(
         centerName = centerName,
         navController = navController,
         onDeleteChannel = { ch -> homeViewModel.deleteChannel(ch) },
-        authViewModel= authViewModel
+        authViewModel = authViewModel,
+        homeViewModel = homeViewModel // Pass it here
     )
 
-    //This is the handler for a dialog that ask the user to upload or create their profile picture
-    //without this the avatar icon wouldnt appear if they change it mid use
     ProfileRequirementDialog(
         authViewModel = authViewModel,
         navController = navController,
         canShow = true
     )
-
-
-
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -90,7 +84,8 @@ private fun StatelessFullDashboard(
     centerName: String,
     navController: NavController,
     onDeleteChannel: (Channel) -> Unit,
-    authViewModel: AuthViewModel
+    authViewModel: AuthViewModel,
+    homeViewModel: HomeViewModel // Added parameter
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
@@ -116,7 +111,6 @@ private fun StatelessFullDashboard(
                     }
                 )
             }
-            // REMOVED: ExtendedFloatingActionButton has been removed per your request
         ) { paddingValues ->
             StatelessDashboardContent(
                 paddingValues = paddingValues,
@@ -124,11 +118,11 @@ private fun StatelessFullDashboard(
                 channels = channels,
                 petCount = petCount,
                 onDeleteChannel = onDeleteChannel,
-                authViewModel = authViewModel
+                homeViewModel = homeViewModel, // Now available to pass
+                authViewModel = authViewModel,
             )
         }
 
-        // Updated NavBar with Navigation Logic and Labels
         FloatingNavBar(
             navController = navController,
             selectedTab = selectedTab,
@@ -153,7 +147,7 @@ fun FloatingNavBar(
         modifier = modifier
             .padding(horizontal = 24.dp, vertical = 24.dp)
             .fillMaxWidth()
-            .height(82.dp), // Increased height to fit labels comfortably
+            .height(82.dp),
         shape = RoundedCornerShape(36.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.95f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
@@ -171,7 +165,6 @@ fun FloatingNavBar(
                 Column(
                     modifier = Modifier
                         .clickable {
-                            // Navigation logic: Prevents creating multiple instances of the same screen
                             if (!isSelected) {
                                 navController.navigate(route) {
                                     popUpTo(navController.graph.startDestinationId) { saveState = true }
@@ -190,7 +183,6 @@ fun FloatingNavBar(
                         modifier = Modifier.size(26.dp)
                     )
 
-                    // Added user-friendly labels
                     Text(
                         text = label,
                         fontSize = 11.sp,
@@ -236,6 +228,7 @@ private fun StatelessDashboardContent(
     channels: List<Channel>,
     petCount: Int,
     authViewModel: AuthViewModel,
+    homeViewModel: HomeViewModel,
     onDeleteChannel: (Channel) -> Unit
 ) {
     val sortedChannels by remember(channels) {
@@ -246,10 +239,6 @@ private fun StatelessDashboardContent(
             )
         }
     }
-
-
-
-
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(paddingValues).padding(horizontal = 16.dp),
@@ -285,9 +274,6 @@ private fun StatelessDashboardContent(
             }
         }
 
-
-
-
         items(
             items = sortedChannels,
             key = { it.channelId }
@@ -297,7 +283,8 @@ private fun StatelessDashboardContent(
                 onClick = { navController.navigate("message/${channel.channelId}") },
                 onDelete = { onDeleteChannel(it) },
                 authViewModel = authViewModel,
-                navController = navController
+                homeViewModel = homeViewModel,
+                navController = navController,
             )
             HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray.copy(alpha = 0.4f))
         }
@@ -311,15 +298,23 @@ fun ChannelCardDesign(
     onClick: () -> Unit,
     onDelete: (Channel) -> Unit,
     navController: NavController,
-    authViewModel: AuthViewModel // 🟢 ADD THIS PARAMETER
+    authViewModel: AuthViewModel,
+    homeViewModel: HomeViewModel
 ){
     val isLive = authViewModel.isUserActuallyOnline(
         User(isOnline = channel.isOnline, lastActive = channel.lastActive)
     )
+
+    val currentUserId = authViewModel.currentUser?.uid ?: ""
+    val shouldShowBadge = channel.unreadCount > 0 && channel.lastSenderId != currentUserId
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() }
+            .clickable {
+                homeViewModel.resetUnreadCount(channel.channelId)
+                onClick()
+            }
             .padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -330,15 +325,15 @@ fun ChannelCardDesign(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(CircleShape)
-                    .clickable{
+                    .clickable {
                         if (!channel.adopterId.isNullOrEmpty()) {
                             navController.navigate("profile_details/${channel.adopterId}")
                         }
                     }
                     .background(Color.LightGray.copy(alpha = 0.2f)),
                 contentScale = androidx.compose.ui.layout.ContentScale.Crop
-
             )
+
             if (isLive) {
                 Box(
                     modifier = Modifier
@@ -349,14 +344,11 @@ fun ChannelCardDesign(
                         .align(Alignment.BottomEnd)
                 )
             }
-
-
-
         }
+
         Spacer(modifier = Modifier.width(12.dp))
 
         Column(modifier = Modifier.weight(1f)) {
-            // Fix: Wrapped Name and VIP Badge in a Row so they sit side-by-side
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(text = channel.adopterName, fontWeight = FontWeight.Bold)
 
@@ -365,7 +357,7 @@ fun ChannelCardDesign(
                     Icon(
                         imageVector = Icons.Default.Stars,
                         contentDescription = "Priority",
-                        tint = Color(0xFFFFD700), // Gold
+                        tint = Color(0xFFFFD700),
                         modifier = Modifier.size(16.dp)
                     )
                     Text(
@@ -378,38 +370,28 @@ fun ChannelCardDesign(
                 }
             }
 
-            // Fix: Kept these inside the Column brackets
             Text(text = "Interested in: ${channel.petName}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
             Text(text = channel.lastMessage.ifEmpty { "No messages yet" }, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
         }
 
-        if (channel.unreadCount > 0) {
-            Surface(shape = CircleShape, color = Color(0xFF2DDA53), modifier = Modifier.size(26.dp)) {
+        if (shouldShowBadge) {
+            Surface(
+                shape = CircleShape,
+                color = Color(0xFF2DDA53),
+                modifier = Modifier.size(26.dp)
+            ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Text(text = channel.unreadCount.toString(), color = Color.White, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold))
+                    Text(
+                        text = channel.unreadCount.toString(),
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
+                    )
                 }
             }
         }
+
         IconButton(onClick = { onDelete(channel) }) {
             Icon(Icons.Default.Close, contentDescription = null, tint = Color.Red.copy(alpha = 0.4f), modifier = Modifier.size(20.dp))
         }
     }
 }
-
-/*
-@Preview(showBackground = true, name = "Full Design Preview")
-@Composable
-fun FullDashboardPreview() {
-    val mockChannels = listOf(
-        Channel(channelId = "1", adopterName = "Zachary Peter Clinton", petName = "Max", unreadCount = 99),
-        Channel(channelId = "2", adopterName = "Emilie de Rochefort", petName = "Salt", unreadCount = 5)
-    )
-    MaterialTheme {
-        StatelessFullDashboard(
-            selectedTab = 0, channels = mockChannels, petCount = 100,
-            centerName = "Happy Paws Shelter", navController = rememberNavController(), onDeleteChannel = {},
-
-        )
-    }
-}
-*/

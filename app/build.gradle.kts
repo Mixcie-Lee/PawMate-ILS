@@ -74,8 +74,12 @@ dependencies {
     implementation("com.google.android.gms:play-services-auth:21.4.0")
     implementation(libs.firebase.database)
 
+    implementation("com.google.code.gson:gson:2.10.1")
+
+
     implementation(libs.googleid)
     implementation (platform("com.google.firebase:firebase-bom:34.2.0"))
+    implementation(libs.firebase.crashlytics.buildtools)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -83,6 +87,8 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation("androidx.compose.ui:ui-tooling:1.8.3")
     debugImplementation(libs.androidx.ui.test.manifest)
+
+
 
 
 }

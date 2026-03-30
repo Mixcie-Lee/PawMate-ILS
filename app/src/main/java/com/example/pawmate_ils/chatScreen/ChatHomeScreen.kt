@@ -1,5 +1,6 @@
 package com.example.pawmate_ils.chatScreen
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -32,6 +33,7 @@ import com.example.pawmate_ils.R
 import com.example.pawmate_ils.ThemeManager
 import com.example.pawmate_ils.firebase_models.Channel
 import com.example.pawmate_ils.firebase_models.User
+import com.example.pawmate_ils.ui.components.AdopterBottomBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,98 +59,10 @@ fun HomeScreen(
     Scaffold(
         containerColor = Color.Transparent,
         bottomBar = {
-            NavigationBar(
-                containerColor = navBarColor,
-                contentColor = textColor,
-                tonalElevation = 8.dp
-            ) {
-                NavigationBarItem(
-                    icon = {
-                        Icon(
-                            Icons.Default.Pets,
-                            "Swipe",
-                            tint = Color.Gray.copy(alpha = 0.6f)
-                        )
-                    },
-                    label = { Text("Swipe", color = Color.Gray.copy(alpha = 0.6f)) },
-                    selected = false,
-                    onClick = { navController.navigate("pet_swipe") }
-                )
-                NavigationBarItem(
-                    icon = {
-                        Image(
-                            painter = painterResource(id = R.drawable.heart),
-                            contentDescription = "Liked",
-                            modifier = Modifier.size(24.dp),
-                            colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(
-                                Color.Gray.copy(
-                                    alpha = 0.6f
-                                )
-                            )
-                        )
-                    },
-                    label = { Text("Liked", color = Color.Gray.copy(alpha = 0.6f)) },
-                    selected = false,
-                    onClick = { navController.navigate("adopter_home") }
-                )
-                NavigationBarItem(
-                    icon = {
-                        Image(
-                            painter = painterResource(id = R.drawable.book_open),
-                            contentDescription = "Learn",
-                            modifier = Modifier.size(24.dp),
-                            colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(
-                                Color.Gray.copy(
-                                    alpha = 0.6f
-                                )
-                            )
-                        )
-                    },
-                    label = { Text("Learn", color = Color.Gray.copy(alpha = 0.6f)) },
-                    selected = false,
-                    onClick = { navController.navigate("educational") }
-                )
-                NavigationBarItem(
-                    icon = {
-                        Image(
-                            painter = painterResource(id = R.drawable.profile_d),
-                            contentDescription = "Profile",
-                            modifier = Modifier.size(24.dp),
-                            colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(
-                                Color.Gray.copy(
-                                    alpha = 0.6f
-                                )
-                            )
-                        )
-                    },
-                    label = { Text("Profile", color = Color.Gray.copy(alpha = 0.6f)) },
-                    selected = false,
-                    onClick = { navController.navigate("profile_settings") }
-                )
-                NavigationBarItem(
-                    icon = {
-                        Image(
-                            painter = painterResource(id = R.drawable.message_square),
-                            contentDescription = "Message",
-                            modifier = Modifier.size(24.dp),
-                            colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(
-                                Color(
-                                    0xFFFF9999
-                                )
-                            )
-                        )
-                    },
-                    label = {
-                        Text(
-                            "Message",
-                            color = Color(0xFFFF9999),
-                            fontWeight = FontWeight.Bold
-                        )
-                    },
-                    selected = true,
-                    onClick = { /* Already on this screen */ }
-                )
-            }
+            AdopterBottomBar(
+                navController = navController,
+                selectedTab = "home"
+            )
         }
     ) { paddingValues ->
         Box(
@@ -200,11 +114,13 @@ fun HomeScreen(
                         ) {
                             items(channels, key = { it.channelId }) { channel ->
                                 val isShelterView = currentUserRole == "shelter"
+                                val currentUserId = authViewModel.currentUser?.uid ?: ""
+
+                                // 🟢 OLD LOGIC RECOVERED: Only show badge if I am NOT the last sender
+                                val shouldShowBadge = channel.unreadCount > 0 && channel.lastSenderId != currentUserId
+
                                 val isLive = authViewModel.isUserActuallyOnline(
-                                    User(
-                                        isOnline = channel.isOnline,
-                                        lastActive = channel.lastActive
-                                    )
+                                    User(isOnline = channel.isOnline, lastActive = channel.lastActive)
                                 )
 
                                 val displayName = if (isShelterView) {
@@ -213,35 +129,37 @@ fun HomeScreen(
                                     "${channel.shelterName} • ${channel.petName}"
                                 }
 
-                                val displayPhoto =
-                                    if (isShelterView) channel.adopterPhotoUri else channel.shelterPhotoUri
-                                val subtitle =
-                                    if (isShelterView) "Interested in ${channel.petName}" else "Shelter for ${channel.petName}"
-
+                                val displayPhoto = if (isShelterView) channel.adopterPhotoUri else channel.shelterPhotoUri
+                                val defaultSubtitle = if (isShelterView) "Interested in ${channel.petName}" else "Shelter for ${channel.petName}"
+                                val displaySubtitle = if (channel.lastMessage.isNotEmpty()) channel.lastMessage else defaultSubtitle
                                 if (channel.isPriority) {
                                     VIPChannelItem(
                                         displayName = displayName,
                                         displayPhoto = displayPhoto,
-                                        subtitle = subtitle,
+                                        subtitle = displaySubtitle, // ✅ Now dynamic                                        isPriority = true,
                                         isPriority = true,
-                                        isLive = isLive, // 🟢 Pass the dynamic status
+                                        isLive = isLive,
+                                        unreadCount = if (shouldShowBadge) channel.unreadCount else 0, // ✅ GRAFTED
                                         onClick = {
                                             homeViewModel.resetUnreadCount(channel.channelId)
                                             navController.navigate("message/${channel.channelId}")
                                         }
                                     )
                                 } else {
-                                    val currentUserId = authViewModel.currentUser?.uid ?: ""
-                                    val shouldShowBadge =
-                                        channel.unreadCount > 0 && channel.lastSenderId != currentUserId
-
                                     ChatListItem(
                                         shelterName = displayName,
                                         photoUri = displayPhoto,
                                         lastMessage = if (channel.lastMessage.isNotEmpty()) channel.lastMessage else "No messages yet",
                                         timeAgo = null,
-                                        unreadCount = if (shouldShowBadge) channel.unreadCount else 0,
-                                        isLive = isLive, // 🟢 Pass the dynamic status
+                                        unreadCount = if (shouldShowBadge) channel.unreadCount else 0, // ✅ GRAFTED
+                                        isLive = isLive,
+                                        onAvatarClick = {
+                                            // 🟢 THIS IS THE FIX: Handle the profile navigation here
+                                            val targetUserId = if (currentUserRole == "shelter") channel.adopterId else channel.shelterId
+                                            if (!targetUserId.isNullOrEmpty()) {
+                                                navController.navigate("profile_details/$targetUserId")
+                                            }
+                                        },
                                         onClick = {
                                             homeViewModel.resetUnreadCount(channel.channelId)
                                             navController.navigate("message/${channel.channelId}")
@@ -265,8 +183,10 @@ fun ChatListItem(
     timeAgo: String?,
     unreadCount: Int,
     isLive: Boolean = false,
+    onAvatarClick: () -> Unit,
     isPriority: Boolean = false,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+
 ) {
     val isDarkMode = ThemeManager.isDarkMode
     val cardBg = if (isDarkMode) Color(0xFF2A2A2A) else Color.White
@@ -276,7 +196,7 @@ fun ChatListItem(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .clickable { onClick() }
+            .clickable { onClick()}
             .background(cardBg)
             .padding(16.dp)
     ) {
@@ -285,7 +205,7 @@ fun ChatListItem(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(modifier = Modifier.size(55.dp)) {
+                Box(modifier = Modifier.size(55.dp).clickable{onAvatarClick()}) {
                     AsyncImage(
                         model = photoUri ?: "https://via.placeholder.com/150",
                         contentDescription = "Profile Photo",
@@ -356,7 +276,6 @@ fun ChatListItem(
         }
     }
 }
-
 @Composable
 fun VIPChannelItem(
     displayName: String,
@@ -364,19 +283,23 @@ fun VIPChannelItem(
     subtitle: String,
     isPriority: Boolean,
     isLive: Boolean,
+    unreadCount: Int,
     onClick: () -> Unit
 ) {
-    val goldColor = Color(0xFFFFD700)
+    val isDarkMode = ThemeManager.isDarkMode
+    // Subtle gold tint for the background instead of a thick border
+    val vipBgColor = if (isDarkMode) Color(0xFF2D2A20) else Color(0xFFFFFDF0)
+    val goldAccent = Color(0xFFFFD700)
+    val pawMatePink = Color(0xFFD95C5C)
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp, horizontal = 12.dp)
-            .border(
-                width = 2.dp,
-                color = goldColor,
-                shape = RoundedCornerShape(16.dp)
-            ),
+            .padding(horizontal = 12.dp, vertical = 4.dp),
         shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = vipBgColor),
+        // A very thin, subtle border to keep it premium
+        border = BorderStroke(1.dp, goldAccent.copy(alpha = 0.4f)),
         onClick = onClick
     ) {
         Row(
@@ -385,12 +308,13 @@ fun VIPChannelItem(
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box {
+            // Avatar Section
+            Box(modifier = Modifier.size(56.dp)) {
                 AsyncImage(
                     model = displayPhoto ?: "https://via.placeholder.com/150",
                     contentDescription = "Profile Photo",
                     modifier = Modifier
-                        .size(56.dp)
+                        .fillMaxSize()
                         .clip(CircleShape)
                         .background(Color.LightGray.copy(alpha = 0.2f)),
                     contentScale = ContentScale.Crop,
@@ -398,50 +322,72 @@ fun VIPChannelItem(
                     error = painterResource(R.drawable.blackpawmateicon3)
                 )
 
+                // 👑 Subtle Crown Badge
+                if (isPriority) {
+                    Surface(
+                        color = goldAccent,
+                        shape = CircleShape,
+                        modifier = Modifier
+                            .size(18.dp)
+                            .align(Alignment.TopStart)
+                            .offset(x = (-2).dp, y = (-2).dp),
+                        border = BorderStroke(1.dp, Color.White)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text("👑", fontSize = 10.sp)
+                        }
+                    }
+                }
+
+                // Live Indicator
                 if (isLive) {
                     Box(
                         modifier = Modifier
                             .size(14.dp)
                             .clip(CircleShape)
                             .background(Color(0xFF4ADE80))
-                            .border(2.dp, MaterialTheme.colorScheme.surface, CircleShape)
+                            .border(2.dp, vipBgColor, CircleShape)
                             .align(Alignment.BottomEnd)
                     )
                 }
-
-
-
-
-
-                if (isPriority) {
-                    Text(
-                        text = "👑",
-                        fontSize = 20.sp,
-                        modifier = Modifier
-                            .align(Alignment.TopStart)
-                            .offset(x = (-8).dp, y = (-8).dp)
-                    )
-                }
             }
-            Column(modifier = Modifier
-                .weight(1f)
-                .padding(start = 16.dp)) {
+
+            // Info Section
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 16.dp)
+            ) {
                 Text(
                     text = displayName,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    color = Color(0xFFB8860B)
+                    fontSize = 17.sp,
+                    color = if (isDarkMode) Color.White else Color(0xFFB8860B)
                 )
-                Text(text = subtitle, fontSize = 14.sp, color = Color.Gray)
-            }
-            Surface(color = goldColor.copy(alpha = 0.15f), shape = RoundedCornerShape(8.dp)) {
                 Text(
-                    text = "PRIORITY",
-                    color = Color(0xFF8B6B00),
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Black,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    text = subtitle,
+                    fontSize = 13.sp,
+                    color = Color.Gray,
+                    maxLines = 1
                 )
+            }
+
+            // 🔴 Notification Badge (Clean & Standardized)
+            if (unreadCount > 0) {
+                Box(
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(pawMatePink)
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = unreadCount.toString(),
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
     }

@@ -35,6 +35,7 @@ import com.example.pawmate_ils.Firebase_Utils.ChatViewModel
 import com.example.pawmate_ils.firebase_models.Message
 import com.example.pawmate_ils.ThemeManager
 import com.example.pawmate_ils.AdopShelDataStruc.DateUtils
+import com.example.pawmate_ils.ui.components.AdopterBottomBar
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
 @Composable
@@ -182,6 +183,7 @@ fun ChatScreen(
                     )
                 }
             )
+
         }
     ) { paddingValues ->
         Box(
