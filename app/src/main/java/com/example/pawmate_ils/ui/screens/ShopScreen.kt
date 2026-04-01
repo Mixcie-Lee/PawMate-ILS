@@ -1,9 +1,12 @@
 package com.example.pawmate_ils.ui.screens
 
 import android.content.Context
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
@@ -33,6 +36,9 @@ import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -43,14 +49,18 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -59,13 +69,18 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.LaunchedEffect
@@ -191,6 +206,702 @@ private fun loadHistory(context: Context): List<CartEntry> {
     return Gson().fromJson(json, type)
 }
 
+@Composable
+private fun ShopCartOverlay(
+    isDarkMode: Boolean,
+    cartItems: SnapshotStateList<CartEntry>,
+    boughtItems: List<CartEntry>,
+    promoApplied: Boolean,
+    onDismiss: () -> Unit,
+    onOrderNow: (totalFormatted: String, checkoutIndices: List<Int>) -> Unit,
+) {
+    val pink = if (isDarkMode) Color(0xFFFF7BA1) else Color(0xFFE84D7A)
+    val pinkSoft = if (isDarkMode) Color(0xFFFFB3C9) else Color(0xFFFFE4EE)
+    val pageBg = if (isDarkMode) Color(0xFF121212) else Color(0xFFF5F5F5)
+    val surface = if (isDarkMode) Color(0xFF1E1E1E) else Color.White
+    val barBg = if (isDarkMode) Color(0xFF252525) else Color.White
+    val onSurface = if (isDarkMode) Color(0xFFF5F5F5) else Color(0xFF1A1A1A)
+    val muted = if (isDarkMode) Color(0xFFAEAEAE) else Color(0xFF7A7377)
+    val lineChecked = remember { mutableStateListOf<Boolean>() }
+    val cartSignature = cartItems.joinToString("|") { "${it.item.name}@${it.quantity}" }
+
+    LaunchedEffect(cartSignature) {
+        lineChecked.clear()
+        repeat(cartItems.size) { lineChecked.add(true) }
+    }
+
+    val selectedIndices = cartItems.indices.filter { i -> lineChecked.getOrElse(i) { true } }
+    val selectedCount = selectedIndices.size
+    val selectedTotal = selectedIndices.sumOf { i ->
+        val e = cartItems[i]
+        val unit = if (promoApplied) parsePrice(e.item.price) * 0.8 else parsePrice(e.item.price)
+        unit * e.quantity
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(modifier = Modifier.fillMaxSize(), color = pageBg) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Surface(color = barBg, shadowElevation = 2.dp) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(onClick = onDismiss) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                tint = onSurface
+                            )
+                        }
+                        Text(
+                            text = "My Cart",
+                            modifier = Modifier.weight(1f),
+                            textAlign = TextAlign.Center,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp,
+                            color = onSurface
+                        )
+                        IconButton(
+                            onClick = onDismiss,
+                            modifier = Modifier.padding(end = 4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .background(
+                                        if (isDarkMode) Color(0xFF3A3A3A) else Color(0xFFE8E8E8),
+                                        CircleShape
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("✕", color = muted, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                            }
+                        }
+                    }
+                }
+
+                LazyColumn(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    if (cartItems.isEmpty() && boughtItems.isEmpty()) {
+                        item {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 48.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ShoppingCart,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(56.dp),
+                                    tint = muted.copy(alpha = 0.45f)
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text("Your cart is empty", fontWeight = FontWeight.SemiBold, color = onSurface)
+                                Text(
+                                    "Add PawMate goodies from the shop.",
+                                    fontSize = 13.sp,
+                                    color = muted,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
+                            }
+                        }
+                    }
+                    items(cartItems.size) { index ->
+                        val entry = cartItems[index]
+                        val unit = if (promoApplied) parsePrice(entry.item.price) * 0.8 else parsePrice(entry.item.price)
+                        val subtitle = "${entry.item.category} · ${entry.item.badge}"
+                        val checked = lineChecked.getOrElse(index) { true }
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = surface),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp)
+                            ) {
+                                Checkbox(
+                                    checked = checked,
+                                    onCheckedChange = {
+                                        while (lineChecked.size <= index) lineChecked.add(true)
+                                        lineChecked[index] = it
+                                    },
+                                    modifier = Modifier.align(Alignment.TopEnd),
+                                    colors = CheckboxDefaults.colors(
+                                        checkedColor = pink,
+                                        uncheckedColor = muted.copy(alpha = 0.6f),
+                                        checkmarkColor = Color.White
+                                    )
+                                )
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(end = 40.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    verticalAlignment = Alignment.Top
+                                ) {
+                                    Card(
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = if (isDarkMode) Color(0xFF333333) else Color(0xFFF0F0F0)
+                                        )
+                                    ) {
+                                        Image(
+                                            painter = painterResource(id = entry.item.imageRes),
+                                            contentDescription = entry.item.name,
+                                            modifier = Modifier.size(72.dp),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    }
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            entry.item.name,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 16.sp,
+                                            color = onSurface,
+                                            maxLines = 2
+                                        )
+                                        Text(
+                                            subtitle,
+                                            fontSize = 12.sp,
+                                            color = muted,
+                                            modifier = Modifier.padding(top = 4.dp)
+                                        )
+                                        Text(
+                                            formatPhp(unit),
+                                            fontSize = 17.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = pink,
+                                            modifier = Modifier.padding(top = 8.dp)
+                                        )
+                                    }
+                                }
+                                Row(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomEnd)
+                                        .padding(top = 82.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = pinkSoft,
+                                        onClick = {
+                                            val e = cartItems[index]
+                                            val n = e.quantity - 1
+                                            if (n <= 0) cartItems.removeAt(index)
+                                            else cartItems[index] = e.copy(quantity = n)
+                                        }
+                                    ) {
+                                        Text(
+                                            "−",
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                            fontWeight = FontWeight.Bold,
+                                            color = pink,
+                                            fontSize = 18.sp
+                                        )
+                                    }
+                                    Text(
+                                        "${entry.quantity} pc",
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = onSurface,
+                                        fontSize = 14.sp
+                                    )
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = pinkSoft,
+                                        onClick = {
+                                            val e = cartItems[index]
+                                            cartItems[index] = e.copy(quantity = e.quantity + 1)
+                                        }
+                                    ) {
+                                        Text(
+                                            "+",
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                            fontWeight = FontWeight.Bold,
+                                            color = pink,
+                                            fontSize = 18.sp
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (boughtItems.isNotEmpty()) {
+                        val recentPurchases = boughtItems.takeLast(5)
+                        item {
+                            Text(
+                                "Recent purchases",
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 13.sp,
+                                color = muted,
+                                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                            )
+                        }
+                        items(
+                            count = recentPurchases.size,
+                            key = { recentPurchases[it].item.name + "_" + it }
+                        ) { i ->
+                            val entry = recentPurchases[i]
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (isDarkMode) Color(0xFF2A2A2A) else Color(0xFFF0F0F0)
+                                ),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(10.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Image(
+                                        painter = painterResource(id = entry.item.imageRes),
+                                        contentDescription = entry.item.name,
+                                        modifier = Modifier.size(40.dp),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            entry.item.name,
+                                            fontWeight = FontWeight.Medium,
+                                            maxLines = 1,
+                                            fontSize = 13.sp,
+                                            color = onSurface
+                                        )
+                                        Text(
+                                            "× ${entry.quantity}",
+                                            fontSize = 11.sp,
+                                            color = muted
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    item { Spacer(modifier = Modifier.height(120.dp)) }
+                }
+
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
+                    color = surface,
+                    shadowElevation = 12.dp
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 18.dp)
+                            .padding(top = 16.dp, bottom = 20.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Item Select", color = muted, fontSize = 14.sp)
+                            Text(
+                                selectedCount.toString(),
+                                color = muted,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "Total",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 17.sp,
+                                color = pink
+                            )
+                            Text(
+                                formatPhp(selectedTotal),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 20.sp,
+                                color = pink
+                            )
+                        }
+                        Button(
+                            onClick = {
+                                if (selectedIndices.isNotEmpty()) {
+                                    onOrderNow(formatPhp(selectedTotal), selectedIndices)
+                                }
+                            },
+                            enabled = selectedIndices.isNotEmpty(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp),
+                            shape = RoundedCornerShape(26.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = pink,
+                                disabledContainerColor = muted.copy(alpha = 0.35f),
+                                contentColor = Color.White,
+                                disabledContentColor = Color.White.copy(alpha = 0.6f)
+                            )
+                        ) {
+                            Text("Order Now", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ShopProductDetailOverlay(
+    product: MerchandiseItem,
+    isDarkMode: Boolean,
+    promoApplied: Boolean,
+    promoInput: String,
+    onPromoInputChange: (String) -> Unit,
+    onApplyPromo: () -> Unit,
+    quantity: Int,
+    onQuantityChange: (Int) -> Unit,
+    onDismiss: () -> Unit,
+    onAddToCart: () -> Unit,
+    onBuyNow: () -> Unit,
+) {
+    val pink = Color(0xFFC16565)
+    val pinkSoft = Color(0xFFFFE4EE)
+    val pageBg = if (isDarkMode) Color(0xFF1A1A1A) else Color(0xFFFFF0F5)
+    val surface = if (isDarkMode) Color(0xFF262224) else Color(0xFFFFFBFC)
+    val onSurface = if (isDarkMode) Color(0xFFF8F0F3) else Color(0xFF3D2C32)
+    val muted = if (isDarkMode) Color(0xFFB0A8AB) else Color(0xFF8A7A80)
+    val imageCardBg = if (isDarkMode) Color(0xFF2E2629) else Color(0xFFFFF8FA)
+    val imageInnerBg = if (isDarkMode) Color(0xFF33292D) else pinkSoft
+    var descriptionExpanded by remember(product.name) { mutableStateOf(true) }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(modifier = Modifier.fillMaxSize(), color = pageBg) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 4.dp, top = 4.dp, end = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = pink
+                        )
+                    }
+                }
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 18.dp)
+                        .padding(bottom = 8.dp)
+                ) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(22.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                        colors = CardDefaults.cardColors(containerColor = imageCardBg),
+                        border = BorderStroke(1.dp, pink.copy(alpha = if (isDarkMode) 0.22f else 0.2f))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(imageInnerBg)
+                        ) {
+                            Image(
+                                painter = painterResource(id = product.imageRes),
+                                contentDescription = product.name,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(288.dp)
+                                    .padding(12.dp),
+                                contentScale = ContentScale.Fit
+                            )
+                            Column(
+                                modifier = Modifier
+                                    .align(Alignment.CenterStart)
+                                    .padding(start = 18.dp, top = 72.dp, bottom = 72.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                repeat(3) { i ->
+                                    Box(
+                                        modifier = Modifier
+                                            .size(if (i == 0) 8.dp else 7.dp)
+                                            .background(
+                                                color = if (i == 0) pink else muted.copy(alpha = 0.35f),
+                                                shape = CircleShape
+                                            )
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(18.dp))
+
+                    Text(
+                        text = product.category.uppercase(Locale.US),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = pink
+                    )
+                    Text(
+                        text = product.name.uppercase(Locale.US),
+                        fontSize = 21.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = onSurface,
+                        lineHeight = 25.sp,
+                        modifier = Modifier.padding(top = 6.dp)
+                    )
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 22.dp)
+                            .clickable { descriptionExpanded = !descriptionExpanded },
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Description",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                            color = pink
+                        )
+                        Icon(
+                            imageVector = if (descriptionExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                            contentDescription = null,
+                            tint = pink.copy(alpha = 0.85f)
+                        )
+                    }
+                    if (descriptionExpanded) {
+                        Text(
+                            text = product.description,
+                            fontSize = 14.sp,
+                            color = muted,
+                            lineHeight = 20.sp,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    }
+
+                    Spacer(Modifier.height(14.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isDarkMode) pink.copy(alpha = 0.18f) else pinkSoft
+                            ),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text(
+                                product.category,
+                                color = if (isDarkMode) Color(0xFFFFB3BA) else Color(0xFF9E3D52),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                            )
+                        }
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF1B5E20).copy(alpha = 0.15f)),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text(
+                                product.badge,
+                                color = Color(0xFF4CAF50),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(14.dp))
+                    OutlinedTextField(
+                        value = promoInput,
+                        onValueChange = onPromoInputChange,
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        leadingIcon = { Text("P", color = pink, fontWeight = FontWeight.Bold) },
+                        placeholder = { Text("Promo code") },
+                        shape = RoundedCornerShape(14.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = if (isDarkMode) surface else Color(0xFFFFEEF2),
+                            unfocusedContainerColor = if (isDarkMode) surface else Color(0xFFFFF5F8),
+                            focusedBorderColor = pink,
+                            unfocusedBorderColor = pink.copy(alpha = 0.4f),
+                            cursorColor = pink,
+                            focusedTextColor = onSurface,
+                            unfocusedTextColor = onSurface,
+                            focusedPlaceholderColor = muted,
+                            unfocusedPlaceholderColor = muted
+                        ),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { onApplyPromo() })
+                    )
+                    TextButton(
+                        onClick = onApplyPromo,
+                        modifier = Modifier.align(Alignment.End)
+                    ) { Text("Apply code", color = pink, fontWeight = FontWeight.SemiBold) }
+                    Text(
+                        if (promoApplied) "Promo applied — 20% off." else "Try PROMO1 for 20% off.",
+                        fontSize = 12.sp,
+                        color = if (promoApplied) Color(0xFF66BB6A) else muted
+                    )
+
+                    Spacer(Modifier.height(12.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Text("Quantity", fontWeight = FontWeight.Medium, color = pink, fontSize = 14.sp)
+                        Card(
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isDarkMode) pink.copy(alpha = 0.14f) else pinkSoft.copy(alpha = 0.65f)
+                            ),
+                            border = BorderStroke(1.dp, pink.copy(alpha = 0.25f))
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                            ) {
+                                TextButton(
+                                    onClick = { if (quantity > 1) onQuantityChange(quantity - 1) },
+                                    modifier = Modifier.size(40.dp)
+                                ) {
+                                    Text("−", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = pink)
+                                }
+                                Text(
+                                    quantity.toString(),
+                                    fontWeight = FontWeight.Bold,
+                                    color = onSurface,
+                                    modifier = Modifier.width(28.dp),
+                                    textAlign = TextAlign.Center
+                                )
+                                TextButton(
+                                    onClick = { onQuantityChange(quantity + 1) },
+                                    modifier = Modifier.size(40.dp)
+                                ) {
+                                    Text("+", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = pink)
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(96.dp))
+                }
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isDarkMode) surface else Color(0xFFFFF7F9)
+                    ),
+                    border = BorderStroke(1.dp, pink.copy(alpha = if (isDarkMode) 0.2f else 0.14f))
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp)
+                            .padding(top = 14.dp, bottom = 18.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Price", fontSize = 12.sp, color = muted)
+                                Text(
+                                    discountedPriceLabel(product.price, promoApplied),
+                                    fontSize = 21.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = pink
+                                )
+                                if (promoApplied) {
+                                    Text(
+                                        product.price,
+                                        fontSize = 12.sp,
+                                        color = muted,
+                                        textDecoration = TextDecoration.LineThrough
+                                    )
+                                }
+                            }
+                            IconButton(
+                                onClick = { },
+                                modifier = Modifier
+                                    .size(46.dp)
+                                    .background(
+                                        if (isDarkMode) pink.copy(alpha = 0.15f) else pinkSoft,
+                                        CircleShape
+                                    )
+                            ) {
+                                Icon(
+                                    Icons.Default.FavoriteBorder,
+                                    contentDescription = "Wishlist",
+                                    tint = pink
+                                )
+                            }
+                            Button(
+                                onClick = onAddToCart,
+                                modifier = Modifier.height(48.dp),
+                                shape = RoundedCornerShape(24.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = pink,
+                                    contentColor = Color.White
+                                ),
+                                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                            ) {
+                                Text(
+                                    "ADD TO CART",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+                        OutlinedButton(
+                            onClick = onBuyNow,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp),
+                            shape = RoundedCornerShape(24.dp),
+                            border = BorderStroke(1.5.dp, pink),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = pink,
+                                containerColor = if (isDarkMode) Color.Transparent else pinkSoft.copy(alpha = 0.35f)
+                            )
+                        ) {
+                            Text("Buy now · GCash", fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -231,7 +942,9 @@ fun ShopScreen(navController: NavController) {
     var gcashPurchaseAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     var showShopConfirmation by remember { mutableStateOf(false) }
 
-    LaunchedEffect(cartItems.size) { saveCart(context, cartItems.toList()) }
+    LaunchedEffect(cartItems.size, cartItems.sumOf { it.quantity }) {
+        saveCart(context, cartItems.toList())
+    }
     LaunchedEffect(boughtItems.size) { saveHistory(context, boughtItems.toList()) }
 
 
@@ -359,87 +1072,52 @@ fun ShopScreen(navController: NavController) {
         }
 
         if (showCartDialog) {
-            AlertDialog(
-                onDismissRequest = { showCartDialog = false },
-                title = { Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) { Icon(Icons.Default.ShoppingCart, contentDescription = null, tint = Color(0xFFC16565)); Text("My Cart", fontWeight = FontWeight.Bold); if (cartItems.isNotEmpty()) { Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFC16565)), shape = RoundedCornerShape(12.dp)) { Text(text = "$cartCount", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)) } } } },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (cartItems.isEmpty() && boughtItems.isEmpty()) { Column(modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) { Icon(Icons.Default.ShoppingCart, contentDescription = null, modifier = Modifier.size(48.dp), tint = Color.Gray.copy(alpha = 0.4f)); Spacer(modifier = Modifier.height(8.dp)); Text("Your cart is empty", fontWeight = FontWeight.Medium, color = Color.Gray); Text("Add items from the product list.", fontSize = 12.sp, color = Color.Gray.copy(alpha = 0.7f)) } }
-                        if (cartItems.isNotEmpty()) {
-                            cartItems.forEach { entry ->
-                                val discountedUnit = if (promoApplied) parsePrice(entry.item.price) * 0.8 else parsePrice(entry.item.price)
-                                Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF5F8)), shape = RoundedCornerShape(12.dp)) {
-                                    Row(modifier = Modifier.padding(8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                                        Card(shape = RoundedCornerShape(10.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFF4F4F4))) { Image(painter = painterResource(id = entry.item.imageRes), contentDescription = entry.item.name, modifier = Modifier.size(56.dp), contentScale = ContentScale.Crop) }
-                                        Column(modifier = Modifier.weight(1f)) { Text(entry.item.name, fontWeight = FontWeight.SemiBold, maxLines = 1, fontSize = 14.sp); Text(entry.item.category, color = Color.Gray, fontSize = 11.sp) }
-                                        Column(horizontalAlignment = Alignment.End) { Text("x${entry.quantity}", fontWeight = FontWeight.Bold, fontSize = 13.sp); Text(formatPhp(discountedUnit * entry.quantity), color = Color(0xFFC16565), fontWeight = FontWeight.Bold, fontSize = 13.sp) }
-                                    }
-                                }
-                            }
-                            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                            val cartTotalValue = cartItems.sumOf { (if (promoApplied) parsePrice(it.item.price) * 0.8 else parsePrice(it.item.price)) * it.quantity }
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Total", fontWeight = FontWeight.Medium); Text(formatPhp(cartTotalValue), fontWeight = FontWeight.ExtraBold, color = Color(0xFFC16565)) }
+            ShopCartOverlay(
+                isDarkMode = isDarkMode,
+                cartItems = cartItems,
+                boughtItems = boughtItems.toList(),
+                promoApplied = promoApplied,
+                onDismiss = { showCartDialog = false },
+                onOrderNow = { totalFormatted, checkoutIndices ->
+                    pendingTotalAmount = totalFormatted
+                    gcashPurchaseAction = {
+                        checkoutIndices.sortedDescending().forEach { idx ->
+                            val line = cartItems[idx]
+                            addOrMergeEntry(boughtItems, line.item, line.quantity)
+                            cartItems.removeAt(idx)
                         }
-                        if (boughtItems.isNotEmpty()) { HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp)); Text("Recent purchases", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color.Gray); boughtItems.takeLast(5).forEach { entry -> Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFFF0F0F0)), shape = RoundedCornerShape(10.dp)) { Row(modifier = Modifier.padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) { Card(shape = RoundedCornerShape(8.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFF4F4F4))) { Image(painter = painterResource(id = entry.item.imageRes), contentDescription = entry.item.name, modifier = Modifier.size(40.dp), contentScale = ContentScale.Crop) }; Column(modifier = Modifier.weight(1f)) { Text(entry.item.name, fontWeight = FontWeight.Medium, maxLines = 1, fontSize = 13.sp); Text("x${entry.quantity}", color = Color.Gray, fontSize = 11.sp) } } } } }
+                        saveCart(context, cartItems.toList())
+                        saveHistory(context, boughtItems.toList())
                     }
-                },
-                confirmButton = {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextButton(onClick = { showCartDialog = false }) { Text("Close") }
-                        if (cartItems.isNotEmpty()) {
-                            Button(
-                                onClick = {
-                                    val totalVal = cartItems.sumOf { (if (promoApplied) parsePrice(it.item.price) * 0.8 else parsePrice(it.item.price)) * it.quantity }
-                                    pendingTotalAmount = formatPhp(totalVal)
-                                    gcashPurchaseAction = { cartItems.forEach { addOrMergeEntry(boughtItems, it.item, it.quantity) }; cartItems.clear() }
-                                    showCartDialog = false
-                                    showShopConfirmation = true
-                                    saveCart(context, emptyList()) // Force clear save
-                                    saveHistory(context, boughtItems.toList())
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC16565))
-                            ) { Text("Checkout", color = Color.White) }
-                        }
-                    }
+                    showCartDialog = false
+                    showShopConfirmation = true
                 }
             )
         }
 
         selectedProduct?.let { product ->
             var quantity by remember(product) { mutableStateOf(1) }
-            AlertDialog(
-                onDismissRequest = { selectedProduct = null },
-                title = { Text(product.name, fontWeight = FontWeight.Bold, fontSize = 20.sp) },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Card(shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFF8F4F4))) { Image(painter = painterResource(id = product.imageRes), contentDescription = product.name, modifier = Modifier.fillMaxWidth().height(180.dp), contentScale = ContentScale.Fit) }
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Column { Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFFFCDD9)), shape = RoundedCornerShape(8.dp)) { Text(product.category, color = Color(0xFFC16565), fontSize = 11.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)) }; Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9)), shape = RoundedCornerShape(8.dp)) { Text(product.badge, color = Color(0xFF4CAF50), fontSize = 11.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)) } } }
-                            Text(discountedPriceLabel(product.price, promoApplied), color = Color(0xFFC16565), fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
-                        }
-                        if (promoApplied) { Text(product.price, color = Color.Gray, fontSize = 12.sp, textDecoration = TextDecoration.LineThrough) }
-                        Text(product.description, color = Color.DarkGray, fontSize = 14.sp)
-                        OutlinedTextField(value = promoInput, onValueChange = { promoInput = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, leadingIcon = { Text("P", color = Color(0xFFC16565), fontWeight = FontWeight.Bold) }, placeholder = { Text("Enter promo code") }, shape = RoundedCornerShape(12.dp), colors = OutlinedTextFieldDefaults.colors(focusedContainerColor = Color(0xFFFFF5F8), unfocusedContainerColor = Color(0xFFFFF5F8)), keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done), keyboardActions = KeyboardActions(onDone = { applyPromoCode(); focusManager.clearFocus() }))
-                        Text(if (promoApplied) "Promo applied: 20% discount enabled." else "Use PROMO1 for 20% off.", fontSize = 12.sp, color = if (promoApplied) Color(0xFF4CAF50) else Color.Gray)
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) { Text("Qty", fontWeight = FontWeight.Medium); Button(onClick = { if (quantity > 1) quantity -= 1 }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFCDD9))) { Text("-", color = Color(0xFF9A4E5F)) }; Text(quantity.toString(), fontWeight = FontWeight.Bold); Button(onClick = { quantity += 1 }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFCDD9))) { Text("+", color = Color(0xFF9A4E5F)) } }
-                    }
+            ShopProductDetailOverlay(
+                product = product,
+                isDarkMode = isDarkMode,
+                promoApplied = promoApplied,
+                promoInput = promoInput,
+                onPromoInputChange = { promoInput = it },
+                onApplyPromo = { applyPromoCode(); focusManager.clearFocus() },
+                quantity = quantity,
+                onQuantityChange = { quantity = it },
+                onDismiss = { selectedProduct = null },
+                onAddToCart = {
+                    addOrMergeEntry(cartItems, product, quantity)
+                    selectedProduct = null
                 },
-                confirmButton = { Button(onClick = { addOrMergeEntry(cartItems, product, quantity); selectedProduct = null }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9999))) { Text("Add to Cart", color = Color.White) } },
-                dismissButton = {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextButton(onClick = { selectedProduct = null }) { Text("Close") }
-                        Button(
-                            onClick = {
-                                val priceNum = parsePrice(product.price)
-                                val finalPrice = if (promoApplied) priceNum * 0.8 else priceNum
-                                pendingTotalAmount = formatPhp(finalPrice * quantity)
-                                gcashPurchaseAction = { addOrMergeEntry(boughtItems, product, quantity) }
-                                selectedProduct = null
-                                showShopConfirmation = true
-                                },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC16565))
-                        ) { Text("Buy Now", color = Color.White) }
-                    }
+                onBuyNow = {
+                    val priceNum = parsePrice(product.price)
+                    val finalPrice = if (promoApplied) priceNum * 0.8 else priceNum
+                    pendingTotalAmount = formatPhp(finalPrice * quantity)
+                    gcashPurchaseAction = { addOrMergeEntry(boughtItems, product, quantity) }
+                    selectedProduct = null
+                    showShopConfirmation = true
                 }
             )
         }

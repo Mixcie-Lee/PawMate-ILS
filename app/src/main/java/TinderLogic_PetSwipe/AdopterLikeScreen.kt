@@ -1,413 +1,476 @@
-    package TinderLogic_PetSwipe
+package TinderLogic_PetSwipe
 
-    import android.util.Log
-    import androidx.compose.animation.core.*
-    import androidx.compose.foundation.Image
-    import androidx.compose.foundation.background
-    import androidx.compose.foundation.clickable
-    import androidx.compose.foundation.layout.*
-    import androidx.compose.foundation.lazy.LazyColumn
-    import androidx.compose.foundation.lazy.items
-    import androidx.compose.foundation.shape.RoundedCornerShape
-    import androidx.compose.material.icons.Icons
-    import androidx.compose.material.icons.filled.Close
-    import androidx.compose.material.icons.filled.Favorite
-    import androidx.compose.material.icons.filled.Add
-    import androidx.compose.material.icons.filled.ArrowBack
-    import androidx.compose.material.icons.filled.Pets
-    import androidx.compose.material3.*
-    import androidx.compose.runtime.*
-    import androidx.compose.runtime.livedata.observeAsState
-    import androidx.compose.ui.Alignment
-    import androidx.compose.ui.Modifier
-    import androidx.compose.ui.draw.clip
-    import androidx.compose.ui.graphics.Color
-    import androidx.compose.ui.layout.ContentScale
-    import androidx.compose.ui.platform.LocalConfiguration
-    import androidx.compose.ui.platform.LocalContext
-    import androidx.compose.ui.res.painterResource
-    import androidx.compose.ui.text.font.FontWeight
-    import androidx.compose.ui.text.style.TextAlign
-    import androidx.compose.ui.unit.dp
-    import androidx.compose.ui.unit.sp
-    import androidx.lifecycle.viewmodel.compose.viewModel
-    import androidx.navigation.NavController
-    import com.example.pawmate_ils.Firebase_Utils.AuthViewModel
-    import com.example.pawmate_ils.Firebase_Utils.LikedPet
-    import com.example.pawmate_ils.Firebase_Utils.LikedPetsViewModel
-    import com.example.pawmate_ils.R
-    import com.example.pawmate_ils.GemManager
-    //import com.example.pawmate_ils.LikedPetsManager
-    import com.example.pawmate_ils.ThemeManager
-    import com.example.pawmate_ils.ui.components.AdopterBottomBar
-    import kotlinx.coroutines.delay
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.VectorDrawable
+import android.util.Log
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.StarOutline
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
+import com.example.pawmate_ils.Firebase_Utils.LikedPet
+import com.example.pawmate_ils.Firebase_Utils.LikedPetsViewModel
+import com.example.pawmate_ils.GemManager
+import com.example.pawmate_ils.ThemeManager
+import com.example.pawmate_ils.ui.components.AdopterBottomBar
+import kotlinx.coroutines.delay
 
-    data class AdoptedPet(
-        val name: String,
-        val breed: String,
-        val description: String,
-        val imageResId: Int
-    )
-
-    @OptIn(ExperimentalMaterial3Api::class)
-    @Composable
-    fun AdopterLikeScreen(navController: NavController) {
-        var showGemDialog by remember { mutableStateOf(false) }
-        var tapCount by remember { mutableIntStateOf(0) }
-        var showDogAnimation by remember { mutableStateOf(false) }
-
-        val AuthViewModel : AuthViewModel = viewModel()
-        val authState = AuthViewModel.authState.observeAsState()
-        val context = LocalContext.current
-        val likedPetsViewModel: LikedPetsViewModel = viewModel()
-        val likedPets by likedPetsViewModel.likedPets.collectAsState(initial = emptyList())
-        LaunchedEffect(likedPets) {
-            Log.d("AdopterLikeScreen", "likedPets updated: ${likedPets.size} pets")
+/**
+ * [painterResource] only supports types that decode to a bitmap/vector.
+ * Liked pets may reference a solid [ColorDrawable] ID (valid res but crashes on load).
+ */
+private fun android.content.Context.canLoadDrawableAsComposePainter(resId: Int): Boolean {
+    if (resId == 0 || resId == -1) return false
+    return try {
+        resources.getResourceName(resId)
+        when (val d = ContextCompat.getDrawable(this, resId)) {
+            null -> false
+            is ColorDrawable -> false
+            is BitmapDrawable, is VectorDrawable -> true
+            else -> d.javaClass.name.contains("VectorDrawable", ignoreCase = true)
         }
-        val gemCount by GemManager.gemCount.collectAsState()
+    } catch (_: Exception) {
+        false
+    }
+}
 
+@Composable
+fun AdopterLikeScreen(navController: NavController) {
+    var showGemDialog by remember { mutableStateOf(false) }
+    var tapCount by remember { mutableIntStateOf(0) }
+    var showDogAnimation by remember { mutableStateOf(false) }
+    var searchOpen by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
 
-        val configuration = LocalConfiguration.current
-        val screenWidth = configuration.screenWidthDp.dp
-        val isTablet = screenWidth >= 600.dp
+    val likedPetsViewModel: LikedPetsViewModel = viewModel()
+    val likedPets by likedPetsViewModel.likedPets.collectAsState(initial = emptyList())
+    LaunchedEffect(likedPets) {
+        Log.d("AdopterLikeScreen", "likedPets updated: ${likedPets.size} pets")
+    }
 
-        val isDarkMode = ThemeManager.isDarkMode
-        val backgroundColor = if (isDarkMode) Color(0xFF1A1A1A) else Color(0xFFFFF0F5)
-        val textColor = if (isDarkMode) Color.White else Color.Black
-        val cardColor = if (isDarkMode) Color(0xFF2A2A2A) else Color.White
-        val navBarColor = if (isDarkMode) Color(0xFF1E1E1E) else Color.White
-        val primaryColor = if (isDarkMode) Color(0xFFFF9999) else Color(0xFFFFB6C1)
-        val accentColor = if (isDarkMode) Color(0xFFB39DDB) else Color(0xFFDDA0DD)
+    val configuration = LocalConfiguration.current
+    val screenWidth = configuration.screenWidthDp.dp
+    val isTablet = screenWidth >= 600.dp
 
-        Scaffold(
-            containerColor = backgroundColor,
-            bottomBar = {
-                AdopterBottomBar(navController = navController, selectedTab = "Favorites")
-            }
-        ) { paddingValues ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(backgroundColor)
-                    .padding(paddingValues)
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxSize()
+    val isDarkMode = ThemeManager.isDarkMode
+    val pageBg = if (isDarkMode) Color(0xFF1C1A1B) else Color(0xFFF7F2F5)
+    val surface = if (isDarkMode) Color(0xFF262224) else Color(0xFFFFFFFF)
+    val titleColor = if (isDarkMode) Color(0xFFF8F0F3) else Color(0xFF1A1A1A)
+    val subtitleColor = if (isDarkMode) Color(0xFFB0A8AB) else Color(0xFF7A7377)
+    val pinkAccent = if (isDarkMode) Color(0xFFFF7BA1) else Color(0xFFE84D7A)
+    val heartColor = if (isDarkMode) Color(0xFFFF6B8A) else Color(0xFFE85A6A)
+    val filteredPets = remember(likedPets, searchQuery) {
+        if (searchQuery.isBlank()) likedPets
+        else likedPets.filter {
+            it.name.contains(searchQuery, ignoreCase = true) ||
+                it.breed.contains(searchQuery, ignoreCase = true) ||
+                it.type.contains(searchQuery, ignoreCase = true)
+        }
+    }
+
+    Scaffold(
+        containerColor = pageBg,
+        bottomBar = {
+            AdopterBottomBar(navController = navController, selectedTab = "Favorites")
+        }
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(pageBg)
+                .padding(paddingValues)
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // Top App Bar
-                    CenterAlignedTopAppBar(
-                        navigationIcon = {
-                            IconButton(onClick = { navController.navigate("pet_swipe") { launchSingleTop = true } }) {
-                                Icon(
-                                    imageVector = Icons.Filled.ArrowBack,
-                                    contentDescription = "Back",
-                                    tint = textColor
-                                )
-                            }
-                        },
-                        title = {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center,
-                                modifier = Modifier.clickable {
-                                    tapCount++
-                                    if (tapCount >= 4) {
-                                        tapCount = 0
-                                        showDogAnimation = true
-                                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable {
+                                tapCount++
+                                if (tapCount >= 4) {
+                                    tapCount = 0
+                                    showDogAnimation = true
                                 }
-                            ) {
-                                Image(
-                                    painter = painterResource(id = R.drawable.blackpawmateicon3),
-                                    contentDescription = "PawMate Logo",
-                                    modifier = Modifier.size(if (isTablet) 32.dp else 28.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Icon(
-                                    imageVector = Icons.Filled.Favorite,
-                                    contentDescription = "Liked",
-                                    tint = Color.Red,
-                                    modifier = Modifier.size(if (isTablet) 28.dp else 24.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "Liked (${likedPets.size})",
-                                    fontSize = if (isTablet) 22.sp else 18.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = textColor
-                                )
                             }
-                        },
-                        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                            containerColor = if (isDarkMode) Color(0xFF2A2A2A) else Color(0xFFFFF0F5)
-                        ),
-                        actions = {
-                            
-                        }
-                    )
-
-                    // Content
-                    if (likedPets.isEmpty()) {
-                        // Empty state
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(if (isTablet) 32.dp else 24.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Text(
-                                text = "💔",
-                                fontSize = if (isTablet) 80.sp else 64.sp,
-                                modifier = Modifier.padding(bottom = if (isTablet) 24.dp else 16.dp)
-                            )
-                            Text(
-                                text = "No Liked Pets Yet",
-                                fontSize = if (isTablet) 28.sp else 24.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = textColor,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.padding(bottom = if (isTablet) 16.dp else 12.dp)
-                            )
-                            Text(
-                                text = "Start swiping to find your perfect companion!",
-                                fontSize = if (isTablet) 18.sp else 16.sp,
-                                color = if (ThemeManager.isDarkMode) Color.LightGray else Color.Gray,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.padding(bottom = if (isTablet) 32.dp else 24.dp)
-                            )
-                            Button(
-                                onClick = { navController.navigate("pet_swipe") },
-                                colors = ButtonDefaults.buttonColors(containerColor = primaryColor),
-                                shape = RoundedCornerShape(28.dp),
-                                modifier = Modifier
-                                    .fillMaxWidth(if (isTablet) 0.5f else 0.8f)
-                                    .height(if (isTablet) 60.dp else 56.dp)
-                            ) {
-                                Text(
-                                    text = "Find Pets",
-                                    fontSize = if (isTablet) 20.sp else 18.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    } else {
-                        // Liked pets grid
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize()
-                                .background(backgroundColor)
-                            ,
-
-                            contentPadding = PaddingValues(if (isTablet) 20.dp else 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(if (isTablet) 20.dp else 16.dp)
-                        ) {
-                            items(likedPets) { pet ->
-                                LikedPetCard(
-                                    pet = pet,
-                                    isTablet = isTablet,
-                                    textColor = textColor,
-                                    cardColor = cardColor,
-                                    onRemove = {
-                                        likedPetsViewModel.removeLikedPet(pet.name)
-                                    }
-                                )
-                            }
-                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.StarOutline,
+                            contentDescription = null,
+                            tint = pinkAccent,
+                            modifier = Modifier.size(if (isTablet) 26.dp else 22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "FAVORITES — ${likedPets.size}",
+                            fontSize = if (isTablet) 17.sp else 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = titleColor,
+                            letterSpacing = 0.6.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    IconButton(onClick = { searchOpen = !searchOpen }) {
+                        Icon(
+                            imageVector = Icons.Outlined.Search,
+                            contentDescription = "Search favorites",
+                            tint = pinkAccent
+                        )
                     }
                 }
 
-                if (showDogAnimation) {
-                    DogEmojiAnimation(
-                        onAnimationComplete = { showDogAnimation = false }
-                    )
-                }
-
-                if (showGemDialog) {
-                    GemPurchaseDialog(
-                        onDismiss = { showGemDialog = false },
-                        onPurchase = { packageType ->
-                            GemManager.purchaseGems(packageType)
-                            showGemDialog = false
-                        }
-                    )
-                }
-            }
-        }
-    }
-
-    @Composable
-    fun SafePetImage(
-        imageRes: Int,
-        petName: String,
-        isTablet: Boolean
-    ) {
-        val context = LocalContext.current
-        var isValidResource by remember(imageRes) { mutableStateOf(false) }
-        
-        LaunchedEffect(imageRes) {
-            isValidResource = if (imageRes != 0 && imageRes != -1) {
-                try {
-                    context.resources.getResourceName(imageRes)
-                    true
-                } catch (e: Exception) {
-                    false
-                }
-            } else {
-                false
-            }
-        }
-        
-        if (isValidResource) {
-            Image(
-                painter = painterResource(id = imageRes),
-                contentDescription = petName,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(if (isTablet) 100.dp else 80.dp)
-                    .clip(RoundedCornerShape(12.dp))
-            )
-        } else {
-            Box(
-                modifier = Modifier
-                    .size(if (isTablet) 100.dp else 80.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(
-                        if (ThemeManager.isDarkMode) 
-                            Color(0xFFFF9999).copy(alpha = 0.2f) 
-                        else 
-                            Color(0xFFFFB6C1).copy(alpha = 0.3f)
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Pets,
-                    contentDescription = petName,
-                    tint = Color(0xFFFF9999),
-                    modifier = Modifier.size(if (isTablet) 50.dp else 40.dp)
-                )
-            }
-        }
-    }
-
-    @Composable
-    fun LikedPetCard(
-        pet: LikedPet,
-        isTablet: Boolean,
-        textColor: Color,
-        cardColor: Color,
-        onRemove: () -> Unit
-    ) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(if (isTablet) 140.dp else 120.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = cardColor),
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(if (isTablet) 16.dp else 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Pet Image
-                SafePetImage(
-                    imageRes = pet.imageRes,
-                    petName = pet.name,
-                    isTablet = isTablet
-                )
-
-                Spacer(modifier = Modifier.width(if (isTablet) 16.dp else 12.dp))
-
-                // Pet Info
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(
-                        text = pet.name,
-                        fontSize = if (isTablet) 22.sp else 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = textColor
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "${pet.breed} • ${pet.age}",
-                        fontSize = if (isTablet) 16.sp else 14.sp,
-                        color = if (ThemeManager.isDarkMode) Color.LightGray else Color.Gray
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = pet.description,
-                        fontSize = if (isTablet) 14.sp else 12.sp,
-                        color = if (ThemeManager.isDarkMode) Color.LightGray else Color.Gray,
-                        maxLines = 2
-                    )
-                }
-
-                // Remove Button
-                IconButton(
-                    onClick = onRemove,
-                    modifier = Modifier
-                        .background(
-                            Color.Red.copy(alpha = 0.1f),
-                            RoundedCornerShape(8.dp)
-                        )
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Close,
-                        contentDescription = "Remove",
-                        tint = Color.Red,
-                        modifier = Modifier.size(if (isTablet) 24.dp else 20.dp)
-                    )
-                }
-            }
-        }
-    }
-
-    @Composable
-    fun DogEmojiAnimation(
-        onAnimationComplete: () -> Unit
-    ) {
-        var isVisible by remember { mutableStateOf(true) }
-
-        LaunchedEffect(Unit) {
-            delay(2000)
-            isVisible = false
-            onAnimationComplete()
-        }
-
-        if (isVisible) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Transparent),
-                contentAlignment = Alignment.Center
-            ) {
-                // Multiple dog emojis moving across screen
-                repeat(8) { index ->
-                    val animatedOffset by rememberInfiniteTransition(label = "dog_animation").animateFloat(
-                        initialValue = -200f,
-                        targetValue = 1200f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(
-                                durationMillis = 2000,
-                                delayMillis = index * 200
-                            ),
-                            repeatMode = RepeatMode.Restart
-                        ), label = "dog_offset"
-                    )
-
-                    Text(
-                        text = "🐕",
-                        fontSize = (24 + index * 4).sp,
+                if (searchOpen) {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
                         modifier = Modifier
-                            .offset(
-                                x = animatedOffset.dp,
-                                y = (index * 40 - 160).dp
-                            )
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp)
+                            .padding(bottom = 8.dp),
+                        placeholder = { Text("Search…", color = subtitleColor) },
+                        singleLine = true,
+                        shape = RoundedCornerShape(14.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = pinkAccent,
+                            unfocusedBorderColor = subtitleColor.copy(alpha = 0.35f),
+                            focusedTextColor = titleColor,
+                            unfocusedTextColor = titleColor,
+                            cursorColor = pinkAccent,
+                            focusedContainerColor = surface,
+                            unfocusedContainerColor = surface
+                        )
                     )
                 }
+
+                if (likedPets.isEmpty()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(if (isTablet) 32.dp else 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = "💔",
+                            fontSize = if (isTablet) 80.sp else 64.sp,
+                            modifier = Modifier.padding(bottom = if (isTablet) 24.dp else 16.dp)
+                        )
+                        Text(
+                            text = "No favorites yet",
+                            fontSize = if (isTablet) 26.sp else 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = titleColor,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(bottom = if (isTablet) 12.dp else 8.dp)
+                        )
+                        Text(
+                            text = "Start swiping to save pets you love.",
+                            fontSize = if (isTablet) 17.sp else 15.sp,
+                            color = subtitleColor,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(bottom = if (isTablet) 28.dp else 22.dp)
+                        )
+                        Button(
+                            onClick = { navController.navigate("pet_swipe") },
+                            colors = ButtonDefaults.buttonColors(containerColor = pinkAccent),
+                            shape = RoundedCornerShape(28.dp),
+                            modifier = Modifier
+                                .fillMaxWidth(if (isTablet) 0.5f else 0.82f)
+                                .height(if (isTablet) 56.dp else 52.dp)
+                        ) {
+                            Text(
+                                text = "Find pets",
+                                fontSize = if (isTablet) 18.sp else 16.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White
+                            )
+                        }
+                    }
+                } else if (filteredPets.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No matches for \"$searchQuery\"",
+                            color = subtitleColor,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(pageBg),
+                        contentPadding = PaddingValues(
+                            start = 20.dp,
+                            end = 20.dp,
+                            bottom = 16.dp
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        items(
+                            items = filteredPets,
+                            key = { p -> p.documentId.ifBlank { p.name } + p.name }
+                        ) { pet ->
+                            FavoriteListRow(
+                                pet = pet,
+                                isTablet = isTablet,
+                                titleColor = titleColor,
+                                subtitleColor = subtitleColor,
+                                heartColor = heartColor,
+                                onUnfavorite = { likedPetsViewModel.removeLikedPet(pet) }
+                            )
+                            HorizontalDivider(
+                                modifier = Modifier.padding(start = 72.dp),
+                                color = subtitleColor.copy(alpha = 0.12f)
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (showDogAnimation) {
+                DogEmojiAnimation(
+                    onAnimationComplete = { showDogAnimation = false }
+                )
+            }
+
+            if (showGemDialog) {
+                GemPurchaseDialog(
+                    onDismiss = { showGemDialog = false },
+                    onPurchase = { packageType ->
+                        GemManager.purchaseGems(packageType)
+                        showGemDialog = false
+                    }
+                )
             }
         }
     }
+}
+
+@Composable
+private fun SafePetImage(
+    imageRes: Int,
+    petName: String,
+    size: Dp,
+    circle: Boolean = true
+) {
+    val context = LocalContext.current
+    var isValidResource by remember(imageRes) { mutableStateOf(false) }
+
+    LaunchedEffect(imageRes) {
+        isValidResource = context.canLoadDrawableAsComposePainter(imageRes)
+    }
+
+    val shape = if (circle) CircleShape else RoundedCornerShape(12.dp)
+    if (isValidResource) {
+        Image(
+            painter = painterResource(id = imageRes),
+            contentDescription = petName,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .size(size)
+                .clip(shape)
+        )
+    } else {
+        Box(
+            modifier = Modifier
+                .size(size)
+                .clip(shape)
+                .background(
+                    if (ThemeManager.isDarkMode)
+                        Color(0xFF5C2D3F).copy(alpha = 0.5f)
+                    else
+                        Color(0xFFFFE4EE)
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Pets,
+                contentDescription = petName,
+                tint = if (ThemeManager.isDarkMode) Color(0xFFFF7BA1) else Color(0xFFE84D7A),
+                modifier = Modifier.size(size * 0.5f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun FavoriteListRow(
+    pet: LikedPet,
+    isTablet: Boolean,
+    titleColor: Color,
+    subtitleColor: Color,
+    heartColor: Color,
+    onUnfavorite: () -> Unit
+) {
+    val avatarSize = if (isTablet) 56.dp else 52.dp
+    val subtitle = when {
+        pet.breed.isNotBlank() && pet.age.isNotBlank() -> "${pet.breed} · ${pet.age}"
+        pet.breed.isNotBlank() -> pet.breed
+        pet.age.isNotBlank() -> pet.age
+        pet.type.isNotBlank() -> pet.type
+        else -> ""
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        SafePetImage(
+            imageRes = pet.imageRes,
+            petName = pet.name,
+            size = avatarSize,
+            circle = true
+        )
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 14.dp)
+        ) {
+            Text(
+                text = pet.name,
+                fontSize = if (isTablet) 18.sp else 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = titleColor,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (subtitle.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = subtitle,
+                    fontSize = if (isTablet) 14.sp else 13.sp,
+                    color = subtitleColor,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+        IconButton(onClick = onUnfavorite) {
+            Icon(
+                imageVector = Icons.Filled.Favorite,
+                contentDescription = "Remove from favorites",
+                tint = heartColor,
+                modifier = Modifier.size(if (isTablet) 26.dp else 24.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun DogEmojiAnimation(
+    onAnimationComplete: () -> Unit
+) {
+    var isVisible by remember { mutableStateOf(true) }
+
+    LaunchedEffect(Unit) {
+        delay(2000)
+        isVisible = false
+        onAnimationComplete()
+    }
+
+    if (isVisible) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Transparent),
+            contentAlignment = Alignment.Center
+        ) {
+            repeat(8) { index ->
+                val animatedOffset by rememberInfiniteTransition(label = "dog_anim_$index").animateFloat(
+                    initialValue = -200f,
+                    targetValue = 1200f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(
+                            durationMillis = 2000,
+                            delayMillis = index * 200
+                        ),
+                        repeatMode = RepeatMode.Restart
+                    ),
+                    label = "dog_offset_$index"
+                )
+
+                Text(
+                    text = "🐕",
+                    fontSize = (24 + index * 4).sp,
+                    modifier = Modifier.offset(
+                        x = animatedOffset.dp,
+                        y = (index * 40 - 160).dp
+                    )
+                )
+            }
+        }
+    }
+}

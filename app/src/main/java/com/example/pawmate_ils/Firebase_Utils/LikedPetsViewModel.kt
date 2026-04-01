@@ -5,6 +5,8 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.DocumentSnapshot
+import com.google.firebase.firestore.Exclude
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,8 +19,65 @@ data class LikedPet(
     val age: String = "",
     val description: String = "",
     val type: String = "",
-    val imageRes: Int = 0
+    val imageRes: Int = 0,
+    /** Subcollection document id — used for delete; not written to Firestore. */
+    @get:Exclude
+    val documentId: String = ""
 )
+
+/**
+ * Firestore [DocumentSnapshot.getString] throws if the field exists but is not a String.
+ * Older or hand-edited documents may use other types — never crash the favorites screen.
+ */
+private fun DocumentSnapshot.readFieldAsString(key: String): String {
+    if (!contains(key)) return ""
+    return try {
+        when (val v = get(key)) {
+            null -> ""
+            is String -> v
+            is Number -> v.toString()
+            is Boolean -> if (v) "true" else "false"
+            else -> v.toString()
+        }
+    } catch (_: Exception) {
+        ""
+    }
+}
+
+private fun DocumentSnapshot.readFieldAsInt(key: String): Int {
+    if (!contains(key)) return 0
+    return try {
+        when (val v = get(key)) {
+            null -> 0
+            is Int -> v
+            is Long -> v.coerceIn(Int.MIN_VALUE.toLong(), Int.MAX_VALUE.toLong()).toInt()
+            is Double -> v.toInt()
+            is String -> v.trim().toIntOrNull() ?: 0
+            else -> 0
+        }
+    } catch (_: Exception) {
+        0
+    }
+}
+
+private fun DocumentSnapshot.toLikedPetOrNull(): LikedPet? {
+    return try {
+        val petName = readFieldAsString("name").ifBlank { id }
+        if (petName.isBlank()) return null
+        LikedPet(
+            name = petName,
+            breed = readFieldAsString("breed"),
+            age = readFieldAsString("age"),
+            description = readFieldAsString("description"),
+            type = readFieldAsString("type"),
+            imageRes = readFieldAsInt("imageRes"),
+            documentId = id
+        )
+    } catch (e: Exception) {
+        Log.e("LikedPetsVM", "Failed to parse liked pet doc ${id}", e)
+        null
+    }
+}
 
 class LikedPetsViewModel : ViewModel() {
 
@@ -42,10 +101,6 @@ class LikedPetsViewModel : ViewModel() {
     /** 🔹 Fetch liked pets for the currently logged-in user (real-time updates). */
     fun fetchLikedPets() {
         val userId = auth.currentUser?.uid ?: return
-        if (userId == null) {
-            Log.d("LikedPetsVM", "fetchLikedPets: userId is null!")
-            return
-        }
         Log.d("LikedPetsVM", "fetchLikedPets: userId=$userId")
 
 
@@ -55,27 +110,30 @@ class LikedPetsViewModel : ViewModel() {
             .document(userId)
             .collection("likedPets")
             .addSnapshotListener { snapshot, e ->
-                _isLoading.value = false
-                if (e != null) {
+                try {
+                    _isLoading.value = false
+                    if (e != null) {
                         Log.e("LikedPetsVM", "SnapshotListener error: ${e.message}")
                         return@addSnapshotListener
+                    }
 
+                    val pets = snapshot?.documents?.mapNotNull { doc ->
+                        runCatching { doc.toLikedPetOrNull() }
+                            .onFailure { Log.e("LikedPetsVM", "Doc parse: ${doc.id}", it) }
+                            .getOrNull()
+                    } ?: emptyList()
+                    Log.d("LikedPetsVM", "Fetched ${pets.size} liked pets")
+                    _likedPets.value = pets
+                } catch (t: Throwable) {
+                    Log.e("LikedPetsVM", "Snapshot listener crashed", t)
+                    _likedPets.value = emptyList()
                 }
-
-                val pets = snapshot?.documents?.mapNotNull { it.toObject(LikedPet::class.java) }
-                    ?: emptyList()
-                Log.d("LikedPetsVM", "Fetched ${pets.size} liked pets")
-                _likedPets.value = pets
             }
     }
 
     /** ❤️ Add a pet to Firestore when user swipes right. */
     fun addLikedPet(pet: PetData) {
         val userId = auth.currentUser?.uid ?: return
-        if (userId == null) {
-            Log.d("LikedPetsVM", "addLikedPet: userId is null!")
-            return
-        }
 
         // 🔹 Convert PetData → LikedPet
         val likedPet = LikedPet(
@@ -107,14 +165,19 @@ class LikedPetsViewModel : ViewModel() {
 
 
     /** 💔 Remove a liked pet (e.g., from adopter like screen). */
-    fun removeLikedPet(petName: String) {
+    fun removeLikedPet(pet: LikedPet) {
         val userId = auth.currentUser?.uid ?: return
+        val docId = pet.documentId.ifBlank { pet.name }
+        if (docId.isBlank()) {
+            Log.w("LikedPetsVM", "removeLikedPet: empty document id")
+            return
+        }
 
         viewModelScope.launch {
             firestore.collection("users")
                 .document(userId)
                 .collection("likedPets")
-                .document(petName)
+                .document(docId)
                 .delete()
                 .addOnFailureListener {
                     _errorMessage.value = it.message

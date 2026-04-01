@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -102,29 +103,48 @@ fun ShelterProfileScreen(
                     Box(
                         modifier = Modifier
                             .size(100.dp)
-                            .clip(CircleShape)
-                            .background(primaryColor.copy(alpha = 0.2f))
-                            .clickable { imagePicker.launch("image/*") },
-                        contentAlignment = Alignment.Center
+                            .clickable { imagePicker.launch("image/*") }
                     ) {
-                        val photoUrl = userOnlineData?.photoUri
-                        if (!photoUrl.isNullOrEmpty()) {
-                            AsyncImage(
-                                model = photoUrl,
-                                contentDescription = "Profile Photo",
-                                modifier = Modifier.fillMaxSize().clip(CircleShape),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.Person,
-                                contentDescription = "Profile",
-                                tint = Color.White,
-                                modifier = Modifier.size(50.dp)
-                            )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape)
+                                .background(primaryColor.copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            val photoUrl = userOnlineData?.photoUri
+                            if (!photoUrl.isNullOrEmpty()) {
+                                AsyncImage(
+                                    model = photoUrl,
+                                    contentDescription = "Profile Photo",
+                                    modifier = Modifier.fillMaxSize().clip(CircleShape),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Person,
+                                    contentDescription = "Profile",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(50.dp)
+                                )
+                            }
                         }
-                        Box(modifier = Modifier.align(Alignment.BottomEnd).size(32.dp).clip(CircleShape).background(primaryColor), contentAlignment = Alignment.Center) {
-                            Icon(Icons.Default.Edit, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .size(32.dp)
+                                .offset(x = (-3).dp, y = (-3).dp)
+                                .clip(CircleShape)
+                                .border(2.dp, Color.White, CircleShape)
+                                .background(primaryColor),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Edit,
+                                contentDescription = "Edit photo",
+                                tint = Color.White,
+                                modifier = Modifier.size(17.dp)
+                            )
                         }
                     }
 

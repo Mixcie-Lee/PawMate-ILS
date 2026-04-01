@@ -46,7 +46,9 @@
     import com.example.pawmate_ils.Firebase_Utils.ChatViewModel
     import com.example.pawmate_ils.Firebase_Utils.ChatViewModelFactory
     import com.example.pawmate_ils.Firebase_Utils.FirestoreRepository
-    import com.example.pawmate_ils.Firebase_Utils.LikedPetsViewModel
+    import com.example.pawmate_ils.Firebase_Utils.HomeViewModel
+import com.example.pawmate_ils.Firebase_Utils.LikedPetsViewModel
+import com.example.pawmate_ils.Firebase_Utils.PetsRepository
     import com.example.pawmate_ils.chatScreen.ChatScreen
     import com.example.pawmate_ils.ui.screens.ProfileSettingsScreen
     import com.example.pawmate_ils.ui.screens.AccountSettingsScreen
@@ -63,6 +65,8 @@
     import com.example.pawmate_ils.ui.screens.AdoptionCenterPets
     import com.example.pawmate_ils.ui.screens.EditPetScreen
     import com.example.pawmate_ils.ui.screens.ShelterProfileScreen
+    import com.example.pawmate_ils.ui.screens.HelpSupportScreen
+    import com.example.pawmate_ils.ui.screens.AboutScreen
     import com.google.firebase.Firebase
     import com.google.firebase.app
     import com.google.firebase.auth.FirebaseAuth
@@ -153,6 +157,12 @@
                             factory = AdoptionCenterViewMdelFactory(authViewModel)
                         )
 
+                        // Pre-warm: these fire Firestore listeners in init{},
+                        // populating the local cache while the welcome screen shows.
+                        // The swipe screen's own ViewModels then hit warm cache instantly.
+                        val preWarmPets: PetsRepository = viewModel()
+                        val preWarmHome: HomeViewModel = viewModel()
+                        val preWarmLiked: LikedPetsViewModel = viewModel()
 
                         val context = LocalContext.current
                         val navController = rememberNavController()
@@ -181,8 +191,10 @@
                         val currentUserRole by authViewModel.currentUserRole.collectAsState()
 
                         LaunchedEffect(authState.value, currentUserRole) {
-                            // Only proceed if onboarding is done
                             if (!onboardingUtil.isOnboardingCompleted()) return@LaunchedEffect
+
+                            val currentRoute = navController.currentBackStackEntry?.destination?.route
+                            if (currentRoute == "welcome_popup") return@LaunchedEffect
 
                             val currentUser = FirebaseAuth.getInstance().currentUser
 
@@ -192,7 +204,6 @@
                                 if (currentUserRole != null) {
                                     handleRoleBasedNavigation(authViewModel, navController)
                                 } else {
-                                    // If the role isn't loaded yet, ask the ViewModel to go get it
                                     authViewModel.fetchUserRole()
                                 }
                             }
@@ -451,10 +462,10 @@
                                 )
                             }
                             composable("help_support") {
-                                Text("Help & Support - Coming Soon")
+                                HelpSupportScreen(navController = navController)
                             }
                             composable("about_app") {
-                                Text("About - Coming Soon")
+                                AboutScreen(navController = navController)
                             }
                             //COMPOSABLE FOR EDIT PET SCREEN
                             // Inside your NavHost in MainActivity.kt

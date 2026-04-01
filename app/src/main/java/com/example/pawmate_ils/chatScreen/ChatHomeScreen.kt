@@ -1,19 +1,43 @@
 package com.example.pawmate_ils.chatScreen
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
+import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Pets
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -21,6 +45,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -31,363 +58,412 @@ import com.example.pawmate_ils.Firebase_Utils.ChatViewModel
 import com.example.pawmate_ils.Firebase_Utils.HomeViewModel
 import com.example.pawmate_ils.R
 import com.example.pawmate_ils.ThemeManager
-import com.example.pawmate_ils.firebase_models.Channel
 import com.example.pawmate_ils.firebase_models.User
 import com.example.pawmate_ils.ui.components.AdopterBottomBar
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+@SuppressLint("SimpleDateFormat")
+private fun formatChatTimestamp(timestampMs: Long): Pair<String, Boolean> {
+    if (timestampMs <= 0L) return "" to false
+    val now = System.currentTimeMillis()
+    val diff = now - timestampMs
+    val minute = 60_000L
+    val hour = 60 * minute
+    val day = 24 * hour
+    return when {
+        diff < minute -> "Just now" to true
+        diff < hour -> "${diff / minute}m ago" to true
+        diff < day -> {
+            val calNow = Calendar.getInstance()
+            val calMsg = Calendar.getInstance().apply { timeInMillis = timestampMs }
+            val sameDay = calNow.get(Calendar.YEAR) == calMsg.get(Calendar.YEAR) &&
+                calNow.get(Calendar.DAY_OF_YEAR) == calMsg.get(Calendar.DAY_OF_YEAR)
+            if (sameDay) {
+                SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(timestampMs)) to false
+            } else {
+                "Yesterday" to false
+            }
+        }
+        diff < 7 * day ->
+            SimpleDateFormat("EEE", Locale.getDefault()).format(Date(timestampMs)) to false
+        else ->
+            SimpleDateFormat("d MMM", Locale.getDefault()).format(Date(timestampMs)) to false
+    }
+}
+
 @Composable
 fun HomeScreen(
     navController: NavController,
     authViewModel: AuthViewModel,
-    chatViewModel: ChatViewModel
+    @Suppress("UNUSED_PARAMETER") chatViewModel: ChatViewModel
 ) {
     val homeViewModel: HomeViewModel = viewModel()
     val channels by homeViewModel.channels.collectAsState()
     val currentUserRole by authViewModel.currentUserRole.collectAsState()
+    val userData by authViewModel.userData.collectAsState()
+
+    var searchQuery by remember { mutableStateOf("") }
 
     val isDarkMode = ThemeManager.isDarkMode
-    val backgroundColor = if (isDarkMode) Color(0xFF1A1A1A) else Color(0xFFFFF0F5)
-    val textColor = if (isDarkMode) Color.White else Color.Black
-    val navBarColor = if (isDarkMode) Color(0xFF1E1E1E) else Color.White
+    val pageBg = if (isDarkMode) Color(0xFF1A1A1A) else Color(0xFFFFF0F5)
+    val pink = Color(0xFFE84D7A)
+    val surface = if (isDarkMode) Color(0xFF262224) else Color.White
+    val onSurface = if (isDarkMode) Color(0xFFF8F0F3) else Color(0xFF2C181C)
+    val muted = if (isDarkMode) Color(0xFFB0A8AB) else Color(0xFF7A6F73)
+    val searchFill = if (isDarkMode) Color(0xFF332A2D) else Color(0xFFF5E8EC)
 
     LaunchedEffect(Unit) {
         authViewModel.fetchUserRole()
         homeViewModel.listenToChannels()
     }
 
+    val filteredChannels = remember(channels, searchQuery, currentUserRole) {
+        val q = searchQuery.trim().lowercase(Locale.US)
+        val role = currentUserRole
+        channels.filter { ch ->
+            if (q.isEmpty()) return@filter true
+            val isShelter = role == "shelter"
+            val title = if (isShelter) "${ch.adopterName} ${ch.petName}" else "${ch.shelterName} ${ch.petName}"
+            title.lowercase(Locale.US).contains(q) ||
+                ch.lastMessage.lowercase(Locale.US).contains(q) ||
+                ch.petName.lowercase(Locale.US).contains(q)
+        }
+    }
+
     Scaffold(
-        containerColor = Color.Transparent,
+        containerColor = pageBg,
         bottomBar = {
             AdopterBottomBar(
                 navController = navController,
-                selectedTab = "home"
+                selectedTab = "Message"
             )
         }
     ) { paddingValues ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(backgroundColor)
+                .background(pageBg)
                 .padding(paddingValues)
         ) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                CenterAlignedTopAppBar(
-                    title = {
-                        Text(
-                            "Messages",
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                    },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                        containerColor = if (isDarkMode) Color(0xFF2A2A2A) else Color(0xFFFFB6C1)
-                    )
-                )
+            MessagesHeroHeader(
+                navController = navController,
+                userPhotoUri = userData?.photoUri?.takeIf { it.isNotBlank() }
+                    ?: authViewModel.currentUser?.photoUrl?.toString(),
+                title = "Messages",
+                subtitle = "Your conversations",
+                accent = pink
+            )
 
-                when {
-                    currentUserRole.isNullOrEmpty() -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(color = Color(0xFFFFB6C1))
-                        }
-                    }
+            MessagesSearchField(
+                query = searchQuery,
+                onQueryChange = { searchQuery = it },
+                fill = searchFill,
+                accent = pink,
+                onSurface = onSurface,
+                muted = muted
+            )
 
-                    channels.isEmpty() -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("No messages yet", color = Color.Gray, fontSize = 16.sp)
-                        }
-                    }
-
-                    else -> {
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            items(channels, key = { it.channelId }) { channel ->
-                                val isShelterView = currentUserRole == "shelter"
-                                val currentUserId = authViewModel.currentUser?.uid ?: ""
-
-                                // 🟢 OLD LOGIC RECOVERED: Only show badge if I am NOT the last sender
-                                val shouldShowBadge = channel.unreadCount > 0 && channel.lastSenderId != currentUserId
-
-                                val isLive = authViewModel.isUserActuallyOnline(
-                                    User(isOnline = channel.isOnline, lastActive = channel.lastActive)
-                                )
-
-                                val displayName = if (isShelterView) {
-                                    "${channel.adopterName} • ${channel.petName}"
-                                } else {
-                                    "${channel.shelterName} • ${channel.petName}"
-                                }
-
-                                val displayPhoto = if (isShelterView) channel.adopterPhotoUri else channel.shelterPhotoUri
-                                val defaultSubtitle = if (isShelterView) "Interested in ${channel.petName}" else "Shelter for ${channel.petName}"
-                                val displaySubtitle = if (channel.lastMessage.isNotEmpty()) channel.lastMessage else defaultSubtitle
-                                if (channel.isPriority) {
-                                    VIPChannelItem(
-                                        displayName = displayName,
-                                        displayPhoto = displayPhoto,
-                                        subtitle = displaySubtitle, // ✅ Now dynamic                                        isPriority = true,
-                                        isPriority = true,
-                                        isLive = isLive,
-                                        unreadCount = if (shouldShowBadge) channel.unreadCount else 0, // ✅ GRAFTED
-                                        onClick = {
-                                            homeViewModel.resetUnreadCount(channel.channelId)
-                                            navController.navigate("message/${channel.channelId}")
-                                        }
-                                    )
-                                } else {
-                                    ChatListItem(
-                                        shelterName = displayName,
-                                        photoUri = displayPhoto,
-                                        lastMessage = if (channel.lastMessage.isNotEmpty()) channel.lastMessage else "No messages yet",
-                                        timeAgo = null,
-                                        unreadCount = if (shouldShowBadge) channel.unreadCount else 0, // ✅ GRAFTED
-                                        isLive = isLive,
-                                        onAvatarClick = {
-                                            // 🟢 THIS IS THE FIX: Handle the profile navigation here
-                                            val targetUserId = if (currentUserRole == "shelter") channel.adopterId else channel.shelterId
-                                            if (!targetUserId.isNullOrEmpty()) {
-                                                navController.navigate("profile_details/$targetUserId")
-                                            }
-                                        },
-                                        onClick = {
-                                            homeViewModel.resetUnreadCount(channel.channelId)
-                                            navController.navigate("message/${channel.channelId}")
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun ChatListItem(
-    shelterName: String,
-    photoUri: String?,
-    lastMessage: String?,
-    timeAgo: String?,
-    unreadCount: Int,
-    isLive: Boolean = false,
-    onAvatarClick: () -> Unit,
-    isPriority: Boolean = false,
-    onClick: () -> Unit,
-
-) {
-    val isDarkMode = ThemeManager.isDarkMode
-    val cardBg = if (isDarkMode) Color(0xFF2A2A2A) else Color.White
-    val mainTextColor = if (isDarkMode) Color.White else Color(0xFF333333)
-    val subTextColor = if (isDarkMode) Color.LightGray else Color.DarkGray
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .clickable { onClick()}
-            .background(cardBg)
-            .padding(16.dp)
-    ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(modifier = Modifier.size(55.dp).clickable{onAvatarClick()}) {
-                    AsyncImage(
-                        model = photoUri ?: "https://via.placeholder.com/150",
-                        contentDescription = "Profile Photo",
-                        modifier = Modifier
-                            .fillMaxSize() // Fill the 55.dp parent
-                            .clip(CircleShape)
-                            .background(Color.LightGray.copy(alpha = 0.2f)),
-                        contentScale = ContentScale.Crop
-                    )
-
-                    if (isLive) {
-                        Box(
-                            modifier = Modifier
-                                .size(14.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFF4ADE80))
-                                .border(2.dp, cardBg, CircleShape)
-                                .align(Alignment.BottomEnd)
-                        )
+            when {
+                currentUserRole.isNullOrEmpty() -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = pink)
                     }
                 }
 
-
-                Text(
-                    text = shelterName,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    color = if (isDarkMode) Color.White else Color(0xFF333333),
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(start = 12.dp)
-                )
-                if (!timeAgo.isNullOrEmpty()) {
-                    Text(text = timeAgo, fontSize = 12.sp, color = Color.Gray)
-                }
-            }
-            Spacer(modifier = Modifier.height(4.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = lastMessage ?: "No messages yet",
-                    color = if (isDarkMode) Color.LightGray else Color.DarkGray,
-                    fontSize = 14.sp,
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(start = 67.dp),
-                    maxLines = 1
-                )
-                if (unreadCount > 0) {
+                filteredChannels.isEmpty() -> {
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .background(Color(0xFFD95C5C))
-                            .padding(horizontal = 8.dp, vertical = 2.dp),
+                            .fillMaxSize()
+                            .padding(32.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = unreadCount.toString(),
-                            color = Color.White,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
+                            text = if (channels.isEmpty()) {
+                                "No conversations yet. Start swiping to match!"
+                            } else {
+                                "No chats match your search."
+                            },
+                            color = muted,
+                            fontSize = 15.sp,
+                            textAlign = TextAlign.Center
                         )
+                    }
+                }
+
+                else -> {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            start = 12.dp,
+                            end = 12.dp,
+                            top = 8.dp,
+                            bottom = 16.dp
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        items(filteredChannels, key = { it.channelId }) { channel ->
+                            val isShelterView = currentUserRole == "shelter"
+                            val currentUserId = authViewModel.currentUser?.uid ?: ""
+                            val shouldShowBadge =
+                                channel.unreadCount > 0 && channel.lastSenderId != currentUserId
+                            val isLive = authViewModel.isUserActuallyOnline(
+                                User(isOnline = channel.isOnline, lastActive = channel.lastActive)
+                            )
+                            val displayName = if (isShelterView) {
+                                "${channel.adopterName} · ${channel.petName}"
+                            } else {
+                                "${channel.shelterName} · ${channel.petName}"
+                            }
+                            val displayPhoto =
+                                if (isShelterView) channel.adopterPhotoUri else channel.shelterPhotoUri
+                            val defaultSubtitle =
+                                if (isShelterView) "Interested in ${channel.petName}"
+                                else "About ${channel.petName}"
+                            val preview =
+                                if (channel.lastMessage.isNotEmpty()) channel.lastMessage else defaultSubtitle
+                            val (timeLabel, timeRecent) = formatChatTimestamp(channel.timestamp)
+
+                            ConversationRow(
+                                displayName = displayName,
+                                photoUri = displayPhoto,
+                                preview = preview,
+                                timeLabel = timeLabel,
+                                timeRecentAccent = timeRecent,
+                                unreadCount = if (shouldShowBadge) channel.unreadCount else 0,
+                                isLive = isLive,
+                                surface = surface,
+                                onSurface = onSurface,
+                                muted = muted,
+                                accent = pink,
+                                isDark = isDarkMode,
+                                onAvatarClick = {
+                                    val targetUserId =
+                                        if (currentUserRole == "shelter") channel.adopterId else channel.shelterId
+                                    if (!targetUserId.isNullOrEmpty()) {
+                                        navController.navigate("profile_details/$targetUserId")
+                                    }
+                                },
+                                onClick = {
+                                    homeViewModel.resetUnreadCount(channel.channelId)
+                                    navController.navigate("message/${channel.channelId}")
+                                }
+                            )
+                        }
                     }
                 }
             }
         }
     }
 }
-@Composable
-fun VIPChannelItem(
-    displayName: String,
-    displayPhoto: String?,
-    subtitle: String,
-    isPriority: Boolean,
-    isLive: Boolean,
-    unreadCount: Int,
-    onClick: () -> Unit
-) {
-    val isDarkMode = ThemeManager.isDarkMode
-    // Subtle gold tint for the background instead of a thick border
-    val vipBgColor = if (isDarkMode) Color(0xFF2D2A20) else Color(0xFFFFFDF0)
-    val goldAccent = Color(0xFFFFD700)
-    val pawMatePink = Color(0xFFD95C5C)
 
-    Card(
+@Composable
+private fun MessagesHeroHeader(
+    navController: NavController,
+    userPhotoUri: String?,
+    title: String,
+    subtitle: String,
+    accent: Color,
+) {
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 4.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = vipBgColor),
-        // A very thin, subtle border to keep it premium
-        border = BorderStroke(1.dp, goldAccent.copy(alpha = 0.4f)),
-        onClick = onClick
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
+        AsyncImage(
+            model = userPhotoUri ?: R.drawable.blackpawmateicon3,
+            contentDescription = "Your profile",
             modifier = Modifier
-                .padding(12.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+                .size(44.dp)
+                .clip(CircleShape)
+                .background(accent.copy(alpha = 0.15f))
+                .clickable { navController.navigate("profile_settings") },
+            contentScale = ContentScale.Crop,
+            placeholder = painterResource(R.drawable.blackpawmateicon3),
+            error = painterResource(R.drawable.blackpawmateicon3)
+        )
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 14.dp)
         ) {
-            // Avatar Section
-            Box(modifier = Modifier.size(56.dp)) {
-                AsyncImage(
-                    model = displayPhoto ?: "https://via.placeholder.com/150",
-                    contentDescription = "Profile Photo",
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(CircleShape)
-                        .background(Color.LightGray.copy(alpha = 0.2f)),
-                    contentScale = ContentScale.Crop,
-                    placeholder = painterResource(R.drawable.blackpawmateicon3),
-                    error = painterResource(R.drawable.blackpawmateicon3)
-                )
+            Text(
+                text = title,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (ThemeManager.isDarkMode) Color(0xFFF8F0F3) else Color(0xFF2C181C)
+            )
+            Text(
+                text = subtitle,
+                fontSize = 12.sp,
+                color = if (ThemeManager.isDarkMode) Color(0xFFB0A8AB) else Color(0xFF8A7A80),
+                modifier = Modifier.padding(top = 2.dp)
+            )
+        }
+    }
+}
 
-                // 👑 Subtle Crown Badge
-                if (isPriority) {
-                    Surface(
-                        color = goldAccent,
-                        shape = CircleShape,
-                        modifier = Modifier
-                            .size(18.dp)
-                            .align(Alignment.TopStart)
-                            .offset(x = (-2).dp, y = (-2).dp),
-                        border = BorderStroke(1.dp, Color.White)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text("👑", fontSize = 10.sp)
-                        }
-                    }
-                }
+@Composable
+private fun MessagesSearchField(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    fill: Color,
+    accent: Color,
+    onSurface: Color,
+    muted: Color,
+) {
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .padding(bottom = 8.dp),
+        placeholder = {
+            Text("Search", color = muted, fontSize = 14.sp)
+        },
+        leadingIcon = {
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = null,
+                tint = accent.copy(alpha = 0.85f)
+            )
+        },
+        singleLine = true,
+        shape = RoundedCornerShape(28.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = Color.Transparent,
+            unfocusedBorderColor = Color.Transparent,
+            focusedContainerColor = fill,
+            unfocusedContainerColor = fill,
+            focusedTextColor = onSurface,
+            unfocusedTextColor = onSurface,
+            cursorColor = accent
+        ),
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(onSearch = { /* handled by filter */ })
+    )
+}
 
-                // Live Indicator
-                if (isLive) {
-                    Box(
-                        modifier = Modifier
-                            .size(14.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF4ADE80))
-                            .border(2.dp, vipBgColor, CircleShape)
-                            .align(Alignment.BottomEnd)
-                    )
-                }
-            }
+@Composable
+private fun ConversationRow(
+    displayName: String,
+    photoUri: String?,
+    preview: String,
+    timeLabel: String,
+    timeRecentAccent: Boolean,
+    unreadCount: Int,
+    isLive: Boolean,
+    surface: Color,
+    onSurface: Color,
+    muted: Color,
+    accent: Color,
+    isDark: Boolean,
+    onAvatarClick: () -> Unit,
+    onClick: () -> Unit,
+) {
+    val rowBg = surface.copy(alpha = if (isDark) 0.92f else 0.97f)
+    val borderColor = accent.copy(alpha = if (isDark) 0.12f else 0.08f)
+    val shape = RoundedCornerShape(18.dp)
 
-            // Info Section
-            Column(
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .border(1.dp, borderColor, shape)
+            .background(rowBg)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(52.dp)
+                .clickable(onClick = onAvatarClick)
+        ) {
+            AsyncImage(
+                model = photoUri ?: R.drawable.blackpawmateicon3,
+                contentDescription = null,
                 modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 16.dp)
-            ) {
-                Text(
-                    text = displayName,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 17.sp,
-                    color = if (isDarkMode) Color.White else Color(0xFFB8860B)
-                )
-                Text(
-                    text = subtitle,
-                    fontSize = 13.sp,
-                    color = Color.Gray,
-                    maxLines = 1
+                    .fillMaxSize()
+                    .clip(CircleShape)
+                    .background(muted.copy(alpha = 0.12f)),
+                contentScale = ContentScale.Crop,
+                placeholder = painterResource(R.drawable.blackpawmateicon3),
+                error = painterResource(R.drawable.blackpawmateicon3)
+            )
+            if (isLive) {
+                Box(
+                    modifier = Modifier
+                        .size(12.dp)
+                        .align(Alignment.BottomEnd)
+                        .offset(x = (-2).dp, y = (-2).dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF4ADE80))
                 )
             }
+        }
 
-            // 🔴 Notification Badge (Clean & Standardized)
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 12.dp)
+        ) {
+            Text(
+                text = displayName,
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp,
+                color = onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = preview,
+                fontSize = 13.sp,
+                color = muted,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+
+        Column(
+            horizontalAlignment = Alignment.End,
+            modifier = Modifier.padding(start = 8.dp)
+        ) {
+            if (timeLabel.isNotEmpty()) {
+                Text(
+                    text = timeLabel,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = if (timeRecentAccent) accent else muted
+                )
+            }
+            Spacer(modifier = Modifier.height(6.dp))
             if (unreadCount > 0) {
                 Box(
                     modifier = Modifier
+                        .defaultMinSize(minWidth = 22.dp, minHeight = 22.dp)
                         .clip(CircleShape)
-                        .background(pawMatePink)
-                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                        .background(accent)
+                        .padding(horizontal = 6.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = unreadCount.toString(),
+                        text = unreadCount.coerceAtMost(99).toString(),
                         color = Color.White,
-                        fontSize = 12.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
+            } else {
+                Spacer(modifier = Modifier.height(22.dp))
             }
         }
     }

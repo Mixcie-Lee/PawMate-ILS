@@ -1,9 +1,9 @@
     package com.example.pawmate_ils
 
+    import androidx.compose.animation.core.Animatable
     import androidx.compose.animation.core.FastOutSlowInEasing
     import androidx.compose.animation.core.LinearEasing
     import androidx.compose.animation.core.RepeatMode
-    import androidx.compose.animation.core.animateFloatAsState
     import androidx.compose.animation.core.animateFloat
     import androidx.compose.animation.core.infiniteRepeatable
     import androidx.compose.animation.core.rememberInfiniteTransition
@@ -23,6 +23,7 @@
     import androidx.compose.ui.Alignment
     import androidx.compose.ui.Modifier
     import androidx.compose.ui.graphics.Color
+    import androidx.compose.ui.graphics.graphicsLayer
     import androidx.compose.ui.layout.ContentScale
     import androidx.compose.ui.res.painterResource
     import androidx.compose.ui.text.font.FontWeight
@@ -33,17 +34,14 @@
     import androidx.navigation.NavController
     import androidx.navigation.compose.rememberNavController
     import kotlinx.coroutines.delay
+
     @Composable
     fun WelcomePopupScreen(
         navController: NavController,
-        userType: String // "adopter" or "shelter"
+        userType: String
     ) {
-        var startProgress by remember { mutableStateOf(false) }
-        val progress by animateFloatAsState(
-            targetValue = if (startProgress) 1f else 0f,
-            animationSpec = tween(durationMillis = 1900, easing = LinearEasing),
-            label = "welcome_progress"
-        )
+        val progressAnim = remember { Animatable(0f) }
+        val fadeAnim = remember { Animatable(1f) }
         val infiniteTransition = rememberInfiniteTransition(label = "welcome_logo")
         val logoScale by infiniteTransition.animateFloat(
             initialValue = 1f,
@@ -56,31 +54,34 @@
         )
 
         LaunchedEffect(Unit) {
-            startProgress = true
-        }
-
-        // Navigate after splash progress completes, based on user type
-        LaunchedEffect(Unit) {
-            delay(2000L)
+            delay(80L)
+            progressAnim.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = 1500, easing = LinearEasing)
+            )
+            delay(350L)
+            fadeAnim.animateTo(
+                targetValue = 0f,
+                animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)
+            )
 
             val destination = when (userType.lowercase()) {
                 "adopter" -> "pet_swipe"
-                "shelter" -> "adoption_center_dashboard" // make it dashboard instead of pets
+                "shelter" -> "adoption_center_dashboard"
                 else -> "user_type"
             }
 
             navController.navigate(destination) {
-                // Remove the welcome popup from backstack
                 popUpTo("welcome_popup") { inclusive = true }
             }
         }
 
         val roleLabel = if (userType.lowercase() == "shelter") "Shelter Mode" else "Adopter Mode"
 
-        // Branded gradient background
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .graphicsLayer { alpha = fadeAnim.value }
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
@@ -157,7 +158,7 @@
                     )
 
                     LinearProgressIndicator(
-                        progress = { progress },
+                        progress = { progressAnim.value },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(8.dp),

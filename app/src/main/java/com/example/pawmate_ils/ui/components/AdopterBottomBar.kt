@@ -1,13 +1,11 @@
 package com.example.pawmate_ils.ui.components
 
-import android.content.Context
 import android.os.SystemClock
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -46,15 +44,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.example.pawmate_ils.R
 import com.example.pawmate_ils.ThemeManager
 
 @Composable
@@ -93,7 +87,7 @@ fun AdopterBottomBar(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 10.dp, vertical = 10.dp),
+            .padding(start = 10.dp, top = 0.dp, end = 10.dp, bottom = 10.dp),
         contentAlignment = Alignment.Center
     ) {
         Card(
@@ -115,9 +109,8 @@ fun AdopterBottomBar(
                             contentDescription = "Education",
                             tint = tint,
                             selected = selected,
-                            drawableBaseNames = listOf("education", "book", "book_open", "learn"),
-                            selectedFallback = Icons.AutoMirrored.Filled.MenuBook,
-                            unselectedFallback = Icons.AutoMirrored.Outlined.MenuBook
+                            selectedIcon = Icons.AutoMirrored.Filled.MenuBook,
+                            unselectedIcon = Icons.AutoMirrored.Outlined.MenuBook
                         )
                     }
                 }
@@ -127,9 +120,8 @@ fun AdopterBottomBar(
                             contentDescription = "Favorites",
                             tint = tint,
                             selected = selected,
-                            drawableBaseNames = listOf("favorites", "favorite", "heart", "like"),
-                            selectedFallback = Icons.Default.Favorite,
-                            unselectedFallback = Icons.Outlined.FavoriteBorder
+                            selectedIcon = Icons.Default.Favorite,
+                            unselectedIcon = Icons.Outlined.FavoriteBorder
                         )
                     }
                 }
@@ -140,9 +132,8 @@ fun AdopterBottomBar(
                             contentDescription = "Home",
                             tint = tint,
                             selected = selected,
-                            drawableBaseNames = listOf("home", "house"),
-                            selectedFallback = Icons.Default.Home,
-                            unselectedFallback = Icons.Outlined.Home
+                            selectedIcon = Icons.Default.Home,
+                            unselectedIcon = Icons.Outlined.Home
                         )
                     }
                 }
@@ -153,9 +144,8 @@ fun AdopterBottomBar(
                             contentDescription = "Message",
                             tint = tint,
                             selected = selected,
-                            drawableBaseNames = listOf("message", "messages", "message_square", "chat"),
-                            selectedFallback = Icons.Default.ChatBubble,
-                            unselectedFallback = Icons.Outlined.ChatBubbleOutline
+                            selectedIcon = Icons.Default.ChatBubble,
+                            unselectedIcon = Icons.Outlined.ChatBubbleOutline
                         )
                     }
                 }
@@ -166,9 +156,8 @@ fun AdopterBottomBar(
                             contentDescription = "Shop",
                             tint = tint,
                             selected = selected,
-                            drawableBaseNames = listOf("shop", "store", "storefront", "shopping", "cart"),
-                            selectedFallback = Icons.Default.ShoppingCart,
-                            unselectedFallback = Icons.Outlined.ShoppingCart
+                            selectedIcon = Icons.Default.ShoppingCart,
+                            unselectedIcon = Icons.Outlined.ShoppingCart
                         )
                     }
                 }
@@ -178,9 +167,8 @@ fun AdopterBottomBar(
                             contentDescription = "Profile",
                             tint = tint,
                             selected = selected,
-                            drawableBaseNames = listOf("profile", "user", "person", "account", "profile_d"),
-                            selectedFallback = Icons.Default.Person, // Ensure to add import for Icons.Default.Person
-                            unselectedFallback = Icons.Outlined.Person
+                            selectedIcon = Icons.Default.Person,
+                            unselectedIcon = Icons.Outlined.Person
                         )
                     }
                 }
@@ -253,49 +241,15 @@ private fun BottomBarIcon(
     contentDescription: String,
     tint: Color,
     selected: Boolean,
-    drawableBaseNames: List<String>,
-    selectedFallback: ImageVector,
-    unselectedFallback: ImageVector,
+    selectedIcon: ImageVector,
+    unselectedIcon: ImageVector,
     modifier: Modifier = Modifier.size(22.dp)
 ) {
-    val context = LocalContext.current
-    val drawableResId = remember(context, drawableBaseNames) {
-        resolveDrawableResId(context, drawableBaseNames)
-    }
-
-    if (!selected && drawableResId != 0) {
-        Image(
-            painter = painterResource(id = drawableResId),
-            contentDescription = contentDescription,
-            modifier = modifier,
-            colorFilter = ColorFilter.tint(tint)
-        )
-    } else {
-        Icon(
-            imageVector = if (selected) selectedFallback else unselectedFallback,
-            contentDescription = contentDescription,
-            tint = tint,
-            modifier = modifier
-        )
-    }
-}
-
-private fun resolveDrawableResId(context: Context, baseNames: List<String>): Int {
-    val packageName = context.packageName
-    val candidateNames = buildList {
-        baseNames.forEach { base ->
-            val normalized = base.lowercase().replace("-", "_").replace(" ", "_")
-            add(normalized)
-            add("a_$normalized")
-            add("ic_$normalized")
-            add("icon_$normalized")
-            add("${normalized}_icon")
-        }
-    }.distinct()
-
-    for (candidate in candidateNames) {
-        val id = context.resources.getIdentifier(candidate, "drawable", packageName)
-        if (id != 0) return id
-    }
-    return 0
+    // Always use Material icons so outlined vs filled states tint reliably on all devices.
+    Icon(
+        imageVector = if (selected) selectedIcon else unselectedIcon,
+        contentDescription = contentDescription,
+        tint = tint,
+        modifier = modifier
+    )
 }

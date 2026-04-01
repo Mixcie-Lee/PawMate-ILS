@@ -269,9 +269,17 @@ fun SellerLoginScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text("Don't have an account? ", color = Color.Gray, fontSize = 14.sp)
-                TextButton(onClick = onSignUpClick, contentPadding = PaddingValues(0.dp)) {
+                TextButton(
+                    onClick = onSignUpClick,
+                    contentPadding = PaddingValues(0.dp),
+                    modifier = Modifier.defaultMinSize(minHeight = 1.dp)
+                ) {
                     Text("Sign Up", color = Color(0xFFFF9999), fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
             }

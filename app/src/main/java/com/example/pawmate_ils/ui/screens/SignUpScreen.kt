@@ -34,6 +34,7 @@ import com.example.pawmate_ils.AdopShelDataStruc.ShelterRepository
 import com.example.pawmate_ils.Firebase_Utils.AuthViewModel
 import com.example.pawmate_ils.Firebase_Utils.FirestoreRepository
 import com.example.pawmate_ils.Firebase_Utils.HomeViewModel
+import com.example.pawmate_ils.ProfilePhotoDefaults
 import com.example.pawmate_ils.R
 import com.example.pawmate_ils.SettingsManager
 import com.example.pawmate_ils.SharedViewModel
@@ -127,13 +128,15 @@ fun SignUpScreen(
     ) {
         Column(
             modifier = Modifier
-                .verticalScroll(scrollState)
                 .fillMaxSize()
-                .padding(horizontal = 32.dp, vertical = 48.dp),
+                .verticalScroll(scrollState)
+                .imePadding()
+                .navigationBarsPadding()
+                .padding(horizontal = 32.dp, vertical = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Top
         ) {
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             when (currentStep) {
                 1 -> {
@@ -234,6 +237,8 @@ fun SignUpScreen(
                     TextButton(onClick = onNavigateToSellerSignUp, modifier = Modifier.fillMaxWidth()) {
                         Text("Shelter Owner? Sign up here", color = Color(0xFFFF9999).copy(alpha = 0.8f), fontSize = 13.sp)
                     }
+
+                    Spacer(modifier = Modifier.height(40.dp))
                 }
 
                 2 -> {
@@ -356,11 +361,8 @@ fun SignUpScreen(
                                         val uid = FirebaseAuth.getInstance().currentUser?.uid
                                         if (uid != null) {
 
-                                            val defaultAvatar = when (gender) {
-                                                "Male" -> "android.resource://${context.packageName}/${R.drawable.male}"
-                                                "Female" -> "android.resource://${context.packageName}/${R.drawable.female}"
-                                                else -> "android.resource://${context.packageName}/${R.drawable.avatar}"
-                                            }
+                                            val defaultAvatar =
+                                                ProfilePhotoDefaults.photoUriForGender(context, gender)
 
 
 
@@ -414,6 +416,8 @@ fun SignUpScreen(
                             Text("Complete Sign Up", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(48.dp))
                 }
             }
 

@@ -27,7 +27,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.pawmate_ils.Firebase_Utils.AuthViewModel
-import com.example.pawmate_ils.R
+import com.example.pawmate_ils.ProfilePhotoDefaults
 import com.example.pawmate_ils.firebase_models.User
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -92,11 +92,7 @@ fun ProfileDetailsScreen(
                             contentScale = ContentScale.Crop,
                             // 🛡️ FALLBACK: Using the gender-based logic we built
                             error = painterResource(
-                                id = when (user.gender) {
-                                    "Male" -> R.drawable.male
-                                    "Female" -> R.drawable.female
-                                    else -> R.drawable.avatar
-                                }
+                                id = ProfilePhotoDefaults.placeholderResForGender(user.gender)
                             )
                         )
 
