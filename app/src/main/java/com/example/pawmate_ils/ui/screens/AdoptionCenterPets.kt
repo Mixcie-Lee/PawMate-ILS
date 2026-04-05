@@ -32,6 +32,7 @@ fun AdoptionCenterPets(
     navController: NavController,
     onBackClick: () -> Unit,
     viewModel: AdoptionCenterViewModel,
+    authViewModel: com.example.pawmate_ils.Firebase_Utils.AuthViewModel, // 🎯 Add this
     onAddPet: () -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
@@ -46,6 +47,13 @@ fun AdoptionCenterPets(
             Pet1("Charlie", "Dog", "Golden Retriever", "1 year old", "Male")
         )
     }*/
+
+
+
+
+
+
+
     val filteredPets = remember(searchQuery, pets) {
         val currentPets = pets ?: emptyList() // Fallback to avoid null pointer errors
         currentPets.filter { pet: PetData ->

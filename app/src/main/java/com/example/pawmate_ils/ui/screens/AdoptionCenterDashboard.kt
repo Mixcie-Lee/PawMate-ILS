@@ -32,7 +32,31 @@ import com.example.pawmate_ils.firebase_models.Channel
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextOverflow
 import com.example.pawmate_ils.firebase_models.User
+
+
+private fun formatChatTimestamp(timestampMs: Long): Pair<String, Boolean> {
+    if (timestampMs <= 0L) return "" to false
+    val now = System.currentTimeMillis()
+    val diff = now - timestampMs
+    val minute = 60_000L
+    val hour = 60 * minute
+    val day = 24 * hour
+    return when {
+        diff < minute -> "Just now" to true
+        diff < hour -> "${diff / minute}m ago" to true
+        diff < day -> {
+            val calNow = java.util.Calendar.getInstance()
+            val calMsg = java.util.Calendar.getInstance().apply { timeInMillis = timestampMs }
+            if (calNow.get(java.util.Calendar.DAY_OF_YEAR) == calMsg.get(java.util.Calendar.DAY_OF_YEAR)) {
+                java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault()).format(java.util.Date(timestampMs)) to false
+            } else "Yesterday" to false
+        }
+        diff < 7 * day -> java.text.SimpleDateFormat("EEE", java.util.Locale.getDefault()).format(java.util.Date(timestampMs)) to false
+        else -> java.text.SimpleDateFormat("d MMM", java.util.Locale.getDefault()).format(java.util.Date(timestampMs)) to false
+    }
+}
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,6 +73,7 @@ fun AdoptionCenterDashboard(
     val pets by adoptionCenterViewModel.shelterPets.collectAsState(initial = emptyList())
     val uploadedCount by adoptionCenterViewModel.uploadedPetsCount.collectAsState()
 
+
     LaunchedEffect(Unit) {
         homeViewModel.listenToChannels()
         val currentShelterId = authViewModel.currentUser?.uid ?: ""
@@ -56,6 +81,16 @@ fun AdoptionCenterDashboard(
             adoptionCenterViewModel.listenToUploadedPetsCount(currentShelterId)
         }
     }
+
+    var tick by remember { mutableIntStateOf(0) }
+    LaunchedEffect(Unit) {
+        while(true) {
+            kotlinx.coroutines.delay(60_000)
+            tick++
+        }
+    }
+
+
 
     StatelessFullDashboard(
         selectedTab = selectedTab,
@@ -291,7 +326,6 @@ private fun StatelessDashboardContent(
         item { Spacer(modifier = Modifier.height(110.dp)) }
     }
 }
-
 @Composable
 fun ChannelCardDesign(
     channel: Channel,
@@ -305,8 +339,10 @@ fun ChannelCardDesign(
         User(isOnline = channel.isOnline, lastActive = channel.lastActive)
     )
 
+    val (timeLabel, isRecent) = formatChatTimestamp(channel.timestamp)
     val currentUserId = authViewModel.currentUser?.uid ?: ""
     val shouldShowBadge = channel.unreadCount > 0 && channel.lastSenderId != currentUserId
+    val petsDisplay = channel.petNames.joinToString(", ")
 
     Row(
         modifier = Modifier
@@ -348,30 +384,57 @@ fun ChannelCardDesign(
 
         Spacer(modifier = Modifier.width(12.dp))
 
+        // 🎯 FIXED NESTING: Everything below is now inside this Column
         Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = channel.adopterName, fontWeight = FontWeight.Bold)
+            Row(
+                modifier = Modifier.fillMaxWidth(), // Added this so SpaceBetween works
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = channel.adopterName, fontWeight = FontWeight.Bold)
 
-                if (channel.isPriority && channel.adopterTier == 3) {
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Icon(
-                        imageVector = Icons.Default.Stars,
-                        contentDescription = "Priority",
-                        tint = Color(0xFFFFD700),
-                        modifier = Modifier.size(16.dp)
-                    )
+                    if (channel.isPriority && channel.adopterTier == 3) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(
+                            imageVector = Icons.Default.Stars,
+                            contentDescription = "Priority",
+                            tint = Color(0xFFFFD700),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = "VIP",
+                            color = Color(0xFFFFD700),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Black,
+                            modifier = Modifier.padding(start = 2.dp)
+                        )
+                    }
+                }
+
+                // 🕒 Your Time Label
+                if (timeLabel.isNotEmpty()) {
                     Text(
-                        text = "VIP",
-                        color = Color(0xFFFFD700),
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Black,
-                        modifier = Modifier.padding(start = 2.dp)
+                        text = timeLabel,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = if (isRecent) Color(0xFFD67A7A) else Color.Gray
                     )
                 }
             }
 
-            Text(text = "Interested in: ${channel.petName}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-            Text(text = channel.lastMessage.ifEmpty { "No messages yet" }, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+            // 🎯 These were floating outside; now they are correctly stacked inside the Column
+            Text(
+                text = if (petsDisplay.isNotEmpty()) "Interested in: $petsDisplay" else "New Match",                style = MaterialTheme.typography.bodySmall,
+                color = Color.Gray
+            )
+            Text(
+                text = channel.lastMessage.ifEmpty { "No messages yet" },
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.Gray,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
 
         if (shouldShowBadge) {
@@ -395,3 +458,4 @@ fun ChannelCardDesign(
         }
     }
 }
+

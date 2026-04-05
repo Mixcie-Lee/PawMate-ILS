@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.defaultMinSize
@@ -80,7 +81,7 @@ private fun formatChatTimestamp(timestampMs: Long): Pair<String, Boolean> {
             val calNow = Calendar.getInstance()
             val calMsg = Calendar.getInstance().apply { timeInMillis = timestampMs }
             val sameDay = calNow.get(Calendar.YEAR) == calMsg.get(Calendar.YEAR) &&
-                calNow.get(Calendar.DAY_OF_YEAR) == calMsg.get(Calendar.DAY_OF_YEAR)
+                    calNow.get(Calendar.DAY_OF_YEAR) == calMsg.get(Calendar.DAY_OF_YEAR)
             if (sameDay) {
                 SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(timestampMs)) to false
             } else {
@@ -126,10 +127,13 @@ fun HomeScreen(
         channels.filter { ch ->
             if (q.isEmpty()) return@filter true
             val isShelter = role == "shelter"
-            val title = if (isShelter) "${ch.adopterName} ${ch.petName}" else "${ch.shelterName} ${ch.petName}"
-            title.lowercase(Locale.US).contains(q) ||
-                ch.lastMessage.lowercase(Locale.US).contains(q) ||
-                ch.petName.lowercase(Locale.US).contains(q)
+
+            // 🎯 NEWLY ADDED: Create a searchable string from the petNames list
+            val petNamesString = ch.petNames.joinToString(" ").lowercase(Locale.US)
+
+            val title = if (isShelter) "${ch.adopterName} $petNamesString" else "${ch.shelterName} $petNamesString"
+            title.contains(q) ||
+                    ch.lastMessage.lowercase(Locale.US).contains(q)
         }
     }
 
@@ -215,16 +219,20 @@ fun HomeScreen(
                             val isLive = authViewModel.isUserActuallyOnline(
                                 User(isOnline = channel.isOnline, lastActive = channel.lastActive)
                             )
+
+                            // 🎯 NEWLY ADDED: Create display text from the list of pet names
+                            val petsDisplay = channel.petNames.joinToString(", ")
+
                             val displayName = if (isShelterView) {
-                                "${channel.adopterName} · ${channel.petName}"
+                                "${channel.adopterName} · $petsDisplay"
                             } else {
-                                "${channel.shelterName} · ${channel.petName}"
+                                "${channel.shelterName} · $petsDisplay"
                             }
                             val displayPhoto =
                                 if (isShelterView) channel.adopterPhotoUri else channel.shelterPhotoUri
                             val defaultSubtitle =
-                                if (isShelterView) "Interested in ${channel.petName}"
-                                else "About ${channel.petName}"
+                                if (isShelterView) "Interested in $petsDisplay"
+                                else "About $petsDisplay"
                             val preview =
                                 if (channel.lastMessage.isNotEmpty()) channel.lastMessage else defaultSubtitle
                             val (timeLabel, timeRecent) = formatChatTimestamp(channel.timestamp)
@@ -385,7 +393,11 @@ private fun ConversationRow(
         Box(
             modifier = Modifier
                 .size(52.dp)
-                .clickable(onClick = onAvatarClick)
+                .clickable(
+                    onClick = onAvatarClick,
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                )
         ) {
             AsyncImage(
                 model = photoUri ?: R.drawable.blackpawmateicon3,

@@ -88,6 +88,7 @@ import com.example.pawmate_ils.Firebase_Utils.PetsRepository
     import androidx.compose.runtime.collectAsState
     import androidx.compose.ui.Alignment
     import androidx.compose.ui.unit.dp
+    import kotlinx.coroutines.delay
 
 
     class MainActivity : ComponentActivity() {
@@ -193,18 +194,23 @@ import com.example.pawmate_ils.Firebase_Utils.PetsRepository
                         LaunchedEffect(authState.value, currentUserRole) {
                             if (!onboardingUtil.isOnboardingCompleted()) return@LaunchedEffect
 
-                            val currentRoute = navController.currentBackStackEntry?.destination?.route
-                            if (currentRoute == "welcome_popup") return@LaunchedEffect
-
                             val currentUser = FirebaseAuth.getInstance().currentUser
+                            val currentRoute = navController.currentBackStackEntry?.destination?.route
 
-                            if (currentUser != null && authState.value is AuthViewModel.AuthState.Authenticated) {
+                            // [NEW FIX]: Prevent re-navigating if we are already on a Home screen
+                            if (currentRoute == "adoption_center_dashboard" || currentRoute == "pet_swipe") return@LaunchedEffect
+                           // if (currentRoute == "welcome_popup") return@LaunchedEffect
 
-                                // 🚥 THE TRAFFIC CONTROLLER
-                                if (currentUserRole != null) {
-                                    handleRoleBasedNavigation(authViewModel, navController)
-                                } else {
+                            if (currentUser != null) {
+                                // [NEW FIX]: Force a fetch if the role is currently null
+                                if (currentUserRole == null) {
                                     authViewModel.fetchUserRole()
+                                } else {
+                                    if (currentRoute == "welcome_popup") {
+                                        // Matches the duration in your WelcomePopupScreen.kt
+                                        delay(1800L)
+                                    }
+                                    handleRoleBasedNavigation(authViewModel, navController)
                                 }
                             }
                         }
@@ -347,8 +353,10 @@ import com.example.pawmate_ils.Firebase_Utils.PetsRepository
                                 AdoptionCenterPets(
                                     navController = navController,
                                     viewModel = adoptionCenterViewModel,
+                                    authViewModel = authViewModel,
                                     onBackClick = { navController.popBackStack() },
-                                    onAddPet = { navController.navigate("add_pet") }
+                                    onAddPet = { navController.navigate("add_pet") },
+
                                 )
                             }
                            /* composable("adoption_center_applications") {
@@ -359,9 +367,16 @@ import com.example.pawmate_ils.Firebase_Utils.PetsRepository
                             */
                             composable("ShelterProfSettings") {
                                 // No need to redeclare authViewModel; it's already defined at the top of setContent
+                                val factory = AdoptionCenterViewMdelFactory(authViewModel)
+
+                                // 2. Get the adoptionCenterViewModel USING the factory
+                                val adoptionCenterViewModel: AdoptionCenterViewModel = viewModel(factory = factory)
+
+                                // 3. Pass it to the screen
                                 ShelterProfileScreen(
                                     navController = navController,
-                                    authViewModel = authViewModel // ✅ Shared instance for lively data
+                                    authViewModel = authViewModel,
+                                    adoptionCenterViewModel = adoptionCenterViewModel
                                 )
                             }
 
@@ -508,28 +523,29 @@ import com.example.pawmate_ils.Firebase_Utils.PetsRepository
     //THIS SECTION IS FOR ORGANIZED ROLE BASED NAVIGATION, WAG TO PAPAKIELAMAN PLEASE HEHEHHE
     private fun handleRoleBasedNavigation(authViewModel: AuthViewModel, navController: androidx.navigation.NavHostController) {
         val role = authViewModel.currentUserRole.value
+        val currentRoute = navController.currentBackStackEntry?.destination?.route
 
-        authViewModel.syncUserDataLocal(navController.context)
+        // 🛑 If we are already where we need to be, STOP. This prevents the "reset" bug.
+        if (role == "shelter" && currentRoute == "adoption_center_dashboard") return
+        if (role == "adopter" && currentRoute == "pet_swipe") return
 
-        Log.d("NAV_DEBUG", "Navigating based on role: $role")
+        if (role == null) {
+            Log.d("NAV_DEBUG", "Role is null, staying put.")
+            return
+        }
 
         when (role) {
             "shelter" -> {
                 navController.navigate("adoption_center_dashboard") {
-                    popUpTo(0) { inclusive = true }
+                    popUpTo("welcome_popup") { inclusive = true } // 👈 Change popUpTo(0) to this
                 }
             }
             "adopter" -> {
                 navController.navigate("pet_swipe") {
-                    popUpTo(0) { inclusive = true }
-                }
-            }
-            else -> {
-                // Fallback for edge cases or "ghost" accounts
-                navController.navigate("user_type") {
-                    popUpTo(0) { inclusive = true }
+                    popUpTo("welcome_popup") { inclusive = true }
                 }
             }
         }
     }
+
 

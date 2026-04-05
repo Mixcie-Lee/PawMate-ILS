@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -133,19 +134,44 @@ fun ProfileDetailsScreen(
 
                     // 🏥 SHELTER HOURS PILL (Conditional Design)
                     if (user.role == "shelter") {
+                        // 🛠️ The Logic: Ensures it looks clean even if the user typed "9AM 5PM"
+                        val formattedHours = remember(user.shelterHours) {
+                            val raw = user.shelterHours.trim()
+                            when {
+                                raw.isBlank() -> "Not specified"
+                                // If they typed "9AM 5PM", this adds the dash for them visually
+                                !raw.contains("-") && raw.contains(" ") -> raw.replace(" ", " - ")
+                                else -> raw
+                            }
+                        }
+
                         Surface(
                             color = Color(0xFFFFD6D6).copy(alpha = 0.9f),
                             shape = RoundedCornerShape(12.dp),
                             border = BorderStroke(1.dp, Color(0xFFFF9999)),
                             modifier = Modifier.padding(horizontal = 32.dp)
                         ) {
-                            Text(
-                                text = "Shelter hours: 10:00 AM - 7:00 PM",
-                                modifier = Modifier.padding(horizontal = 24.dp, vertical = 10.dp),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Color.DarkGray
-                            )
+                            // 🏁 We use a Row to put the Icon and Text side-by-side
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 24.dp, vertical = 10.dp)
+                            ) {
+                                Icon(
+                                    imageVector = androidx.compose.material.icons.Icons.Default.Schedule,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                    tint = Color(0xFFB35C7D) // Matches your PawMate theme pink
+                                )
+
+                                Spacer(modifier = Modifier.width(8.dp))
+
+                                Text(
+                                    text = "Shelter hours: $formattedHours",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color.DarkGray
+                                )
+                            }
                         }
                         Spacer(modifier = Modifier.height(20.dp))
                     }

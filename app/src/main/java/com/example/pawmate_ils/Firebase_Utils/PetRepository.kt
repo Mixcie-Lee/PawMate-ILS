@@ -1,6 +1,7 @@
 package com.example.pawmate_ils.Firebase_Utils
 
 import TinderLogic_PetSwipe.PetData
+import android.util.Log
 import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -149,15 +150,18 @@ class PetsRepository : ViewModel() {
             db.collection("pets")
                 .addSnapshotListener { snapshot, error ->
                     if (error != null) {
-                        _allPets.value = localPets.toList()
+                        Log.e("FIRESTORE", "Error fetching: ${error.message}")
                         return@addSnapshotListener
                     }
 
-                    val firestorePets = snapshot?.documents
-                        ?.mapNotNull { it.toObject(PetData::class.java) }
-                        ?: emptyList()
+                    val firestorePets = snapshot?.documents?.mapNotNull { doc ->
+                        // 🎯 Manually attach the Firestore Document ID to the PetData object
+                        doc.toObject(PetData::class.java)?.copy(petId = doc.id)
+                    } ?: emptyList()
 
-                    _allPets.value = localPets.toList() + firestorePets
+                    // 🎯 Combine them but ensure we don't have duplicates if a local pet was also saved to Firestore
+                    val combined = (localPets + firestorePets).distinctBy { it.petId ?: it.name }
+                    _allPets.value = combined
                 }
         }
     }
@@ -170,5 +174,9 @@ class PetsRepository : ViewModel() {
 
     fun appendBlankCard(pet: PetData) {
         _allPets.value = _allPets.value + pet
+    }
+    fun getPetsByShelter(targetShelterId: String): List<PetData> {
+        // 🎯 Filter both local and Firestore pets to only show the ones owned by this shelter
+        return _allPets.value.filter { it.shelterId == targetShelterId }
     }
 }

@@ -10,7 +10,6 @@ data class Channel(
     val shelterName: String = "",
     val adopterPhotoUri: String? = null,
     val shelterPhotoUri: String? = null,
-    val petName: String = "",
     val lastSenderId: String = "",
     val lastMessage: String = "",
     val timestamp: Long = System.currentTimeMillis(),
@@ -29,7 +28,10 @@ data class Channel(
 
     @get:PropertyName("lastActive")
     @set:PropertyName("lastActive")
-    var lastActive: Long? = null
+    var lastActive: Long? = null,
+
+    val petNames: List<String> = emptyList(),
+    val petIds: List<String> = emptyList()
 
 
 )

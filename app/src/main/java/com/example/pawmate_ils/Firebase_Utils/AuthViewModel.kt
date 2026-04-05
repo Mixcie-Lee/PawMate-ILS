@@ -561,6 +561,7 @@
         fun updateProfile(
             newName: String? = null,
             newPhotoUri: String? = null,
+            newShelterHours : String? = null,
             onResult: (Boolean, String?) -> Unit
         ) {
             val uid = auth.currentUser?.uid ?: return onResult(false, "No user logged in")
@@ -572,6 +573,7 @@
                     // Only add to the map if the value isn't null
                     newName?.let { updates["name"] = it }
                     newPhotoUri?.let { updates["photoUri"] = it }
+                    newShelterHours?.let { updates["shelterHours"] = it } // ✅ ADD THIS LINE
 
                     // Update lastActive whenever the profile is touched
                     updates["lastActive"] = System.currentTimeMillis()

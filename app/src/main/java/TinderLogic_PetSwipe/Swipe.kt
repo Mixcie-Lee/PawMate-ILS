@@ -91,6 +91,7 @@ import androidx.compose.animation.core.CubicBezierEasing
 import com.google.firebase.Timestamp
 import kotlinx.coroutines.delay
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import coil.compose.AsyncImage
@@ -147,18 +148,20 @@ data class PetData(
     val name: String? = null,
     val breed: String? = null,
     val age: String? = null,
-    val gender: String? = null, // Maps to "Sex" in the UI
+    @get:PropertyName("gender") @set:PropertyName("gender")
+    var gender: String? = null,// Maps to "Sex" in the UI
     val description: String? = null,
     val healthStatus: String? = null, // Can be parsed for bullet points
     val type: String? = null,
     val imageRes: Int = 0,
     val imageUrl: String? = null,
     val additionalImages: List<Int> = emptyList(),
-
     // Shelter Info for the New Design
     val shelterId: String? = null,
-    val shelterName: String? = null,
-    val shelterAddress: String? = null, // 🆕 Added for the Address Box
+    @get:PropertyName("shelterName") @set:PropertyName("shelterName")
+    var shelterName: String? = null,
+    @get:PropertyName("shelterAddress") @set:PropertyName("shelterAddress")
+    var shelterAddress: String? = null, // 🆕 Added for the Address Box
 
     val validationStatus: Boolean = false,
 
@@ -218,6 +221,9 @@ fun PetSwipeScreen(navController: NavController) {
     //INITIALIZING THE VARIABLE USED FOR CONFIMATION PURCHASE DIALOG
     val pendingBuy =  GemManager.pendingPackage
 
+    var swipedPetIds by remember { mutableStateOf<List<String>>(emptyList()) }
+    val currentUserId = authViewModel.currentUser?.uid ?: ""
+
     val homeViewModel: HomeViewModel = viewModel()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -253,6 +259,12 @@ fun PetSwipeScreen(navController: NavController) {
     }
     val gemCount by GemManager.gemCount.collectAsState()
     val currentTier by GemManager.currentTier.collectAsState()
+
+    LaunchedEffect(currentUserId) {
+        if (currentUserId.isNotEmpty()) {
+            swipedPetIds = firestoreRepo.getSwipedPetIds(currentUserId)
+        }
+    }
 
 
 
@@ -329,13 +341,19 @@ fun PetSwipeScreen(navController: NavController) {
                 PetFilter.DOGS -> combinedPets.filter { it.type == "dog" }
                 PetFilter.CATS -> combinedPets.filter { it.type == "cat" }
             }
-            val seed = base
+
+            val unswiped = base.filter { pet ->
+                val id = pet.petId ?: "${pet.name}-${pet.shelterId}"
+                !swipedPetIds.contains(id)
+            }
+
+            val seed = unswiped // ✅ Use the filtered list
                 .map { it.petId ?: "${it.name}-${it.shelterId}" }
                 .sorted()
                 .joinToString()
                 .hashCode()
                 .toLong() xor (petFilter.ordinal * 31L) xor (shuffleEpoch.toLong() * 0x9E3779B97L)
-            base.shuffled(Random(seed))
+            unswiped.shuffled(Random(seed)) // ✅ Use the filtered list
         }
     }
     var isCompositionReady by remember { mutableStateOf(false) }
@@ -384,12 +402,20 @@ fun PetSwipeScreen(navController: NavController) {
     fun swipeCard(direction: Float) {
         if (isDragging || currentPetIndex >= filteredPets.size) return
 
-        if (direction > 0) {
+        val currentPet = filteredPets[currentPetIndex]
+        val petIdToRecord = currentPet.petId ?: "${currentPet.name}-${currentPet.shelterId}"
 
+
+        if (direction > 0) {
             val hasGem = GemManager.consumeGems(5)
             if (hasGem) {
-                val currentPet = filteredPets[currentPetIndex]
                 likedPetsViewmodel.addLikedPet(currentPet)
+
+                scope.launch {
+                    firestoreRepo.markAsSwiped(currentUserId, petIdToRecord)
+                    swipedPetIds = swipedPetIds + petIdToRecord
+                }
+
 
                 if (currentPetIndex == filteredPets.lastIndex) {
                     petRepository.appendBlankCard(
@@ -398,91 +424,86 @@ fun PetSwipeScreen(navController: NavController) {
                 }
 
 
-                // Move to next card to avoid duplicate swipes
 
                 scope.launch {
-
                     try {
-                        // Make sure shelter info comes from pet data
                         val shelterId = currentPet.shelterId
-                        if (shelterId.isNullOrEmpty()) {
-                            Log.w("PetSwipe", "❌ Pet has no shelterId: ${currentPet.name}")
-                            return@launch
-                        }
+                        if (shelterId.isNullOrEmpty()) return@launch
 
                         val allUsers = firestoreRepo.getAllUsers()
-                        val shelterUser = allUsers.find { it.id == shelterId }
-                        if (shelterUser == null) {
-                            Log.w("PetSwipe", "❌ Shelter not found for pet: ${currentPet.name}")
-                            return@launch
-                        }
+                        val shelterUser = allUsers.find { it.id == shelterId } ?: return@launch
 
                         val adopterId = authViewModel.currentUser?.uid ?: return@launch
                         val adopterUser = allUsers.find { it.id == adopterId }
-                        val adopterPhoto = adopterUser?.photoUri // 🆕 GRAB THE ADOPTER PHOTO
+                        val adopterPhoto = adopterUser?.photoUri
                         val shelterPhoto = shelterUser.photoUri
                         val adopterName = authViewModel.currentUser?.displayName ?: "Unknown"
-                        val petName = currentPet.name
 
-                        // Prevent duplicate channel
+                        // 🏷️ NEWLY ADDED: Variable Sync for consolidation
+                        val petNameToAdd = currentPet.name ?: "Unknown"
+                        val uniqueChannelId = "$adopterId-$shelterId"
+
+                        // 🏷️ NEWLY ADDED: Check local state for an existing channel pair
                         val existingChannel = homeViewModel.channels.value.firstOrNull {
-                            it.adopterId == adopterId &&
-                                    it.shelterId == shelterId &&
-                                    it.petName == petName
+                            it.channelId == uniqueChannelId
                         }
+
                         if (existingChannel != null) {
-                            Log.d("PetSwipe", "⚠️ Channel already exists. Skipping creation.")
-                            return@launch
+                            // ==========================================================
+                            // 🏷️ NEWLY ADDED: CONSOLIDATION LOGIC
+                            // ==========================================================
+                            Log.d("PetSwipe", "⚠️ Channel exists. Merging $petNameToAdd")
+
+                            val currentPets = existingChannel.petNames
+                            if (!currentPets.contains(petNameToAdd)) {
+                                val updatedList = currentPets + petNameToAdd
+                                // Update Firestore immediately with the new list
+                                firestoreRepo.updateChannelPetNames(uniqueChannelId, updatedList)
+                                Log.d("PetSwipe", "✅ Consolidated: $petNameToAdd added to $uniqueChannelId")
+                            }
+                        } else {
+                            // ==========================================================
+                            // 🏷️ NEWLY ADDED: NEW CHANNEL LOGIC (First match only)
+                            // ==========================================================
+                            val channel = Channel(
+                                channelId = uniqueChannelId,
+                                adopterId = adopterId,
+                                adopterName = adopterName,
+                                adopterPhotoUri = adopterPhoto,
+                                shelterId = shelterId,
+                                shelterName = shelterUser.name,
+                                shelterPhotoUri = shelterPhoto,
+                                petNames = listOf(petNameToAdd),
+                                lastMessage = "Interested in $petNameToAdd",
+                                timestamp = System.currentTimeMillis(),
+                                unreadCount = 0,
+                                createdAt = System.currentTimeMillis(),
+                                adopterTier = currentTier.level,
+                                isPriority = currentTier.level == 3
+                            )
+                            Log.d("PetSwipe", "✅ Created new consolidated channel: $uniqueChannelId")
+                            homeViewModel.addChannel(channel)
                         }
-                        Log.d("PetSwipe", "💎 Current User Tier Level: ${currentTier.level}")
-
-                        val channel = Channel(
-                            channelId = "$adopterId-$shelterId-${petName ?: "Unknown"}",
-                            adopterId = adopterId,
-                            adopterName = adopterName,
-                            adopterPhotoUri = adopterPhoto,
-                            shelterId = shelterId,
-                            shelterName = shelterUser.name,
-                            shelterPhotoUri = shelterPhoto, // ✅ ADD THIS
-                            petName = petName ?: "Unknown",
-                            lastMessage = "",
-                            timestamp = System.currentTimeMillis(),
-                            unreadCount = 0,
-                            createdAt = System.currentTimeMillis() ,
-                            //VIP    PRIORITY in CHAT
-                            adopterTier = currentTier.level,
-                            isPriority = currentTier.level == 3
-                        )
-
-                        Log.d("PetSwipe", "✅ Creating channel: $channel")
-                        homeViewModel.addChannel(channel)
-
                     } catch (e: Exception) {
-                        Log.e("PetSwipe", "❌ Error creating channel", e)
+                        Log.e("PetSwipe", "❌ Consolidation Error: ${e.message}")
                     }
                 }
-            }else {
-                // ❌ STOP: The user doesn't have enough "Fuel"
+            } else {
                 android.widget.Toast.makeText(
                     context,
-                    "You're out of gems! Buy a pack to keep swiping or unlock Tiers.",
+                    "You're out of gems!",
                     android.widget.Toast.LENGTH_LONG
                 ).show()
-
-                // 🛍️ Open the shop so they can refill immediately
                 GemManager.openPurchaseDialog()
-
                 return
             }
         }
 
         val nextIndex = currentPetIndex + 1
-
         if (nextIndex < filteredPets.size) {
             isDragging = true
             scope.launch {
                 val targetX = if (direction > 0) 1200f else -1200f
-
                 val exitEasing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)
                 animate(
                     initialValue = offsetX,
@@ -504,7 +525,6 @@ fun PetSwipeScreen(navController: NavController) {
         } else {
             scope.launch {
                 val targetX = if (direction > 0) 1200f else -1200f
-
                 val exitEasing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)
                 animate(
                     initialValue = offsetX,
@@ -515,7 +535,6 @@ fun PetSwipeScreen(navController: NavController) {
                     rotation = (value / 50f).coerceIn(-14f, 14f)
                     rotationYSwipe = swipeRotationYFromOffset(value)
                 }
-
                 currentPetIndex = filteredPets.size
             }
         }
@@ -826,130 +845,131 @@ fun PetSwipeScreen(navController: NavController) {
                     Spacer(modifier = Modifier.height(16.dp))
 
                     if (isCompositionReady) {
-                    AnimatedContent(
-                        targetState = shuffleEpoch,
-                        transitionSpec = {
-                            (
-                                fadeIn(animationSpec = tween(260, easing = FastOutSlowInEasing)) +
-                                    scaleIn(
-                                        initialScale = 0.92f,
-                                        animationSpec = tween(260, easing = FastOutSlowInEasing)
+                        AnimatedContent(
+                            targetState = shuffleEpoch,
+                            transitionSpec = {
+                                (fadeIn(animationSpec = tween(260, easing = FastOutSlowInEasing)) +
+                                        scaleIn(
+                                            initialScale = 0.92f,
+                                            animationSpec = tween(260, easing = FastOutSlowInEasing)
+                                        )
+                                        ).togetherWith(
+                                        fadeOut(animationSpec = tween(180)) +
+                                                scaleOut(
+                                                    targetScale = 0.94f,
+                                                    animationSpec = tween(180, easing = FastOutSlowInEasing)
+                                                )
                                     )
-                                ).togetherWith(
-                                fadeOut(animationSpec = tween(180)) +
-                                    scaleOut(
-                                        targetScale = 0.94f,
-                                        animationSpec = tween(180, easing = FastOutSlowInEasing)
-                                    )
-                            )
-                        },
-                        modifier = Modifier
-                            .width(cardWidth)
-                            .height(cardHeight),
-                        label = "shuffle_card_refresh"
-                    ) { _ ->
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = if (isTablet) 0.dp else 0.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        val densityFloat = density.density
-                        val stackPull by animateFloatAsState(
-                            targetValue = (abs(offsetX) / 260f).coerceIn(0f, 1f),
-                                animationSpec = spring(
-                                dampingRatio = 0.9f,
-                                stiffness = 350f
-                            ),
-                            label = "stack_pull"
-                        )
-                        val stackDepthTotal = 3
-                        for (depth in stackDepthTotal downTo 1) {
-                            val idx = currentPetIndex + depth
-                            if (idx < filteredPets.size) {
-                                val d = depth.toFloat()
-                            SwipeablePetCard(
-                                    pet = filteredPets[idx],
-                                offsetX = 0f,
-                                offsetY = 0f,
-                                rotation = 0f,
-                                    rotationY = 0f,
-                                onDrag = { _, _ -> },
-                                onDragEnd = { },
-                                isTablet = isTablet,
-                                userTier = currentTier.level,
-                                navController = navController,
-                                authViewModel = authViewModel,
-                                    isBackgroundStack = true,
-                                    showSwipeOverlays = false,
-                                    onFrontLayerRaised = { },
-                                modifier = Modifier
-                                        .zIndex((stackDepthTotal - depth + 1).toFloat())
-                                    .fillMaxSize()
-                                        .graphicsLayer {
-                                            cameraDistance = 14f * densityFloat
-                                            transformOrigin = TransformOrigin(0.5f, 0.52f)
-                                            val s = (1f - d * 0.045f + stackPull * 0.038f).coerceIn(0.82f, 1f)
-                                            scaleX = s
-                                            scaleY = s
-                                            translationX = d * (20f - stackPull * 14f)
-                                            translationY = d * (8f - stackPull * 6f)
-                                            rotationZ = -d * (2f - stackPull * 1.2f)
-                                            rotationX = 9f + d * 2.5f - stackPull * 4f
-                                        }
-                                )
-                            }
-                        }
-
-                        SwipeablePetCard(
-                            pet = filteredPets[currentPetIndex],
-                            offsetX = offsetX,
-                            offsetY = offsetY,
-                            rotation = rotation,
-                            rotationY = rotationYSwipe,
-                            onDrag = { deltaX, deltaY ->
-                                if (!isDragging) {
-                                    val newOffset = (offsetX + deltaX).coerceIn(-600f, 600f)
-                                    val newRotation = (newOffset / 50f)
-                                    offsetX = newOffset
-                                    rotation = newRotation
-                                    rotationYSwipe = swipeRotationYFromOffset(newOffset)
-                                    offsetY = (offsetY + deltaY).coerceIn(-300f, 300f)
-                                }
-                            },
-                            onDragEnd = {
-                                if (!isDragging) {
-                                    if (abs(offsetX) > 150f) {
-                                        swipeCard(if (offsetX > 0) 1f else -1f)
-                                    } else {
-                                        resetCardPosition()
-                                    }
-                                }
-                            },
-                            isTablet = isTablet,
-                            userTier = currentTier.level,
-                            navController = navController,
-                            authViewModel = authViewModel,
-                            isBackgroundStack = false,
-                            onFrontLayerRaised = { raised ->
-                                frontCardZIndex = if (raised) 220f else 50f
                             },
                             modifier = Modifier
-                                .zIndex(frontCardZIndex)
-                                .fillMaxSize()
-                                .graphicsLayer {
-                                    cameraDistance = 12f * densityFloat
-                                    transformOrigin = TransformOrigin(0.5f, 0.5f)
-                                    rotationX = -4f + stackPull * 2f
-                                    val ep = entranceProgress.coerceIn(0f, 1f)
-                                    val eScale = 0.94f + ep * 0.06f
-                                    scaleX = eScale
-                                    scaleY = eScale
-                                    translationY = (1f - ep) * 10f * densityFloat
+                                .width(cardWidth)
+                                .height(cardHeight),
+                            label = "shuffle_card_refresh"
+                        ) {epoch ->
+                            val _ignore = epoch
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = if (isTablet) 0.dp else 0.dp),
+                                contentAlignment = Alignment.Center
+                            ) { // ✅ Fix 2: Restored opening brace for Box
+                                val densityFloat = density.density
+                                val stackPull by animateFloatAsState(
+                                    targetValue = (abs(offsetX) / 260f).coerceIn(0f, 1f),
+                                    animationSpec = spring(
+                                        dampingRatio = 0.9f,
+                                        stiffness = 350f
+                                    ),
+                                    label = "stack_pull"
+                                )
+
+                                val stackDepthTotal = 3
+                                for (depth in stackDepthTotal downTo 1) {
+                                    val idx = currentPetIndex + depth
+                                    if (idx < filteredPets.size) {
+                                        val d = depth.toFloat()
+                                        SwipeablePetCard(
+                                            pet = filteredPets[idx],
+                                            offsetX = 0f,
+                                            offsetY = 0f,
+                                            rotation = 0f,
+                                            rotationY = 0f,
+                                            onDrag = { _, _ -> },
+                                            onDragEnd = { },
+                                            isTablet = isTablet,
+                                            userTier = currentTier.level,
+                                            navController = navController,
+                                            authViewModel = authViewModel,
+                                            isBackgroundStack = true,
+                                            showSwipeOverlays = false,
+                                            onFrontLayerRaised = { },
+                                            modifier = Modifier
+                                                .zIndex((stackDepthTotal - depth + 1).toFloat())
+                                                .fillMaxSize()
+                                                .graphicsLayer {
+                                                    cameraDistance = 14f * densityFloat
+                                                    transformOrigin = TransformOrigin(0.5f, 0.52f)
+                                                    val s = (1f - d * 0.045f + stackPull * 0.038f).coerceIn(0.82f, 1f)
+                                                    scaleX = s
+                                                    scaleY = s
+                                                    translationX = d * (20f - stackPull * 14f)
+                                                    translationY = d * (8f - stackPull * 6f)
+                                                    rotationZ = -d * (2f - stackPull * 1.2f)
+                                                    rotationX = 9f + d * 2.5f - stackPull * 4f
+                                                }
+                                        )
+                                    }
                                 }
-                        )
-                    }
-                    }
+
+                                SwipeablePetCard(
+                                    pet = filteredPets[currentPetIndex],
+                                    offsetX = offsetX,
+                                    offsetY = offsetY,
+                                    rotation = rotation,
+                                    rotationY = rotationYSwipe,
+                                    onDrag = { deltaX, deltaY ->
+                                        if (!isDragging) {
+                                            val newOffset = (offsetX + deltaX).coerceIn(-600f, 600f)
+                                            val newRotation = (newOffset / 50f)
+                                            offsetX = newOffset
+                                            rotation = newRotation
+                                            rotationYSwipe = swipeRotationYFromOffset(newOffset)
+                                            offsetY = (offsetY + deltaY).coerceIn(-300f, 300f)
+                                        }
+                                    },
+                                    onDragEnd = {
+                                        if (!isDragging) {
+                                            if (abs(offsetX) > 150f) {
+                                                swipeCard(if (offsetX > 0) 1f else -1f)
+                                            } else {
+                                                resetCardPosition()
+                                            }
+                                        }
+                                    },
+                                    isTablet = isTablet,
+                                    userTier = currentTier.level,
+                                    navController = navController,
+                                    authViewModel = authViewModel,
+                                    isBackgroundStack = false,
+                                    onFrontLayerRaised = { raised ->
+                                        frontCardZIndex = if (raised) 220f else 50f
+                                    },
+                                    modifier = Modifier
+                                        .zIndex(frontCardZIndex)
+                                        .fillMaxSize()
+                                        .graphicsLayer {
+                                            cameraDistance = 12f * densityFloat
+                                            transformOrigin = TransformOrigin(0.5f, 0.5f)
+                                            rotationX = -4f + stackPull * 2f
+                                            val ep = entranceProgress.coerceIn(0f, 1f)
+                                            val eScale = 0.94f + ep * 0.06f
+                                            scaleX = eScale
+                                            scaleY = eScale
+                                            translationY = (1f - ep) * 10f * densityFloat
+                                        }
+                                )
+                            } // Close Box
+                        } // Close AnimatedContent
                     } else {
                         Box(
                             modifier = Modifier
@@ -1221,8 +1241,9 @@ private fun PetInfoBackFace(
         DetailBox(label = "Name", value = pet.name ?: "Unknown")
         DetailBox(label = "Age", value = pet.age ?: "N/A")
         DetailBox(label = "Sex", value = pet.gender ?: "Unknown")
-        DetailBox(label = "Shelter", value = pet.shelterName ?: shelterDisplayName)
-        DetailBox(label = "Address", value = pet.shelterAddress ?: "—")
+        val displayShelter = if (!pet.shelterName.isNullOrBlank()) pet.shelterName else shelterDisplayName
+        DetailBox(label = "Shelter", value = displayShelter ?: "Unknown")
+        DetailBox(label = "Address", value = pet.shelterAddress ?: "Address Loading...")
         HealthStatusBox(status = pet.healthStatus)
     }
 }
@@ -1271,7 +1292,7 @@ fun SwipeablePetCard(
             lastActive = pet.shelterLastActive
         )
     )
-
+/*
     LaunchedEffect(pet.shelterId) {
         if (pet.shelterId.isNullOrEmpty()) {
             shelterName = "No shelter found"
@@ -1284,6 +1305,8 @@ fun SwipeablePetCard(
             shelterName = "No shelter found"
         }
     }
+    */
+
 
     LaunchedEffect(offsetX, holdInfoActive) {
         if (!holdInfoActive && abs(offsetX) > 14f) isBackFace = false
@@ -1369,10 +1392,9 @@ fun SwipeablePetCard(
                     .clip(petCardShape)
             ) {
                 AsyncImage(
-                    model = currentImage,
-                    contentDescription = pet.name,
-                    placeholder = painterResource(id = R.drawable.blackpawmateicon3),
-                    error = painterResource(id = R.drawable.placeholder),
+                    model = currentImage.takeIf { !it.toString().isNullOrBlank() } ?: R.drawable.petplaceholder,                    contentDescription = pet.name,
+                    placeholder = painterResource(id = R.drawable.petplaceholder),
+                    error = painterResource(id = R.drawable.petplaceholder),
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
@@ -1503,10 +1525,9 @@ fun SwipeablePetCard(
                         }
                 ) {
             AsyncImage(
-                model = currentImage,
-                contentDescription = pet.name,
-                placeholder = painterResource(id = R.drawable.blackpawmateicon3),
-                error = painterResource(id = R.drawable.placeholder),
+                model = currentImage.takeIf { !it.toString().isNullOrBlank() } ?: R.drawable.petplaceholder,  contentDescription = pet.name,
+                placeholder = painterResource(id = R.drawable.petplaceholder),
+                error = painterResource(id = R.drawable.petplaceholder),
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
@@ -1589,9 +1610,12 @@ fun SwipeablePetCard(
                         ) {
             Row(
                 modifier = Modifier
-                                    .widthIn(max = 168.dp)
+                 .widthIn(max = 168.dp)
                     .clip(RoundedCornerShape(20.dp))
-                    .clickable {
+                    .clickable(
+                        indication = null, // Removes the ripple so it looks like your colleague's design
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) {
                         if (!pet.shelterId.isNullOrEmpty()) {
                             navController.navigate("profile_details/${pet.shelterId}")
                         }
@@ -1619,7 +1643,7 @@ fun SwipeablePetCard(
                             modifier = Modifier
                                 .size(10.dp)
                                 .clip(CircleShape)
-                                                .background(Color(0xFF4ADE80))
+                                .background(Color(0xFF4ADE80))
                                 .border(1.5.dp, Color.White, CircleShape)
                                 .align(Alignment.BottomEnd)
                                 .offset(x = (-2).dp, y = (-2).dp)
@@ -1627,7 +1651,7 @@ fun SwipeablePetCard(
                     }
                 }
                 Text(
-                    text = shelterName,
+                    text = pet.shelterName ?: "Unknown Shelter",
                     color = Color.White,
                                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
@@ -1760,8 +1784,7 @@ fun SwipeablePetCard(
                 ) {
                     PetInfoBackFace(
                         pet = pet,
-                        shelterDisplayName = shelterName,
-                        isTablet = isTablet,
+                        shelterDisplayName = pet.shelterName ?: "Unknown Shelter",                        isTablet = isTablet,
                         modifier = Modifier.fillMaxSize()
                     )
                 }

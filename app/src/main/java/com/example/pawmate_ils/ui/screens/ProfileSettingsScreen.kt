@@ -348,7 +348,7 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .height(118.dp)
+                            .height(120.dp)
                             .clip(statTileShape)
                             .background(
                                 Brush.linearGradient(
@@ -363,7 +363,7 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                         Column(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                                .padding(horizontal = 15.dp, vertical = 15.dp),
                             verticalArrangement = Arrangement.SpaceBetween
                         ) {
                             Box(

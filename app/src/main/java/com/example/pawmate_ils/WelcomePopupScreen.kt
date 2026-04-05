@@ -65,15 +65,7 @@
                 animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)
             )
 
-            val destination = when (userType.lowercase()) {
-                "adopter" -> "pet_swipe"
-                "shelter" -> "adoption_center_dashboard"
-                else -> "user_type"
-            }
 
-            navController.navigate(destination) {
-                popUpTo("welcome_popup") { inclusive = true }
-            }
         }
 
         val roleLabel = if (userType.lowercase() == "shelter") "Shelter Mode" else "Adopter Mode"

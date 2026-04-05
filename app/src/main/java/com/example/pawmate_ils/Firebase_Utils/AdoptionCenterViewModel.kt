@@ -49,8 +49,8 @@ class AdoptionCenterViewModel(
                         return@addSnapshotListener
                     }
 
-                    val pets = snapshot?.documents?.mapNotNull {
-                        it.toObject(PetData::class.java)
+                    val pets = snapshot?.documents?.mapNotNull { doc ->
+                        doc.toObject(PetData::class.java)?.copy(petId = doc.id)
                     } ?: emptyList()
 
                     // Update UI StateFlows instantly
@@ -66,6 +66,7 @@ class AdoptionCenterViewModel(
         val currentUser = authViewModel.currentUser ?: return
         val shelterId = currentUser.uid
         val shelterName = currentUser.displayName ?: "Unknown Shelter"
+        val petRef = db.collection("pets").document()
         val petId = db.collection("pets").document().id
 
         val petWithOwner = newPet.copy(
@@ -77,10 +78,8 @@ class AdoptionCenterViewModel(
         viewModelScope.launch {
             try {
                 withContext(Dispatchers.IO) {
-                    db.collection("pets")
-                        .document(petId)
-                        .set(petWithOwner)
-                        .await()
+                    // 🎯 Use the reference we created above
+                    petRef.set(petWithOwner).await()
                 }
                 _addPetStatus.value = Result.success("Pet added successfully")
             } catch (e: Exception) {
@@ -90,7 +89,7 @@ class AdoptionCenterViewModel(
         }
     }
 
-    // 🟢 FIXED: This function is now properly closed and independent
+    // 🟢 FIXED: This function is    now properly closed and independent
     fun listenToUploadedPetsCount(shelterId: String) {
         db.collection("pets")
             .whereEqualTo("shelterId", shelterId)
@@ -136,4 +135,7 @@ class AdoptionCenterViewModel(
             }
         }
     }
+
+
+
 }

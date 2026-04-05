@@ -77,5 +77,9 @@ data class User(
 
     @get:PropertyName("isNewUser")
     @set:PropertyName("isNewUser")
-    var isNewUser: Boolean = true
+    var isNewUser: Boolean = true,
+
+    @get:PropertyName("shelterHours")
+    @set:PropertyName("shelterHours")
+     var shelterHours: String = "",
 )

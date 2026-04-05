@@ -317,6 +317,51 @@ class FirestoreRepository {
         }
     }
 
+    suspend fun updateChannelPetNames(channelId: String, newPetNames: List<String>) {
+        try {
+            db.collection("channels")
+                .document(channelId)
+                .update("petNames", newPetNames) // 🎯 Overwrites the list with the new pet included
+                .await()
+            Log.d("Firestore", "Successfully updated petNames for channel: $channelId")
+        } catch (e: Exception) {
+            Log.e("Firestore", "Error updating petNames", e)
+            throw e
+        }
+    }
+    suspend fun recordSwipe(userId: String, petId: String) {
+        val swipeData = hashMapOf(
+            "userId" to userId,
+            "petId" to petId,
+            "timestamp" to System.currentTimeMillis()
+        )
+        // Use a composite ID "userId_petId" to prevent duplicate entries
+        db.collection("swipes")
+            .document("${userId}_${petId}")
+            .set(swipeData)
+            .await()
+    }
+
+    suspend fun markAsSwiped(userId: String, petId: String) {
+        val data = hashMapOf("timestamp" to System.currentTimeMillis())
+        // Save to users/USER_ID/swipedPets/PET_ID
+        db.collection("users").document(userId)
+            .collection("swipedPets").document(petId)
+            .set(data).await()
+    }
+
+    suspend fun getSwipedPetIds(userId: String): List<String> {
+        return try {
+            val snapshot = db.collection("users").document(userId)
+                .collection("swipedPets").get().await()
+            snapshot.documents.map { it.id } // Returns list of Pet IDs
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+
+
 
 }
 

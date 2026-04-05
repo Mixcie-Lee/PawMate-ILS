@@ -267,8 +267,11 @@ fun SignUpScreen(
                         label = { Text("Mobile Number") },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(28.dp),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.NumberPassword
+                        )
                     )
+
 
                     Spacer(modifier = Modifier.height(16.dp))
                     OutlinedTextField(

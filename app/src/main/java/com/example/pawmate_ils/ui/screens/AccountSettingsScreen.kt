@@ -49,14 +49,27 @@ fun AccountSettingsScreen(navController: NavController) {
     var isLoggingOut by remember { mutableStateOf(false) }
     var isDeleting by remember { mutableStateOf(false) }
 
+
+
     val authViewModel: AuthViewModel = viewModel()
     val context = LocalContext.current
     val adopterRepository = AdopterRepository()
     val coroutineScope = rememberCoroutineScope()
 
+    val currentUserProfile by authViewModel.userData.collectAsState(initial = null)
+
     var isDarkMode by remember { mutableStateOf(ThemeManager.isDarkMode) }
     LaunchedEffect(Unit) {
         isDarkMode = ThemeManager.isDarkMode
+    }
+
+    LaunchedEffect(currentUserProfile) {
+        currentUserProfile?.let { user ->
+            // We only populate if the local fields are blank to avoid overwriting user input
+            if (email.isBlank()) email = user.email ?: ""
+            // Matches the 'MobileNumber' field name in your User model
+            if (phone.isBlank()) phone = user.MobileNumber ?: ""
+        }
     }
 
     val backgroundColor = if (isDarkMode) Color(0xFF1A1A1A) else Color(0xFFFFF0F5)
@@ -142,6 +155,7 @@ fun AccountSettingsScreen(navController: NavController) {
                             value = email,
                             onValueChange = { email = it },
                             label = { Text("Email") },
+                            placeholder = { Text(currentUserProfile?.email ?: "example@mail.com") },
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                             modifier = Modifier.fillMaxWidth(),
@@ -152,6 +166,7 @@ fun AccountSettingsScreen(navController: NavController) {
                             value = phone,
                             onValueChange = { phone = it },
                             label = { Text("Phone number") },
+                            placeholder = { Text(currentUserProfile?.MobileNumber ?: "09XXXXXXXXX") }, // Placeholder
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                             modifier = Modifier.fillMaxWidth(),
