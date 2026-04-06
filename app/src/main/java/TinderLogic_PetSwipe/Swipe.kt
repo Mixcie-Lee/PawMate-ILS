@@ -843,8 +843,12 @@ fun PetSwipeScreen(navController: NavController) {
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
-
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
                     if (isCompositionReady) {
                         AnimatedContent(
                             targetState = shuffleEpoch,
@@ -889,6 +893,7 @@ fun PetSwipeScreen(navController: NavController) {
                                     val idx = currentPetIndex + depth
                                     if (idx < filteredPets.size) {
                                         val d = depth.toFloat()
+                                        val messDir = if (depth % 2 == 0) 1f else -1f
                                         SwipeablePetCard(
                                             pet = filteredPets[idx],
                                             offsetX = 0f,
@@ -910,13 +915,13 @@ fun PetSwipeScreen(navController: NavController) {
                                                 .graphicsLayer {
                                                     cameraDistance = 14f * densityFloat
                                                     transformOrigin = TransformOrigin(0.5f, 0.52f)
-                                                    val s = (1f - d * 0.045f + stackPull * 0.038f).coerceIn(0.82f, 1f)
+                                                    val s = (1f - d * 0.04f + stackPull * 0.035f).coerceIn(0.82f, 1f)
                                                     scaleX = s
                                                     scaleY = s
-                                                    translationX = d * (20f - stackPull * 14f)
-                                                    translationY = d * (8f - stackPull * 6f)
-                                                    rotationZ = -d * (2f - stackPull * 1.2f)
-                                                    rotationX = 9f + d * 2.5f - stackPull * 4f
+                                                    translationX = messDir * d * (16f + stackPull * 18f)
+                                                    translationY = d * (6f - stackPull * 4f)
+                                                    rotationZ = messDir * d * (2.5f + stackPull * 3.5f)
+                                                    rotationX = 0f
                                                 }
                                         )
                                     }
@@ -935,12 +940,12 @@ fun PetSwipeScreen(navController: NavController) {
                                             offsetX = newOffset
                                             rotation = newRotation
                                             rotationYSwipe = swipeRotationYFromOffset(newOffset)
-                                            offsetY = (offsetY + deltaY).coerceIn(-300f, 300f)
+                                            offsetY = (offsetY + deltaY).coerceIn(-150f, 150f)
                                         }
                                     },
                                     onDragEnd = {
                                         if (!isDragging) {
-                                            if (abs(offsetX) > 150f) {
+                                            if (abs(offsetX) > 100f) {
                                                 swipeCard(if (offsetX > 0) 1f else -1f)
                                             } else {
                                                 resetCardPosition()
@@ -961,7 +966,7 @@ fun PetSwipeScreen(navController: NavController) {
                                         .graphicsLayer {
                                             cameraDistance = 12f * densityFloat
                                             transformOrigin = TransformOrigin(0.5f, 0.5f)
-                                            rotationX = -4f + stackPull * 2f
+                                            rotationX = 0f
                                             val ep = entranceProgress.coerceIn(0f, 1f)
                                             val eScale = 0.94f + ep * 0.06f
                                             scaleX = eScale
@@ -978,6 +983,7 @@ fun PetSwipeScreen(navController: NavController) {
                                 .height(cardHeight)
                         )
                     }
+                    } // Close centering Box
 
                     // Tutorial (Dialog + screen arrows)
                     if (showTutorial) {
@@ -1436,7 +1442,7 @@ fun SwipeablePetCard(
     }
 
     val pressLiftPx by animateFloatAsState(
-        targetValue = if (isPressed) -11f else 0f,
+        targetValue = if (isPressed && abs(offsetX) < 15f) -11f else 0f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioNoBouncy,
             stiffness = Spring.StiffnessHigh
@@ -1568,10 +1574,10 @@ fun SwipeablePetCard(
                                 .background(
                                     Brush.horizontalGradient(
                                         colors = listOf(
-                                            Color(0xFF1B5E20).copy(alpha = 0.22f + swipeFill * 0.68f),
-                                            Color(0xFF2E7D32).copy(alpha = swipeFill * 0.55f),
-                                            Color(0xFF43A047).copy(alpha = swipeFill * 0.35f),
-                                            Color(0xFF66BB6A).copy(alpha = swipeFill * 0.22f)
+                                            Color(0xFF6B9A7E).copy(alpha = 0.22f + swipeFill * 0.68f),
+                                            Color(0xFF8FB89E).copy(alpha = swipeFill * 0.55f),
+                                            Color(0xFFA3C9B3).copy(alpha = swipeFill * 0.35f),
+                                            Color(0xFFB5D4C4).copy(alpha = swipeFill * 0.22f)
                                         )
                                     )
                                 )
@@ -1584,10 +1590,10 @@ fun SwipeablePetCard(
                                 .background(
                                     Brush.horizontalGradient(
                                         colors = listOf(
-                                            Color(0xFFE65100).copy(alpha = swipeFill * 0.25f),
-                                            Color(0xFFFF6F00).copy(alpha = swipeFill * 0.45f),
-                                            Color(0xFFFF9100).copy(alpha = 0.28f + swipeFill * 0.55f),
-                                            Color(0xFFFF6D00).copy(alpha = 0.2f + swipeFill * 0.72f)
+                                            Color(0xFF8E5A5E).copy(alpha = swipeFill * 0.25f),
+                                            Color(0xFFA87070).copy(alpha = swipeFill * 0.45f),
+                                            Color(0xFFB57878).copy(alpha = 0.28f + swipeFill * 0.55f),
+                                            Color(0xFFC49090).copy(alpha = 0.2f + swipeFill * 0.72f)
                                         )
                                     )
                                 )
