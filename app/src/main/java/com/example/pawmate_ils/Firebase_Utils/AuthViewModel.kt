@@ -10,6 +10,7 @@
     import com.cloudinary.android.MediaManager
     import com.cloudinary.android.callback.ErrorInfo
     import com.cloudinary.android.callback.UploadCallback
+    import com.example.pawmate_ils.CloudinaryHelper
     import com.example.pawmate_ils.GemManager
     import com.example.pawmate_ils.SettingsManager
     import com.example.pawmate_ils.firebase_models.Channel
@@ -694,6 +695,11 @@
 
             // 4. Only show green if the heartbeat is within the last 5 minutes.
             return (currentTime - lastActive) < fiveMinutesInMs
+        }
+
+        suspend fun uploadToCloudinarySync(context: Context, uri: Uri): String? {
+            // We call the Helper we just updated
+            return CloudinaryHelper.uploadImageSync(uri)
         }
 
 

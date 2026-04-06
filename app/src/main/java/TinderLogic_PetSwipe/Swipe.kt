@@ -24,7 +24,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.Alignment
+
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.draw.scale
@@ -94,6 +94,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.Alignment
 import coil.compose.AsyncImage
 import com.example.pawmate_ils.firebase_models.User
 import com.example.pawmate_ils.ui.components.AdopterBottomBar
@@ -155,7 +156,7 @@ data class PetData(
     val type: String? = null,
     val imageRes: Int = 0,
     val imageUrl: String? = null,
-    val additionalImages: List<Int> = emptyList(),
+    val additionalImages: List<String> = emptyList(),
     // Shelter Info for the New Design
     val shelterId: String? = null,
     @get:PropertyName("shelterName") @set:PropertyName("shelterName")
@@ -988,7 +989,7 @@ fun PetSwipeScreen(navController: NavController) {
                                 0 -> { // Info button (top-right)
                                     Column(
                                         modifier = Modifier
-                                            .align(Alignment.TopEnd)
+                                            .align(Alignment.Center)
                                             .padding(top = 56.dp, end = 24.dp),
                                         horizontalAlignment = Alignment.End
                                     ) {
@@ -1215,17 +1216,22 @@ private fun PetInfoBackFace(
     val gradient = Brush.verticalGradient(
         colors = listOf(Color(0xFFFFF8FA), Color(0xFFFFEEF2), Color(0xFFFFE0E8))
     )
+
+    val orgName = if (!pet.shelterName.isNullOrBlank()) pet.shelterName else "PawMate Shelter"
+    val ownerName = shelterDisplayName // This is "Kit"
+
+
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(gradient)
             .padding(horizontal = cardPad, vertical = if (isTablet) 20.dp else 14.dp)
             .verticalScroll(rememberScrollState()),
-        horizontalAlignment = Alignment.End
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(
             modifier = Modifier
-                .align(Alignment.End)
+                .align(Alignment.CenterHorizontally)
                 .clip(RoundedCornerShape(14.dp))
                 .background(Color(0xFFFFB6C1).copy(alpha = 0.45f))
                 .padding(horizontal = 28.dp, vertical = 8.dp)
@@ -1241,8 +1247,12 @@ private fun PetInfoBackFace(
         DetailBox(label = "Name", value = pet.name ?: "Unknown")
         DetailBox(label = "Age", value = pet.age ?: "N/A")
         DetailBox(label = "Sex", value = pet.gender ?: "Unknown")
-        val displayShelter = if (!pet.shelterName.isNullOrBlank()) pet.shelterName else shelterDisplayName
-        DetailBox(label = "Shelter", value = displayShelter ?: "Unknown")
+        DetailBox(label = "Shelter", value = orgName ?: "Unknown")
+
+        if (ownerName.isNotBlank() && ownerName != orgName) {
+            DetailBox(label = "Managed by", value = ownerName)
+        }
+
         DetailBox(label = "Address", value = pet.shelterAddress ?: "Address Loading...")
         HealthStatusBox(status = pet.healthStatus)
     }
@@ -1280,6 +1290,7 @@ fun SwipeablePetCard(
     var currentImageIndex by remember(pet.name) { mutableIntStateOf(0) }
     var isBackFace by remember(pet.name) { mutableStateOf(false) }
     var isPressed by remember(pet.name) { mutableStateOf(false) }
+
     /** True after long-press Info until finger is lifted (not tap-to-stick). */
     var holdInfoActive by remember(pet.name) { mutableStateOf(false) }
 
@@ -1292,20 +1303,20 @@ fun SwipeablePetCard(
             lastActive = pet.shelterLastActive
         )
     )
-/*
-    LaunchedEffect(pet.shelterId) {
-        if (pet.shelterId.isNullOrEmpty()) {
-            shelterName = "No shelter found"
-            return@LaunchedEffect
+    /*
+        LaunchedEffect(pet.shelterId) {
+            if (pet.shelterId.isNullOrEmpty()) {
+                shelterName = "No shelter found"
+                return@LaunchedEffect
+            }
+            try {
+                val name = shelterRepository.getShelterNameById(pet.shelterId!!)
+                shelterName = name ?: "Unknown Shelter"
+            } catch (e: Exception) {
+                shelterName = "No shelter found"
+            }
         }
-        try {
-            val name = shelterRepository.getShelterNameById(pet.shelterId!!)
-            shelterName = name ?: "Unknown Shelter"
-        } catch (e: Exception) {
-            shelterName = "No shelter found"
-        }
-    }
-    */
+        */
 
 
     LaunchedEffect(offsetX, holdInfoActive) {
@@ -1337,6 +1348,7 @@ fun SwipeablePetCard(
                 val dragNorm = (abs(offsetX) / 400f).coerceIn(0f, 1f)
                 1f + dragNorm * 0.06f
             }
+
             else -> idlePulse
         },
         animationSpec = spring(dampingRatio = 0.75f, stiffness = 400f),
@@ -1364,15 +1376,31 @@ fun SwipeablePetCard(
     val indicatorSize = if (isTablet) 12.dp else 8.dp
     val indicatorSpacing = if (isTablet) 12.dp else 8.dp
 
-    val currentImage = when {
-        currentImageIndex == 0 -> {
-            if (!pet.imageUrl.isNullOrEmpty()) pet.imageUrl else pet.imageRes.takeIf { it != 0 } ?: R.drawable.placeholder
+    val allImages = remember(pet) {
+        val list = mutableListOf<Any>()
+
+        // 1. Add Main Cloudinary URL if it exists
+        if (!pet.imageUrl.isNullOrBlank()) {
+            list.add(pet.imageUrl!!)
         }
-        currentImageIndex <= pet.additionalImages.lastIndex + 1 && pet.additionalImages.isNotEmpty() -> {
-            pet.additionalImages.getOrNull(currentImageIndex - 1) ?: R.drawable.placeholder
+
+        // 2. Add Sub-Images from Cloudinary
+        if (pet.additionalImages.isNotEmpty()) {
+            list.addAll(pet.additionalImages)
         }
-        else -> R.drawable.placeholder
+
+        // 3. Fallback to old resource only if Cloudinary is empty
+        if (list.isEmpty()) {
+            val res = pet.imageRes.takeIf { it != 0 } ?: R.drawable.petplaceholder
+            list.add(res)
+        }
+        list
     }
+
+    // 🆕 NEWLY ADDED: Dynamically manifest the image based on the index
+    val currentImage = allImages.getOrNull(currentImageIndex) ?: R.drawable.petplaceholder
+
+
 
     val petCardShape = RoundedCornerShape(24.dp)
     // Match Discover screen bg so the card's axis-aligned bounds don't read as a dark slab when tilted in 3D.
@@ -1451,7 +1479,8 @@ fun SwipeablePetCard(
                     },
                     onTap = { tapOffset ->
                         val cardWidthVal = size.width.toFloat()
-                        val totalImages = pet.additionalImages.size + 1
+                       // val totalImages = pet.additionalImages.size + 1
+                        val totalImages = allImages.size
                         val x = tapOffset.x
                         val leftZoneEnd = cardWidthVal * 0.33f
                         val rightZoneStart = cardWidthVal * 0.67f
@@ -1524,13 +1553,13 @@ fun SwipeablePetCard(
                             alpha = if (flipRotation < 90f) 1f else 0f
                         }
                 ) {
-            AsyncImage(
-                model = currentImage.takeIf { !it.toString().isNullOrBlank() } ?: R.drawable.petplaceholder,  contentDescription = pet.name,
-                placeholder = painterResource(id = R.drawable.petplaceholder),
-                error = painterResource(id = R.drawable.petplaceholder),
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
+                    AsyncImage(
+                        model = currentImage.takeIf { !it.toString().isNullOrBlank() } ?: R.drawable.petplaceholder,  contentDescription = pet.name,
+                        placeholder = painterResource(id = R.drawable.petplaceholder),
+                        error = painterResource(id = R.drawable.petplaceholder),
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
 
                     if (showSwipeOverlays && offsetX > 10f) {
                         Box(
@@ -1608,53 +1637,53 @@ fun SwipeablePetCard(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.Start
                         ) {
-            Row(
-                modifier = Modifier
-                 .widthIn(max = 168.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .clickable(
-                        indication = null, // Removes the ripple so it looks like your colleague's design
-                        interactionSource = remember { MutableInteractionSource() }
-                    ) {
-                        if (!pet.shelterId.isNullOrEmpty()) {
-                            navController.navigate("profile_details/${pet.shelterId}")
-                        }
-                    }
-                    .background(Color.Black.copy(alpha = 0.2f))
+                            Row(
+                                modifier = Modifier
+                                    .widthIn(max = 168.dp)
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .clickable(
+                                        indication = null, // Removes the ripple so it looks like your colleague's design
+                                        interactionSource = remember { MutableInteractionSource() }
+                                    ) {
+                                        if (!pet.shelterId.isNullOrEmpty()) {
+                                            navController.navigate("profile_details/${pet.shelterId}")
+                                        }
+                                    }
+                                    .background(Color.Black.copy(alpha = 0.2f))
                                     .padding(start = 6.dp, end = 10.dp, top = 6.dp, bottom = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(modifier = Modifier.size(36.dp), contentAlignment = Alignment.Center) {
-                    Surface(
-                        modifier = Modifier.size(30.dp),
-                        shape = CircleShape,
-                        color = Color.White.copy(alpha = 0.2f),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.5f))
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Home,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.padding(6.dp)
-                        )
-                    }
-                    if (isShelterLive) {
-                        Box(
-                            modifier = Modifier
-                                .size(10.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFF4ADE80))
-                                .border(1.5.dp, Color.White, CircleShape)
-                                .align(Alignment.BottomEnd)
-                                .offset(x = (-2).dp, y = (-2).dp)
-                        )
-                    }
-                }
-                Text(
-                    text = pet.shelterName ?: "Unknown Shelter",
-                    color = Color.White,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(modifier = Modifier.size(36.dp), contentAlignment = Alignment.Center) {
+                                    Surface(
+                                        modifier = Modifier.size(30.dp),
+                                        shape = CircleShape,
+                                        color = Color.White.copy(alpha = 0.2f),
+                                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.5f))
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Home,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.padding(6.dp)
+                                        )
+                                    }
+                                    if (isShelterLive) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(10.dp)
+                                                .clip(CircleShape)
+                                                .background(Color(0xFF4ADE80))
+                                                .border(1.5.dp, Color.White, CircleShape)
+                                                .align(Alignment.BottomEnd)
+                                                .offset(x = (-2).dp, y = (-2).dp)
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = pet.shelterName ?: "Unknown Shelter",
+                                    color = Color.White,
                                     fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
+                                    fontWeight = FontWeight.Bold,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier
@@ -1663,44 +1692,27 @@ fun SwipeablePetCard(
                                 )
                             }
                         }
-            }
+                    }
 
-            if (pet.additionalImages.isNotEmpty()) {
-                Card(
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .padding(bottom = 12.dp)
-                                .zIndex(1f),
+                    if (allImages.size > 1) {
+                        Card(
+                            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp).zIndex(1f),
                             colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.35f)),
-                    shape = RoundedCornerShape(20.dp)
-                ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                horizontalArrangement = Arrangement.spacedBy(indicatorSpacing)
-                            ) {
-                        repeat(pet.additionalImages.size + 1) { index ->
-                            val isSelected = index == currentImageIndex
-                                    val indicatorScale by animateFloatAsState(
-                                        targetValue = if (isSelected) 1.2f else 1f,
-                                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessHigh),
-                                        label = "indicator_scale_$index"
-                                    )
-            Box(
-                modifier = Modifier
-                                            .size(indicatorSize)
-                                            .scale(indicatorScale)
-                    .background(
-                                                color = if (isSelected) Color.White else Color.White.copy(alpha = 0.5f),
-                                                shape = CircleShape
-                                            )
+                            shape = RoundedCornerShape(20.dp)
+                        ) {
+                            Row(Modifier.padding(horizontal = 10.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(indicatorSpacing)) {
+                                repeat(allImages.size) { index ->
+                                    Box(
+                                        modifier = Modifier.size(indicatorSize)
+                                            .background(if (index == currentImageIndex) Color.White else Color.White.copy(alpha = 0.5f), CircleShape)
                                     )
                                 }
                             }
                         }
                     }
 
-                Box(
-                    modifier = Modifier
+                    Box(
+                        modifier = Modifier
                             .align(Alignment.TopEnd)
                             .zIndex(2f)
                             .fillMaxWidth(0.42f)
@@ -1722,8 +1734,8 @@ fun SwipeablePetCard(
                             verticalArrangement = Arrangement.spacedBy(3.dp),
                             horizontalAlignment = Alignment.End,
                             modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(
+                        ) {
+                            Text(
                                 text = pet.name ?: "Unknown",
                                 style = MaterialTheme.typography.headlineMedium.copy(
                                     fontWeight = FontWeight.Bold,
@@ -2199,23 +2211,23 @@ fun GemPurchaseDialog(
             fun GemDialogHeader() {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
+                    verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
-            ) {
+                ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                Image(
-                    painter = painterResource(id = R.drawable.diamond),
-                    contentDescription = null,
+                        Image(
+                            painter = painterResource(id = R.drawable.diamond),
+                            contentDescription = null,
                             modifier = Modifier.size(32.dp)
-                )
+                        )
                         Column(modifier = Modifier.padding(start = 10.dp)) {
-                Text(
-                    text = "Upgrade PawMate",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
+                            Text(
+                                text = "Upgrade PawMate",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
                                 color = accent
-                )
-                Text(
+                            )
+                            Text(
                                 text = "Pick a gem pack for your tier — checkout unchanged.",
                                 fontSize = 11.sp,
                                 color = muted,

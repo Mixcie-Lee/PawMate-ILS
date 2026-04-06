@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -36,6 +37,8 @@ import com.example.pawmate_ils.firebase_models.Message
 import com.example.pawmate_ils.ThemeManager
 import com.example.pawmate_ils.AdopShelDataStruc.DateUtils
 import com.example.pawmate_ils.ui.components.AdopterBottomBar
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
 @Composable
@@ -62,6 +65,8 @@ fun ChatScreen(
     var chatPartnerRole by remember { mutableStateOf("") }
     var adopterId by remember { mutableStateOf("") }
     var shelterId by remember { mutableStateOf("") }
+
+    var replyingTo by remember { mutableStateOf<Message?>(null) }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
@@ -161,29 +166,97 @@ fun ChatScreen(
             )
         },
         bottomBar = {
-            ChatInputBar(
-                messageText = messageText,
-                onMessageChange = {
-                    messageText = it
-                    // 🟢 Triggers typing status based on if field is empty or not
-                    chatViewModel.setTypingStatus(channelId, it.text.isNotEmpty())
-                },
-                onSendClick = {
-                    if (messageText.text.isNotBlank()) {
-                        val receiverId = if (currentUserId == adopterId) shelterId else adopterId
-                        chatViewModel.sendMessage(channelId, messageText.text, receiverId)
-                        // 🟢 Stop typing indicator immediately after sending
-                        chatViewModel.setTypingStatus(channelId, false)
-                        messageText = TextFieldValue("")
-                    }
-                },
-                onGalleryClick = {
-                    photoPickerLauncher.launch(
-                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                    )
-                }
-            )
+            // All bottom elements must be wrapped in a single Column
+            Column {
+                // 🆕 Reply Preview Box (Appears above the input bar)
+                AnimatedVisibility(
+                    visible = replyingTo != null,
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(if (isDarkMode) Color(0xFF2A2A2A) else Color(0xFFFDEEF1))
+                            .padding(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Vertical accent line
+                        Box(
+                            modifier = Modifier.width(3.dp).height(35.dp)
+                                .background(Color(0xFFD95C5C))
+                        )
 
+                        Column(modifier = Modifier.weight(1f).padding(start = 12.dp)) {
+                            Text(
+                                text = "Replying to ${if (replyingTo?.senderId == currentUserId) "yourself" else chatPartnerName}",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFD95C5C)
+                            )
+                            Text(
+                                text = replyingTo?.messageText ?: "Shared Image",
+                                fontSize = 14.sp,
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                color = if (isDarkMode) Color.LightGray else Color.Gray
+                            )
+                        }
+
+                        IconButton(onClick = { replyingTo = null }) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Cancel Reply",
+                                modifier = Modifier.size(18.dp),
+                                tint = Color.Gray
+                            )
+                        }
+                    }
+                }
+
+                // ChatInputBar is now INSIDE the Column
+                ChatInputBar(
+                    messageText = messageText,
+                    onMessageChange = {
+                        messageText = it
+                        chatViewModel.setTypingStatus(channelId, it.text.isNotEmpty())
+                    },
+                    onSendClick = {
+                        if (messageText.text.isNotBlank()) {
+                            val receiverId = if (currentUserId == adopterId) shelterId else adopterId
+
+                            // 🆕 Resolve the correct name for the reply bubble
+                            val resolvedReplyName = if (replyingTo != null) {
+                                if (replyingTo?.senderId == currentUserId) {
+                                    // Use your own name if replying to yourself
+                                    authViewModel.userData.value?.name ?: "Me"
+                                } else {
+                                    // Use the partner's name from the header state
+                                    chatPartnerName
+                                }
+                            } else null
+
+                            // 🚀 Pass the resolvedReplyName to the ViewModel
+                            chatViewModel.sendMessage(
+                                channelId = channelId,
+                                messageText = messageText.text,
+                                receiverId = receiverId,
+                                replyMessage = replyingTo,
+                                replyName = resolvedReplyName
+                            )
+
+                            chatViewModel.setTypingStatus(channelId, false)
+                            messageText = TextFieldValue("")
+                            replyingTo = null
+                        }
+                    },
+                    onGalleryClick = {
+                        photoPickerLauncher.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                        )
+                    }
+                )
+            }
         }
     ) { paddingValues ->
         Box(
@@ -200,15 +273,28 @@ fun ChatScreen(
                     contentPadding = PaddingValues(top = 16.dp, bottom = 8.dp)
                 ) {
                     items(messages) { message ->
-                        ChatBubble(
-                            message = message,
-                            isUserMe = message.senderId == currentUserId,
-                            partnerPhotoUri = chatPartnerPhoto,
-                            onImageClick = { url -> selectedImageUrl = url }
-                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                // 🆕 Long-press detection starts here
+                                .pointerInput(Unit) {
+                                    detectTapGestures(
+                                        onLongPress = {
+                                            // This fills our 'replyingTo' state with the message data
+                                            replyingTo = message
+                                        }
+                                    )
+                                }
+                        ) {
+                            ChatBubble(
+                                message = message,
+                                isUserMe = message.senderId == currentUserId,
+                                partnerPhotoUri = chatPartnerPhoto,
+                                onImageClick = { url -> selectedImageUrl = url }
+                            )
+                        }
                     }
                 }
-
                 // 🟢 MESSENGER STYLE TYPING INDICATOR
                 AnimatedVisibility(
                     visible = isPartnerTyping,
@@ -296,6 +382,31 @@ fun ChatBubble(
                 color = if (ThemeManager.isDarkMode) Color.LightGray else Color.Gray,
                 modifier = Modifier.padding(bottom = 2.dp, start = 4.dp, end = 4.dp)
             )
+            if (!message.replyToText.isNullOrEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .padding(bottom = 4.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (isUserMe) Color.Black.copy(alpha = 0.15f) else Color.Gray.copy(alpha = 0.1f))
+                        .padding(8.dp)
+                ) {
+                    Column {
+                        Text(
+                            text = message.replyToSenderName ?: "User",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isUserMe) Color.White.copy(alpha = 0.9f) else Color(0xFFD95C5C)
+                        )
+                        Text(
+                            text = message.replyToText!!,
+                            fontSize = 13.sp,
+                            maxLines = 2,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            color = if (isUserMe) Color.White.copy(alpha = 0.7f) else Color.Gray
+                        )
+                    }
+                }
+            }
 
             if (!message.imageUrl.isNullOrEmpty()) {
                 AsyncImage(

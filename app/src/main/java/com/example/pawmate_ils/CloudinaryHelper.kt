@@ -66,4 +66,31 @@ object CloudinaryHelper {
             onResult(null)
         }
     }
+    suspend fun uploadImageSync(imageUri: Uri): String? = kotlinx.coroutines.suspendCancellableCoroutine { continuation ->
+        try {
+            MediaManager.get().upload(imageUri)
+                .unsigned("pet_photos") // Ensure this preset exists in your Cloudinary Dashboard
+                .callback(object : UploadCallback {
+                    override fun onStart(requestId: String) {}
+                    override fun onProgress(requestId: String, bytes: Long, totalBytes: Long) {}
+
+                    override fun onSuccess(requestId: String, resultData: Map<*, *>) {
+                        val secureUrl = resultData["secure_url"] as? String
+                        if (continuation.isActive) continuation.resume(secureUrl, null)
+                    }
+
+                    override fun onError(requestId: String, error: ErrorInfo) {
+                        if (continuation.isActive) continuation.resume(null, null)
+                    }
+
+                    override fun onReschedule(requestId: String, error: ErrorInfo) {
+                        if (continuation.isActive) continuation.resume(null, null)
+                    }
+                }).dispatch()
+        } catch (e: Exception) {
+            if (continuation.isActive) continuation.resume(null, null)
+        }
+    }
+
+
     }

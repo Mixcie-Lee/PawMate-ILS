@@ -72,6 +72,7 @@ fun AdoptionCenterDashboard(
     val channels by homeViewModel.channels.collectAsState(initial = emptyList())
     val pets by adoptionCenterViewModel.shelterPets.collectAsState(initial = emptyList())
     val uploadedCount by adoptionCenterViewModel.uploadedPetsCount.collectAsState()
+    var channelToReject by remember { mutableStateOf<Channel?>(null) }
 
 
     LaunchedEffect(Unit) {
@@ -98,7 +99,7 @@ fun AdoptionCenterDashboard(
         petCount = uploadedCount,
         centerName = centerName,
         navController = navController,
-        onDeleteChannel = { ch -> homeViewModel.deleteChannel(ch) },
+        onDeleteChannel = { ch -> channelToReject = ch },
         authViewModel = authViewModel,
         homeViewModel = homeViewModel // Pass it here
     )
@@ -108,6 +109,38 @@ fun AdoptionCenterDashboard(
         navController = navController,
         canShow = true
     )
+    if (channelToReject != null) {
+        AlertDialog(
+            onDismissRequest = { channelToReject = null },
+            title = { Text("Reject Application?", fontWeight = FontWeight.Bold) },
+            text = {
+                Text("Are you sure you want to reject ${channelToReject?.adopterName}'s application? This will permanently delete the chat and the match.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        channelToReject?.let { ch ->
+                            homeViewModel.deleteChannel(ch)
+                            channelToReject = null // Close dialog
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                ) {
+                    Text("Reject", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { channelToReject = null }) {
+                    Text("Cancel", color = Color.Gray)
+                }
+            },
+            shape = RoundedCornerShape(24.dp),
+            containerColor = Color.White
+        )
+    }
+
+
+
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -453,8 +486,20 @@ fun ChannelCardDesign(
             }
         }
 
-        IconButton(onClick = { onDelete(channel) }) {
-            Icon(Icons.Default.Close, contentDescription = null, tint = Color.Red.copy(alpha = 0.4f), modifier = Modifier.size(20.dp))
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .clip(CircleShape)
+                .background(Color.Red.copy(alpha = 0.08f)) // 🛠️ FIXED: withAlpha -> copy(alpha = ...)
+                .clickable { onDelete(channel) },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = "Reject",
+                tint = Color.Red.copy(alpha = 0.6f), // 🛠️ FIXED: withAlpha -> copy(alpha = ...)
+                modifier = Modifier.size(16.dp)
+            )
         }
     }
 }

@@ -1,6 +1,7 @@
 package com.example.pawmate_ils.ui.screens
 
 import TinderLogic_PetSwipe.PetData
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -13,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -22,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.pawmate_ils.Firebase_Utils.AdoptionCenterViewModel
+import kotlinx.coroutines.launch
 
 // Data class preserved to fix unresolved references
 
@@ -35,9 +38,19 @@ fun AdoptionCenterPets(
     authViewModel: com.example.pawmate_ils.Firebase_Utils.AuthViewModel, // 🎯 Add this
     onAddPet: () -> Unit
 ) {
-    var searchQuery by remember { mutableStateOf("") }
 
+    LaunchedEffect(Unit) {
+        val currentUserId = authViewModel.currentUser?.uid
+        if (currentUserId != null) {
+            viewModel.startShelterPetsListener(currentUserId)
+        }
+    }
+
+    val context = LocalContext.current
+    var searchQuery by remember { mutableStateOf("") }
     val pets by viewModel.shelterPets.collectAsState()
+    val scope = rememberCoroutineScope()
+    var petToDelete by remember { mutableStateOf<PetData?>(null) }
 
     /*val pets = remember {
         mutableStateListOf(
@@ -47,6 +60,8 @@ fun AdoptionCenterPets(
             Pet1("Charlie", "Dog", "Golden Retriever", "1 year old", "Male")
         )
     }*/
+
+
 
 
 
@@ -123,7 +138,8 @@ fun AdoptionCenterPets(
                         navController = navController,
                         pet = pet,
                         searchQuery = searchQuery,
-                        onDelete = { pet.petId?.let { id -> viewModel.deletePet(id) } },
+                        onDelete = { petToDelete = pet },
+
                     )
                     HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray.copy(alpha = 0.4f))
                 }
@@ -140,6 +156,40 @@ fun AdoptionCenterPets(
             modifier = Modifier.align(Alignment.BottomCenter)
         )
     }
+    if (petToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { petToDelete = null },
+            title = { Text("Remove ${petToDelete?.name}?", fontWeight = FontWeight.Bold) },
+            text = { Text("This will permanently remove this pet from the PawMate database.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        scope.launch {
+                            petToDelete?.petId?.let { id ->
+                                viewModel.deletePet(id)
+                                Toast.makeText(context, "Pet removed", Toast.LENGTH_SHORT).show()
+                            }
+                            petToDelete = null // Close dialog
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD67A7A))
+                ) {
+                    Text("Delete", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { petToDelete = null }) {
+                    Text("Cancel", color = Color.Gray)
+                }
+            },
+            shape = RoundedCornerShape(24.dp),
+            containerColor = Color.White
+        )
+    }
+
+
+
+
 }
 
 @Composable

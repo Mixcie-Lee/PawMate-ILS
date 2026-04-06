@@ -70,7 +70,7 @@ fun ShelterProfileScreen(
         },
         onLogout = {
             authViewModel.signOut(context) {
-                navController.navigate("login") {
+                navController.navigate("seller_login") {
                     popUpTo(navController.graph.id) { inclusive = true }
                 }
             }
@@ -92,6 +92,7 @@ fun ShelterProfileContent(
 ) {
     var isDarkMode by remember { mutableStateOf(ThemeManager.isDarkMode) }
     var editableName by remember(username) { mutableStateOf(username) }
+    var showLogoutDialog by remember { mutableStateOf(false) }
 
     val backgroundColor = if (isDarkMode) Color(0xFF1A1A1A) else Color(0xFFFFF0F5)
     val cardColor = if (isDarkMode) Color(0xFF2A2A2A) else Color.White
@@ -213,11 +214,62 @@ fun ShelterProfileContent(
                 }
 
                 // LOGOUT
-                Card(modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 28.dp), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = cardColor), elevation = CardDefaults.cardElevation(defaultElevation = 4.dp), onClick = onLogout) {
-                    Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 18.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp, bottom = 28.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = cardColor),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                    onClick = { showLogoutDialog = true }
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 18.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
                         Text("Logout", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = accentPink)
                         Icon(Icons.AutoMirrored.Filled.ExitToApp, null, tint = accentPink, modifier = Modifier.size(22.dp))
                     }
+                }
+
+                if (showLogoutDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showLogoutDialog = false },
+                        title = {
+                            Text(
+                                text = "Confirm Logout",
+                                fontWeight = FontWeight.Bold,
+                                color = textColor
+                            )
+                        },
+                        text = {
+                            Text(
+                                text = "Are you sure you want to log out of your shelter account?",
+                                color = secondaryTextColor
+                            )
+                        },
+                        confirmButton = {
+                            Button(
+                                onClick = {
+                                    showLogoutDialog = false
+                                    onLogout()
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = accentPink)
+                            ) {
+                                Text("Logout", color = Color.White)
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showLogoutDialog = false }) {
+                                Text("Cancel", color = secondaryTextColor)
+                            }
+                        },
+                        shape = RoundedCornerShape(24.dp),
+                        containerColor = cardColor
+                    )
                 }
             }
         }

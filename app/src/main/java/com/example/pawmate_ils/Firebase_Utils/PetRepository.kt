@@ -23,7 +23,7 @@ class PetsRepository : ViewModel() {
             description = "Friendly and energetic",
             type = "dog",
             imageRes = R.drawable.dog1,
-            additionalImages = listOf(R.drawable.dogsub1, R.drawable.dogsub2),
+            additionalImages = emptyList(),
             shelterId = "shelter1"
         ),
         PetData(
@@ -34,7 +34,7 @@ class PetsRepository : ViewModel() {
             description = "Playful and loyal",
             type = "dog",
             imageRes = R.drawable.shitzu,
-            additionalImages = listOf(R.drawable.shitzusub1, R.drawable.shitzusub2),
+            additionalImages = emptyList(),
             shelterId = "shelter2"
         ),
         PetData(
@@ -45,7 +45,7 @@ class PetsRepository : ViewModel() {
             description = "Protective and smart",
             type = "dog",
             imageRes = R.drawable.chow,
-            additionalImages = listOf(R.drawable.chowsub1, R.drawable.chowsub2),
+            additionalImages = emptyList(),
             shelterId = "shelter3"
         ),
         PetData(
@@ -56,7 +56,7 @@ class PetsRepository : ViewModel() {
             description = "Curious and gentle",
             type = "dog",
             imageRes = R.drawable.dog1,
-            additionalImages = listOf(R.drawable.dogsub1, R.drawable.dogsub2),
+            additionalImages = emptyList(),
             shelterId = "shelter4"
         ),
         PetData(
@@ -67,7 +67,7 @@ class PetsRepository : ViewModel() {
             description = "Intelligent and active",
             type = "dog",
             imageRes = R.drawable.shitzu,
-            additionalImages = listOf(R.drawable.shitzusub1, R.drawable.shitzusub2),
+            additionalImages = emptyList(),
             shelterId = "shelter5"
         ),
         PetData(
@@ -78,7 +78,7 @@ class PetsRepository : ViewModel() {
             description = "Calm and friendly",
             type = "dog",
             imageRes = R.drawable.chow,
-            additionalImages = listOf(R.drawable.chowsub1, R.drawable.chowsub2),
+            additionalImages = emptyList(),
             shelterId = "shelter6"
         ),
         PetData(
@@ -89,7 +89,7 @@ class PetsRepository : ViewModel() {
             description = "Adventurous and strong",
             type = "dog",
             imageRes = R.drawable.dog1,
-            additionalImages = listOf(R.drawable.dogsub1, R.drawable.dogsub2),
+            additionalImages = emptyList(),
             shelterId = "shelter7"
         ),
         PetData(
@@ -100,7 +100,7 @@ class PetsRepository : ViewModel() {
             description = "Gentle giant",
             type = "dog",
             imageRes = R.drawable.shitzu,
-            additionalImages = listOf(R.drawable.shitzusub1, R.drawable.shitzusub2),
+            additionalImages = emptyList(),
             shelterId = "shelter8"
         ),
         PetData(
@@ -111,7 +111,7 @@ class PetsRepository : ViewModel() {
             description = "Playful and agile",
             type = "cat",
             imageRes = R.drawable.cat1,
-            additionalImages = listOf(R.drawable.posaadd1, R.drawable.posaadd2),
+            additionalImages = emptyList(),
             shelterId = "shelter9"
         ),
         PetData(
@@ -122,7 +122,7 @@ class PetsRepository : ViewModel() {
             description = "Smart and loyal",
             type = "cat",
             imageRes = R.drawable.cat2,
-            additionalImages = listOf(R.drawable.posaaa1, R.drawable.posaaa2),
+            additionalImages = emptyList(),
             shelterId = "shelter10"
         ),
         PetData(
@@ -133,7 +133,7 @@ class PetsRepository : ViewModel() {
             description = "Independent and cuddly",
             type = "cat",
             imageRes = R.drawable.cat3,
-            additionalImages = listOf(R.drawable.posaaaa1, R.drawable.posaaaa2),
+            additionalImages = emptyList(),
             shelterId = "shelter11"
         )
     )

@@ -49,6 +49,8 @@ fun AccountSettingsScreen(navController: NavController) {
     var isLoggingOut by remember { mutableStateOf(false) }
     var isDeleting by remember { mutableStateOf(false) }
 
+    var showLogoutDialog by remember { mutableStateOf(false) }
+
 
 
     val authViewModel: AuthViewModel = viewModel()
@@ -396,18 +398,7 @@ fun AccountSettingsScreen(navController: NavController) {
                     colors = CardDefaults.cardColors(containerColor = cardColor),
                     elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
                     onClick = {
-                        isLoggingOut = true
-                        com.example.pawmate_ils.GemManager.clearData()
-                        authViewModel.signOut(context) {
-                            isLoggingOut = false
-                            Toast.makeText(context, "Logged out successfully", Toast.LENGTH_SHORT).show()
-                            navController.navigate("login") {
-                                popUpTo(navController.graph.id) {
-                                    inclusive = true
-                                }
-                                launchSingleTop = true
-                            }
-                        }
+                        showLogoutDialog = true
                     }
                 ) {
                     Row(
@@ -449,6 +440,51 @@ fun AccountSettingsScreen(navController: NavController) {
             }
         }
     }
+
+    if (showLogoutDialog) {
+        AlertDialog(
+            onDismissRequest = { if (!isLoggingOut) showLogoutDialog = false },
+            title = { Text("Log Out?", fontWeight = FontWeight.Bold) },
+            text = { Text("Are you sure you want to log out? Any unsaved changes will be lost.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showLogoutDialog = false
+                        isLoggingOut = true
+                        com.example.pawmate_ils.GemManager.clearData()
+                        authViewModel.signOut(context) {
+                            isLoggingOut = false
+                            Toast.makeText(context, "Logged out successfully", Toast.LENGTH_SHORT).show()
+                            navController.navigate("login") {
+                                popUpTo(navController.graph.id) { inclusive = true }
+                                launchSingleTop = true
+                            }
+                        }
+                    }
+                ) {
+                    if (isLoggingOut) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                    } else {
+                        Text("Logout", color = accentPink, fontWeight = FontWeight.Bold)
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLogoutDialog = false }) {
+                    Text("Cancel", color = secondaryTextColor)
+                }
+            },
+            shape = RoundedCornerShape(24.dp),
+            containerColor = cardColor
+        )
+    }
+
+
+
+
+
+
+
 
     if (showDeleteDialog) {
         AlertDialog(

@@ -492,7 +492,8 @@ import com.example.pawmate_ils.Firebase_Utils.PetsRepository
                                 EditPetScreen(
                                     navController = navController,
                                     viewModel = adoptionCenterViewModel,
-                                    petId = petId
+                                    petId = petId,
+                                    authViewModel = authViewModel
                                 )
                             }
                             // Inside NavHost(navController = navController, ...)

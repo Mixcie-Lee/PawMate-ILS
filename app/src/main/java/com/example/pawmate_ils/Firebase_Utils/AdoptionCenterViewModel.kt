@@ -1,6 +1,8 @@
 package com.example.pawmate_ils.Firebase_Utils
 
 import TinderLogic_PetSwipe.PetData
+import android.content.Context
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -107,12 +109,17 @@ class AdoptionCenterViewModel(
     fun deletePet(petId: String) {
         viewModelScope.launch {
             try {
-                withContext(Dispatchers.IO) {
-                    db.collection("pets").document(petId).delete().await()
-                }
-                _addPetStatus.value = Result.success("Pet deleted successfully")
+
+                db.collection("pets").document(petId).delete().await()
+
+                // 2. Optional: Manual local update (Firestore listener usually handles this)
+                val currentList = _shelterPets.value.toMutableList()
+                currentList.removeAll { it.petId == petId }
+                _shelterPets.value = currentList
+
+                Log.d("AdoptionVM", "✅ Pet $petId deleted from Firestore and Local State")
             } catch (e: Exception) {
-                _addPetStatus.value = Result.failure(e)
+                Log.e("AdoptionVM", "❌ Delete failed: ${e.message}")
             }
         }
     }
@@ -136,6 +143,88 @@ class AdoptionCenterViewModel(
         }
     }
 
+    fun startShelterPetsListener(shelterId: String) {
+        db.collection("pets")
+            .whereEqualTo("shelterId", shelterId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e("VM", "Listen failed", error)
+                    return@addSnapshotListener
+                }
 
+                if (snapshot != null) {
+                    val petsList = snapshot.toObjects(PetData::class.java)
+                    _shelterPets.value = petsList // 🆕 This immediately triggers the UI update
+                }
+            }
+    }
 
+    fun addPetWithImages(
+        context: Context,
+        name: String,
+        type: String,
+        breed: String,
+        age: String,
+        gender: String,
+        description: String,
+        healthStatus: String,
+        mainImageUri: Uri?,
+        subImageUris: List<Uri>,
+        shelterId: String,
+        shelterName: String?,
+        shelterAddress: String?
+    ) {
+        viewModelScope.launch {
+            try {
+                // 🔹 Set a "Loading" state so the UI knows we're working
+                _addPetStatus.value = null
+
+                // 1. Upload Main Image to Cloudinary
+                var uploadedMainUrl: String? = null
+                if (mainImageUri != null) {
+                    uploadedMainUrl = authViewModel.uploadToCloudinarySync(context, mainImageUri)
+                }
+
+                // 2. Upload Sub Images (Sequential for stability)
+                val uploadedSubUrls = mutableListOf<String>()
+                for (uri in subImageUris) {
+                    val url = authViewModel.uploadToCloudinarySync(context, uri)
+                    if (url != null) {
+                        uploadedSubUrls.add(url)
+                    }
+                }
+
+                // 3. Prepare the PetData Object
+                val petRef = db.collection("pets").document() // Create the ref first
+                val actualId = petRef.id
+                val petData = PetData(
+                    petId = actualId,
+                    name = name,
+                    type = type,
+                    breed = breed,
+                    age = age,
+                    gender = gender,
+                    description = description,
+                    healthStatus = healthStatus,
+                    imageUrl = uploadedMainUrl,
+                    additionalImages = uploadedSubUrls, // Now a List<String>
+                    shelterId = shelterId,
+                    shelterName = shelterName,
+                    shelterAddress = shelterAddress,
+                    shelterIsOnline = true,
+                    shelterLastActive = System.currentTimeMillis()
+                )
+
+                // 4. Save to Firestore
+                withContext(Dispatchers.IO) {
+                    petRef.set(petData).await()
+                }
+
+                _addPetStatus.value = Result.success("Pet profile created with ${uploadedSubUrls.size + 1} photos!")
+            } catch (e: Exception) {
+                _addPetStatus.value = Result.failure(e)
+                Log.e("SHELTER_VM", "Multi-image upload failed", e)
+            }
+        }
+    }
 }

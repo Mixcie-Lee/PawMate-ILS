@@ -34,7 +34,13 @@ class ChatViewModel(
     private var typingJob: Job? = null
     private var lastTypingState = false
 
-    fun sendMessage(channelId: String, messageText: String, receiverId: String) {
+    fun sendMessage(
+        channelId: String,
+        messageText: String,
+        receiverId: String,
+        replyMessage: com.example.pawmate_ils.firebase_models.Message? = null,
+        replyName: String? = null
+    ) {
         val currentUser = authViewModel.currentUser ?: return
 
         val message = Message(
@@ -44,7 +50,13 @@ class ChatViewModel(
             receiverId = receiverId,
             messageText = messageText,
             imageUrl = null,
-            createdAt = System.currentTimeMillis()
+            createdAt = System.currentTimeMillis(),
+
+
+            replyToText = replyMessage?.messageText,
+            replyToMessageId = replyMessage?.messageId,
+            replyToSenderName = replyName ?: replyMessage?.senderName,
+            replyToSenderImage = replyMessage?.senderImage
         )
 
         db.collection("channels")

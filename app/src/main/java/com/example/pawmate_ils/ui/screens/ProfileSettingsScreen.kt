@@ -97,7 +97,7 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
         }
     }
 
-
+    var showLogoutDialog by remember { mutableStateOf(false) }
     val likedPets by likedPetsViewModel.likedPets.collectAsState()
     val likedPetsCount = likedPets.size
 
@@ -533,48 +533,48 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                 )
 
                 Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp, bottom = 28.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 28.dp),
                     shape = RoundedCornerShape(20.dp),
                     colors = CardDefaults.cardColors(containerColor = cardColor),
                     elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-                    onClick = {
-                        authViewModel.signOut(context) {
-                            navController.navigate("login") {
-                                popUpTo(navController.graph.id) {
-                                    inclusive = true
-                                }
-                                launchSingleTop = true
-                            }
-                        }
-                    }
+                    onClick = { showLogoutDialog = true } // 🚀 Trigger Dialog
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 18.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = "Logout",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFFE84D7A)
-                        )
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ExitToApp,
-                            contentDescription = null,
-                            tint = Color(0xFFE84D7A),
-                            modifier = Modifier.size(22.dp)
-                        )
+                    Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 18.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(text = "Logout", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = accentPink)
+                        Icon(imageVector = Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null, tint = accentPink, modifier = Modifier.size(22.dp))
                     }
+                }
+                if (showLogoutDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showLogoutDialog = false },
+                        title = { Text(text = "Confirm Logout", fontWeight = FontWeight.Bold, color = textColor) },
+                        text = { Text(text = "Are you sure you want to log out of PawMate? You will need to sign in again to see your matched pets.", color = secondaryTextColor) },
+                        confirmButton = {
+                            Button(
+                                onClick = {
+                                    showLogoutDialog = false
+                                    authViewModel.signOut(context) {
+                                        navController.navigate("login") {
+                                            popUpTo(navController.graph.id) { inclusive = true }
+                                            launchSingleTop = true
+                                        }
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = accentPink)
+                            ) { Text("Logout", color = Color.White) }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showLogoutDialog = false }) { Text("Cancel", color = secondaryTextColor) }
+                        },
+                        shape = RoundedCornerShape(24.dp),
+                        containerColor = cardColor
+                    )
+                     }
                 }
             }
         }
     }
-}
+
 
 @Composable
 private fun ProfileMoreMenuCard(

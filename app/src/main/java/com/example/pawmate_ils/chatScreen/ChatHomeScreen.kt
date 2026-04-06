@@ -223,10 +223,10 @@ fun HomeScreen(
                             // 🎯 NEWLY ADDED: Create display text from the list of pet names
                             val petsDisplay = channel.petNames.joinToString(", ")
 
-                            val displayName = if (isShelterView) {
-                                "${channel.adopterName} · $petsDisplay"
+                            val mainTitle = if (isShelterView) {
+                                channel.adopterName ?: "Adopter"
                             } else {
-                                "${channel.shelterName} · $petsDisplay"
+                                channel.shelterName ?: "Animal Shelter"
                             }
                             val displayPhoto =
                                 if (isShelterView) channel.adopterPhotoUri else channel.shelterPhotoUri
@@ -238,7 +238,7 @@ fun HomeScreen(
                             val (timeLabel, timeRecent) = formatChatTimestamp(channel.timestamp)
 
                             ConversationRow(
-                                displayName = displayName,
+                                displayName = mainTitle,
                                 photoUri = displayPhoto,
                                 preview = preview,
                                 timeLabel = timeLabel,
