@@ -24,7 +24,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -129,6 +132,7 @@ fun AdopterLikeScreen(navController: NavController) {
     }
 
     Scaffold(
+        modifier = Modifier.imePadding(),
         containerColor = pageBg,
         bottomBar = {
             AdopterBottomBar(navController = navController, selectedTab = "Favorites")
@@ -213,6 +217,7 @@ fun AdopterLikeScreen(navController: NavController) {
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
                             .padding(if (isTablet) 32.dp else 24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center

@@ -100,7 +100,7 @@ fun AccountSettingsScreen(navController: NavController) {
         modifier = Modifier.fillMaxSize(),
         color = backgroundColor
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
             CenterAlignedTopAppBar(
                 title = {
                     Text(

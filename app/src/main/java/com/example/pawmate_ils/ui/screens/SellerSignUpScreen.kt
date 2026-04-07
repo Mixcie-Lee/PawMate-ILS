@@ -121,9 +121,12 @@
         ) {
             Column(
                 modifier = Modifier
-                    .verticalScroll(scrollState)
                     .fillMaxSize()
-                    .padding(horizontal = 32.dp, vertical = 48.dp),
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .imePadding()
+                    .verticalScroll(scrollState)
+                    .padding(horizontal = 32.dp, vertical = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {

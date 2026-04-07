@@ -115,9 +115,7 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
     val secondaryTextColor = if (isDarkMode) Color(0xFFB8B8B8) else Color(0xFF5A5A5A)
     val primaryColor = if (isDarkMode) Color(0xFFFF9999) else Color(0xFFFFB6C1)
     val accentPink = Color(0xFFE84D7A)
-    val hotPinkBrush = Brush.horizontalGradient(
-        colors = listOf(Color(0xFFFF6B9D), Color(0xFFE84D7A), Color(0xFFFF8FA8))
-    )
+    
 
     val joinedSubtitle = formatJoinedText(userOnlineData?.createdAt ?: 0L)
         ?.let { "Joined in $it" }
@@ -128,7 +126,9 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
         color = backgroundColor
     ) {
         Column(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
         ) {
             CenterAlignedTopAppBar(
                 title = {
@@ -157,6 +157,7 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
+                    .imePadding()
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
                 Card(
@@ -285,59 +286,14 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                     }
                 }
 
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 20.dp),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(hotPinkBrush, RoundedCornerShape(20.dp))
-                            .padding(20.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    painter = painterResource(R.drawable.diamond),
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(34.dp)
-                                )
-                                Column(modifier = Modifier.padding(start = 12.dp)) {
-                                    Text(
-                                        text = "PawMate Gems",
-                                        color = Color.White,
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = "Your gem balance",
-                                        color = Color.White.copy(alpha = 0.9f),
-                                        fontSize = 12.sp
-                                    )
-                                }
-                            }
-                            Text(
-                                text = gemCount.toString(),
-                                color = Color.White,
-                                fontSize = 32.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-
                 val statTileShape = RoundedCornerShape(22.dp)
-                val statBorderLiked = Color.White.copy(alpha = if (isDarkMode) 0.18f else 0.28f)
-                val statBorderGems = if (isDarkMode) primaryColor.copy(alpha = 0.28f) else primaryColor.copy(alpha = 0.14f)
+                val statBorderTile = Color.White.copy(alpha = if (isDarkMode) 0.18f else 0.28f)
+                val tileGradient = Brush.linearGradient(
+                    colors = listOf(
+                        primaryColor.copy(alpha = if (isDarkMode) 0.95f else 1f),
+                        accentPink.copy(alpha = if (isDarkMode) 0.88f else 0.92f)
+                    )
+                )
 
                 Row(
                     modifier = Modifier
@@ -350,15 +306,8 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                             .weight(1f)
                             .height(120.dp)
                             .clip(statTileShape)
-                            .background(
-                                Brush.linearGradient(
-                                    colors = listOf(
-                                        primaryColor.copy(alpha = if (isDarkMode) 0.95f else 1f),
-                                        accentPink.copy(alpha = if (isDarkMode) 0.88f else 0.92f)
-                                    )
-                                )
-                            )
-                            .border(1.dp, statBorderLiked, statTileShape)
+                            .background(tileGradient)
+                            .border(1.dp, statBorderTile, statTileShape)
                     ) {
                         Column(
                             modifier = Modifier
@@ -407,28 +356,28 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .height(118.dp)
+                            .height(120.dp)
                             .clip(statTileShape)
-                            .background(cardColor)
-                            .border(1.dp, statBorderGems, statTileShape)
+                            .background(tileGradient)
+                            .border(1.dp, statBorderTile, statTileShape)
                     ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                                .padding(horizontal = 15.dp, vertical = 15.dp),
                             verticalArrangement = Arrangement.SpaceBetween
                         ) {
                             Box(
                                 modifier = Modifier
                                     .size(38.dp)
                                     .clip(CircleShape)
-                                    .background(primaryColor.copy(alpha = if (isDarkMode) 0.22f else 0.16f)),
+                                    .background(Color.White.copy(alpha = 0.22f)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     painter = painterResource(R.drawable.diamond),
                                     contentDescription = null,
-                                    tint = accentPink,
+                                    tint = Color.White,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -437,14 +386,14 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                                     text = gemCount.toString(),
                                     fontSize = 28.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = accentPink,
+                                    color = Color.White,
                                     lineHeight = 30.sp
                                 )
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Text(
                                     text = "Gems",
                                     style = TextStyle(
-                                        color = secondaryTextColor,
+                                        color = Color.White,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         letterSpacing = 0.2.sp,

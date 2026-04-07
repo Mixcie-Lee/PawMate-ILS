@@ -81,7 +81,7 @@ fun AdoptionCenterPets(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(Color.White)) {
+    Box(modifier = Modifier.fillMaxSize().background(Color.White).imePadding()) {
         Scaffold(
             topBar = {
                 CenterAlignedTopAppBar(

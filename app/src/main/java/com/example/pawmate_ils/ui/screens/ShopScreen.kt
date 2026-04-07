@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -71,6 +72,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.input.ImeAction
@@ -243,7 +245,7 @@ private fun ShopCartOverlay(
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Surface(modifier = Modifier.fillMaxSize(), color = pageBg) {
-            Column(modifier = Modifier.fillMaxSize()) {
+            Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
                 Surface(color = barBg, shadowElevation = 2.dp) {
                     Row(
                         modifier = Modifier
@@ -372,7 +374,8 @@ private fun ShopCartOverlay(
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 16.sp,
                                             color = onSurface,
-                                            maxLines = 2
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis
                                         )
                                         Text(
                                             subtitle,
@@ -480,6 +483,7 @@ private fun ShopCartOverlay(
                                             entry.item.name,
                                             fontWeight = FontWeight.Medium,
                                             maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
                                             fontSize = 13.sp,
                                             color = onSurface
                                         )
@@ -595,7 +599,7 @@ private fun ShopProductDetailOverlay(
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Surface(modifier = Modifier.fillMaxSize(), color = pageBg) {
-            Column(modifier = Modifier.fillMaxSize()) {
+            Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -965,7 +969,7 @@ fun ShopScreen(navController: NavController) {
 
 
 
-    Box(modifier = Modifier.fillMaxSize().background(backgroundColor)) {
+    Box(modifier = Modifier.fillMaxSize().background(backgroundColor).statusBarsPadding()) {
         Scaffold(
             containerColor = backgroundColor,
             bottomBar = { AdopterBottomBar(navController = navController, selectedTab = "Shop") }
@@ -1046,7 +1050,7 @@ fun ShopScreen(navController: NavController) {
                                         Image(painter = painterResource(id = product.imageRes), contentDescription = product.name, modifier = Modifier.fillMaxWidth().aspectRatio(1f), contentScale = ContentScale.Fit)
                                     }
                                     Spacer(modifier = Modifier.height(6.dp))
-                                    Text(text = product.name, color = Color.White, fontWeight = FontWeight.Medium, fontSize = 14.sp, maxLines = 1)
+                                    Text(text = product.name, color = Color.White, fontWeight = FontWeight.Medium, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     if (promoApplied) {
                                         Text(text = product.price, color = Color.White.copy(alpha = 0.7f), fontSize = 11.sp, textDecoration = TextDecoration.LineThrough)
                                         Text(text = discountedPriceLabel(product.price, true), color = Color(0xFFDB3049), fontWeight = FontWeight.Bold, fontSize = 12.sp)

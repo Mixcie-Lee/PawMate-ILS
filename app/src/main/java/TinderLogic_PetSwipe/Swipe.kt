@@ -39,6 +39,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
@@ -594,6 +595,7 @@ fun PetSwipeScreen(navController: NavController) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
                         .padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
@@ -708,7 +710,8 @@ fun PetSwipeScreen(navController: NavController) {
                             Image(
                                 painter = painterResource(id = R.drawable.blackpawmateicon3),
                                 contentDescription = "PawMate Logo",
-                                modifier = Modifier.size(if (isTablet) 64.dp else 56.dp)
+                                modifier = Modifier.size(if (isTablet) 64.dp else 56.dp),
+                                colorFilter = if (isDarkMode) ColorFilter.tint(Color.White) else null
                             )
 
                             Column {
@@ -853,8 +856,12 @@ fun PetSwipeScreen(navController: NavController) {
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
-
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
                     if (isCompositionReady) {
                         AnimatedContent(
                             targetState = shuffleEpoch,
@@ -899,6 +906,7 @@ fun PetSwipeScreen(navController: NavController) {
                                     val idx = currentPetIndex + depth
                                     if (idx < filteredPets.size) {
                                         val d = depth.toFloat()
+                                        val messDir = if (depth % 2 == 0) 1f else -1f
                                         SwipeablePetCard(
                                             pet = filteredPets[idx],
                                             offsetX = 0f,
@@ -920,13 +928,13 @@ fun PetSwipeScreen(navController: NavController) {
                                                 .graphicsLayer {
                                                     cameraDistance = 14f * densityFloat
                                                     transformOrigin = TransformOrigin(0.5f, 0.52f)
-                                                    val s = (1f - d * 0.045f + stackPull * 0.038f).coerceIn(0.82f, 1f)
+                                                    val s = (1f - d * 0.04f + stackPull * 0.035f).coerceIn(0.82f, 1f)
                                                     scaleX = s
                                                     scaleY = s
-                                                    translationX = d * (20f - stackPull * 14f)
-                                                    translationY = d * (8f - stackPull * 6f)
-                                                    rotationZ = -d * (2f - stackPull * 1.2f)
-                                                    rotationX = 9f + d * 2.5f - stackPull * 4f
+                                                    translationX = messDir * d * (16f + stackPull * 18f)
+                                                    translationY = d * (6f - stackPull * 4f)
+                                                    rotationZ = messDir * d * (2.5f + stackPull * 3.5f)
+                                                    rotationX = 0f
                                                 }
                                         )
                                     }
@@ -945,12 +953,12 @@ fun PetSwipeScreen(navController: NavController) {
                                             offsetX = newOffset
                                             rotation = newRotation
                                             rotationYSwipe = swipeRotationYFromOffset(newOffset)
-                                            offsetY = (offsetY + deltaY).coerceIn(-300f, 300f)
+                                            offsetY = (offsetY + deltaY).coerceIn(-150f, 150f)
                                         }
                                     },
                                     onDragEnd = {
                                         if (!isDragging) {
-                                            if (abs(offsetX) > 150f) {
+                                            if (abs(offsetX) > 100f) {
                                                 swipeCard(if (offsetX > 0) 1f else -1f)
                                             } else {
                                                 resetCardPosition()
@@ -971,7 +979,7 @@ fun PetSwipeScreen(navController: NavController) {
                                         .graphicsLayer {
                                             cameraDistance = 12f * densityFloat
                                             transformOrigin = TransformOrigin(0.5f, 0.5f)
-                                            rotationX = -4f + stackPull * 2f
+                                            rotationX = 0f
                                             val ep = entranceProgress.coerceIn(0f, 1f)
                                             val eScale = 0.94f + ep * 0.06f
                                             scaleX = eScale
@@ -988,6 +996,7 @@ fun PetSwipeScreen(navController: NavController) {
                                 .height(cardHeight)
                         )
                     }
+                    } // Close centering Box
 
                     // Tutorial (Dialog + screen arrows)
                     if (showTutorial) {
@@ -1068,7 +1077,7 @@ fun PetSwipeScreen(navController: NavController) {
                                         contentDescription = "Tutorial ${tutorialStep + 1}",
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .height(if (isTablet) 700.dp else 600.dp),
+                                            .heightIn(max = if (isTablet) 700.dp else 500.dp),
                                         contentScale = ContentScale.FillWidth
                                     )
                                 }
@@ -1221,52 +1230,102 @@ private fun PetInfoBackFace(
     isTablet: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val cardPad = if (isTablet) 24.dp else 14.dp
-    val infoHeaderSize = if (isTablet) 22.sp else 18.sp
     val gradient = Brush.verticalGradient(
         colors = listOf(Color(0xFFFFF8FA), Color(0xFFFFEEF2), Color(0xFFFFE0E8))
     )
-
     val orgName = if (!pet.shelterName.isNullOrBlank()) pet.shelterName else "PawMate Shelter"
-    val ownerName = shelterDisplayName // This is "Kit"
-
+    val cardPad = if (isTablet) 16.dp else 10.dp
 
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(gradient)
-            .padding(horizontal = cardPad, vertical = if (isTablet) 20.dp else 14.dp)
-            .verticalScroll(rememberScrollState()),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(horizontal = cardPad, vertical = cardPad),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.SpaceEvenly
     ) {
         Box(
             modifier = Modifier
-                .align(Alignment.CenterHorizontally)
-                .clip(RoundedCornerShape(14.dp))
+                .clip(RoundedCornerShape(12.dp))
                 .background(Color(0xFFFFB6C1).copy(alpha = 0.45f))
-                .padding(horizontal = 28.dp, vertical = 8.dp)
+                .padding(horizontal = 20.dp, vertical = 5.dp)
         ) {
             Text(
                 text = "Info",
-                fontSize = infoHeaderSize,
+                fontSize = if (isTablet) 18.sp else 15.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFFE85A7A)
             )
         }
-        Spacer(modifier = Modifier.height(18.dp))
-        DetailBox(label = "Name", value = pet.name ?: "Unknown")
-        DetailBox(label = "Age", value = pet.age ?: "N/A")
-        DetailBox(label = "Sex", value = pet.gender ?: "Unknown")
-        DetailBox(label = "Shelter", value = orgName ?: "Unknown")
-
-        if (ownerName.isNotBlank() && ownerName != orgName) {
-            DetailBox(label = "Managed by", value = ownerName)
-        }
-
-        DetailBox(label = "Address", value = pet.shelterAddress ?: "Address Loading...")
-        HealthStatusBox(status = pet.healthStatus)
+        FillDetailRow(label = "Name", value = pet.name ?: "Unknown")
+        FillDetailRow(label = "Age", value = pet.age ?: "N/A")
+        FillDetailRow(label = "Sex", value = pet.gender ?: "Unknown")
+        FillDetailRow(label = "Shelter", value = orgName ?: "Unknown")
+        FillDetailRow(label = "Address", value = pet.shelterAddress ?: "Address Loading...")
+        FillHealthRow(status = pet.healthStatus)
     }
 }
+
+@Composable
+private fun FillDetailRow(label: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(Color.White)
+            .border(1.dp, Color(0xFFFFB6C1).copy(alpha = 0.4f), RoundedCornerShape(10.dp))
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFFD67A7A),
+            fontSize = 13.sp,
+            modifier = Modifier.width(68.dp)
+        )
+        Text(
+            text = value,
+            fontSize = 13.sp,
+            color = Color(0xFF333333),
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+private fun FillHealthRow(status: String?) {
+    val medicalList = status?.split(",", "\n")?.filter { it.isNotBlank() } ?: emptyList()
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(Color.White)
+            .border(1.dp, Color(0xFFFFB6C1).copy(alpha = 0.4f), RoundedCornerShape(10.dp))
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "Health",
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFFD67A7A),
+            fontSize = 13.sp,
+            modifier = Modifier.width(68.dp)
+        )
+        if (medicalList.isEmpty()) {
+            Text(text = "Healthy", fontSize = 13.sp, color = Color(0xFF333333))
+        } else {
+            Column(modifier = Modifier.weight(1f)) {
+                medicalList.forEach { point ->
+                    Text(text = "• ${point.trim()}", fontSize = 12.sp, color = Color(0xFF333333))
+                }
+            }
+        }
+    }
+}
+
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
@@ -1446,7 +1505,7 @@ fun SwipeablePetCard(
     }
 
     val pressLiftPx by animateFloatAsState(
-        targetValue = if (isPressed) -11f else 0f,
+        targetValue = if (isPressed && abs(offsetX) < 15f) -11f else 0f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioNoBouncy,
             stiffness = Spring.StiffnessHigh
@@ -1578,10 +1637,10 @@ fun SwipeablePetCard(
                                 .background(
                                     Brush.horizontalGradient(
                                         colors = listOf(
-                                            Color(0xFF1B5E20).copy(alpha = 0.22f + swipeFill * 0.68f),
-                                            Color(0xFF2E7D32).copy(alpha = swipeFill * 0.55f),
-                                            Color(0xFF43A047).copy(alpha = swipeFill * 0.35f),
-                                            Color(0xFF66BB6A).copy(alpha = swipeFill * 0.22f)
+                                            Color(0xFF6B9A7E).copy(alpha = 0.22f + swipeFill * 0.68f),
+                                            Color(0xFF8FB89E).copy(alpha = swipeFill * 0.55f),
+                                            Color(0xFFA3C9B3).copy(alpha = swipeFill * 0.35f),
+                                            Color(0xFFB5D4C4).copy(alpha = swipeFill * 0.22f)
                                         )
                                     )
                                 )
@@ -1594,10 +1653,10 @@ fun SwipeablePetCard(
                                 .background(
                                     Brush.horizontalGradient(
                                         colors = listOf(
-                                            Color(0xFFE65100).copy(alpha = swipeFill * 0.25f),
-                                            Color(0xFFFF6F00).copy(alpha = swipeFill * 0.45f),
-                                            Color(0xFFFF9100).copy(alpha = 0.28f + swipeFill * 0.55f),
-                                            Color(0xFFFF6D00).copy(alpha = 0.2f + swipeFill * 0.72f)
+                                            Color(0xFF8E5A5E).copy(alpha = swipeFill * 0.25f),
+                                            Color(0xFFA87070).copy(alpha = swipeFill * 0.45f),
+                                            Color(0xFFB57878).copy(alpha = 0.28f + swipeFill * 0.55f),
+                                            Color(0xFFC49090).copy(alpha = 0.2f + swipeFill * 0.72f)
                                         )
                                     )
                                 )
@@ -1649,7 +1708,7 @@ fun SwipeablePetCard(
                         ) {
                             Row(
                                 modifier = Modifier
-                                    .widthIn(max = 168.dp)
+                                    .fillMaxWidth(0.5f)
                                     .clip(RoundedCornerShape(20.dp))
                                     .clickable(
                                         indication = null, // Removes the ripple so it looks like your colleague's design
@@ -1887,7 +1946,7 @@ fun EnhancedInfoChip(
     Card(
         modifier = Modifier
             .scale(animatedScale)
-            .widthIn(min = 110.dp),
+            .widthIn(min = 90.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (isDarkMode) Color(0xFF3A3A3A) else Color(0xFFFFB6C1).copy(alpha = 0.15f)
         ),
@@ -2094,7 +2153,8 @@ private fun GemTierPackageCard(
                 fontWeight = FontWeight.Medium,
                 color = if (isDark) Color(0xFFE8E0E3) else Color(0xFF4A4246),
                 textAlign = TextAlign.Center,
-                maxLines = 2
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
             )
             Text(
                 text = perkBody,
@@ -2476,71 +2536,6 @@ fun GCashMultiStepDialog(
             }
         }
     )
-}
-@Composable
-fun DetailBox(label: String, value: String) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color.White)
-            .border(1.dp, Color(0xFFFFB6C1).copy(alpha = 0.65f), RoundedCornerShape(12.dp))
-            .padding(12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = label,
-            fontWeight = FontWeight.ExtraBold,
-            color = Color(0xFFD67A7A),
-            fontSize = 16.sp
-        )
-        Text(
-            text = value,
-            fontSize = 14.sp,
-            color = if(ThemeManager.isDarkMode) Color.White else Color.Black,
-            textAlign = TextAlign.Center
-        )
-    }
-}
-
-@Composable
-fun HealthStatusBox(status: String?) {
-    val medicalList = status?.split(",", "\n")?.filter { it.isNotBlank() } ?: emptyList()
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color.White)
-            .border(1.dp, Color(0xFFFFB6C1).copy(alpha = 0.65f), RoundedCornerShape(12.dp))
-            .padding(12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = "Health Status",
-            fontWeight = FontWeight.ExtraBold,
-            color = Color(0xFFD67A7A),
-            fontSize = 16.sp
-        )
-
-        if (medicalList.isEmpty()) {
-            Text(
-                text = "Healthy",
-                fontSize = 14.sp,
-                color = if (ThemeManager.isDarkMode) Color.White else Color.Black
-            )
-        } else {
-            medicalList.forEach { point ->
-                Text(
-                    text = "• ${point.trim()}",
-                    fontSize = 13.sp,
-                    color = if(ThemeManager.isDarkMode) Color.White else Color.Black
-                )
-            }
-        }
-    }
 }
 
 

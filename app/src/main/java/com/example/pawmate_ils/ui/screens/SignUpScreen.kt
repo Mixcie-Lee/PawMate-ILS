@@ -129,30 +129,29 @@ fun SignUpScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(scrollState)
-                .imePadding()
+                .statusBarsPadding()
                 .navigationBarsPadding()
-                .padding(horizontal = 32.dp, vertical = 24.dp),
+                .imePadding()
+                .verticalScroll(scrollState)
+                .padding(horizontal = 32.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Top
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
-
             when (currentStep) {
                 1 -> {
                     Image(
                         painter = painterResource(id = R.drawable.blackpawmateicon3),
                         contentDescription = "PawMate Logo",
-                        modifier = Modifier.size(100.dp).padding(bottom = 16.dp)
+                        modifier = Modifier.size(80.dp).padding(bottom = 8.dp)
                     )
 
-                    Text(text = "Create Account", fontSize = 32.sp, fontWeight = FontWeight.Bold, color = Color.Black)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(text = "Sign up to get started", fontSize = 16.sp, color = Color.Gray)
-                    Spacer(modifier = Modifier.height(48.dp))
+                    Text(text = "Create Account", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(text = "Sign up to get started", fontSize = 14.sp, color = Color.Gray)
+                    Spacer(modifier = Modifier.height(24.dp))
 
                     Column(modifier = Modifier.fillMaxWidth()) {
-                        Text(text = "Email", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color.Black, modifier = Modifier.padding(bottom = 8.dp))
+                        Text(text = "Email", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color.Black, modifier = Modifier.padding(bottom = 6.dp))
                         OutlinedTextField(
                             value = email,
                             onValueChange = { email = it },
@@ -160,12 +159,12 @@ fun SignUpScreen(
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
                             colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFFFFB6C1), unfocusedBorderColor = Color.Gray.copy(alpha = 0.3f)),
                             shape = RoundedCornerShape(28.dp),
-                            modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp)
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
                         )
                     }
 
                     Column(modifier = Modifier.fillMaxWidth()) {
-                        Text(text = "Password", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color.Black, modifier = Modifier.padding(bottom = 8.dp))
+                        Text(text = "Password", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color.Black, modifier = Modifier.padding(bottom = 6.dp))
                         OutlinedTextField(
                             value = password,
                             onValueChange = { password = it },
@@ -174,7 +173,7 @@ fun SignUpScreen(
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
                             colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFFFFB6C1), unfocusedBorderColor = Color.Gray.copy(alpha = 0.3f)),
                             shape = RoundedCornerShape(28.dp),
-                            modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
                         )
                     }
 
@@ -187,21 +186,21 @@ fun SignUpScreen(
                             currentStep = 2
                         },
                         enabled = !isLoading,
-                        modifier = Modifier.fillMaxWidth().height(56.dp),
+                        modifier = Modifier.fillMaxWidth().height(52.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFB6C1), contentColor = Color.White),
                         shape = RoundedCornerShape(28.dp)
                     ) {
                         Text("Continue", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                     }
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
                     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         HorizontalDivider(modifier = Modifier.weight(1f), color = Color.Gray.copy(alpha = 0.3f))
                         Text(text = "or", color = Color.Gray, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 16.dp))
                         HorizontalDivider(modifier = Modifier.weight(1f), color = Color.Gray.copy(alpha = 0.3f))
                     }
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
                     OutlinedButton(
                         onClick = {
@@ -210,7 +209,7 @@ fun SignUpScreen(
                             val gsoClient = getGoogleSignInClient(context)
                             launcher.launch(gsoClient.signInIntent)
                         },
-                        modifier = Modifier.fillMaxWidth().height(56.dp),
+                        modifier = Modifier.fillMaxWidth().height(52.dp),
                         colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White, contentColor = Color.Black),
                         border = BorderStroke(1.dp, Color.Gray.copy(alpha = 0.3f)),
                         shape = RoundedCornerShape(28.dp)
@@ -225,71 +224,82 @@ fun SignUpScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(20.dp))
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text("Already have an account? ", color = Color.Gray, fontSize = 14.sp)
-                        TextButton(onClick = onLoginClick, contentPadding = PaddingValues(0.dp)) {
+                        TextButton(
+                            onClick = onLoginClick,
+                            contentPadding = PaddingValues(0.dp),
+                            modifier = Modifier.defaultMinSize(minHeight = 1.dp)
+                        ) {
                             Text("Log in", color = Color(0xFFFF9999), fontSize = 14.sp, fontWeight = FontWeight.Bold)
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     TextButton(onClick = onNavigateToSellerSignUp, modifier = Modifier.fillMaxWidth()) {
                         Text("Shelter Owner? Sign up here", color = Color(0xFFFF9999).copy(alpha = 0.8f), fontSize = 13.sp)
                     }
 
-                    Spacer(modifier = Modifier.height(40.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
 
                 2 -> {
-                    // --- STEP 2 FORM ---
-                    Text("About You", fontSize = 32.sp, fontWeight = FontWeight.Bold, color = Color.Black)
-                    Spacer(modifier = Modifier.height(32.dp))
+                    Text("About You", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         OutlinedTextField(
                             value = firstName, onValueChange = { firstName = it },
                             label = { Text("First Name") },
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(28.dp)
+                            shape = RoundedCornerShape(28.dp),
+                            singleLine = true
                         )
                         OutlinedTextField(
                             value = lastName, onValueChange = { lastName = it },
                             label = { Text("Last Name") },
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(28.dp)
+                            shape = RoundedCornerShape(28.dp),
+                            singleLine = true
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
                     OutlinedTextField(
                         value = mobileNumber, onValueChange = { mobileNumber = it },
                         label = { Text("Mobile Number") },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(28.dp),
+                        singleLine = true,
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.NumberPassword
                         )
                     )
 
-
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
                     OutlinedTextField(
                         value = address, onValueChange = { address = it },
                         label = { Text("Address") },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(28.dp)
+                        shape = RoundedCornerShape(28.dp),
+                        singleLine = true
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
                     OutlinedTextField(
                         value = age, onValueChange = { age = it },
                         label = { Text("Age") },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(28.dp),
+                        singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
                     @OptIn(ExperimentalMaterial3Api::class)
                     ExposedDropdownMenuBox(
                         expanded = isGenderExpanded,
@@ -299,7 +309,7 @@ fun SignUpScreen(
                         OutlinedTextField(
                             value = gender,
                             onValueChange = {},
-                            readOnly = true, // Prevents typing, only allows selection
+                            readOnly = true,
                             label = { Text("Gender") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isGenderExpanded) },
                             colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(
@@ -328,26 +338,23 @@ fun SignUpScreen(
                         }
                     }
 
-
-
-
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
                     OutlinedTextField(
                         value = aboutMe,
                         onValueChange = { aboutMe = it },
                         label = { Text("About Me") },
                         placeholder = { Text("Tell shelters about your experience with pets...") },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp), // Slightly less rounded for multi-line look
-                        minLines = 3,
-                        maxLines = 5,
+                        shape = RoundedCornerShape(20.dp),
+                        minLines = 2,
+                        maxLines = 3,
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Text,
                             imeAction = ImeAction.Default
                         )
                     )
 
-
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     Button(
                         onClick = {

@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -85,7 +86,11 @@ fun AboutScreen(navController: NavController) {
         modifier = Modifier.fillMaxSize(),
         color = backgroundColor
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+        ) {
             CenterAlignedTopAppBar(
                 title = {
                     Text(
@@ -149,6 +154,7 @@ fun AboutScreen(navController: NavController) {
                                 painter = painterResource(id = R.drawable.blackpawmateicon3),
                                 contentDescription = "PawMate Logo",
                                 contentScale = ContentScale.Fit,
+                                colorFilter = ColorFilter.tint(Color.White),
                                 modifier = Modifier
                                     .size(90.dp)
                                     .graphicsLayer {
