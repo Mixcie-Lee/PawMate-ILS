@@ -397,6 +397,28 @@ fun PetSwipeScreen(navController: NavController) {
         canShow = !showTutorial
     )
 
+    fun resetCardPosition() {
+        if (isDragging || currentPetIndex >= filteredPets.size) return
+
+        scope.launch {
+            val startX = offsetX
+            val startY = offsetY
+            val startRy = rotationYSwipe
+            animate(
+                initialValue = 0f,
+                targetValue = 1f,
+                animationSpec = spring(dampingRatio = 0.82f, stiffness = 320f)
+            ) { t, _ ->
+                val k = 1f - t
+                offsetX = startX * k
+                offsetY = startY * k
+                rotation = offsetX / 50f
+                rotationYSwipe = startRy * k
+            }
+        }
+    }
+
+
 
 
     @SuppressLint("SuspiciousIndentation")
@@ -412,11 +434,18 @@ fun PetSwipeScreen(navController: NavController) {
             if (hasGem) {
                 likedPetsViewmodel.addLikedPet(currentPet)
 
-                scope.launch {
+               /* scope.launch {
                     firestoreRepo.markAsSwiped(currentUserId, petIdToRecord)
                     swipedPetIds = swipedPetIds + petIdToRecord
                 }
+                */
+                android.widget.Toast.makeText(
+                    context,
+                    "This is already swiped! (Like triggered)",
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
 
+                // Reset the card position instead of letting it fly away
 
                 if (currentPetIndex == filteredPets.lastIndex) {
                     petRepository.appendBlankCard(
@@ -471,7 +500,7 @@ fun PetSwipeScreen(navController: NavController) {
                                 adopterId = adopterId,
                                 adopterName = adopterName,
                                 adopterPhotoUri = adopterPhoto,
-                                shelterId = shelterId,
+                                shelterId = currentPet.shelterId ?: "",
                                 shelterName = shelterUser.name,
                                 shelterPhotoUri = shelterPhoto,
                                 petNames = listOf(petNameToAdd),
@@ -541,26 +570,7 @@ fun PetSwipeScreen(navController: NavController) {
         }
     }
 
-    fun resetCardPosition() {
-        if (isDragging || currentPetIndex >= filteredPets.size) return
 
-        scope.launch {
-            val startX = offsetX
-            val startY = offsetY
-            val startRy = rotationYSwipe
-            animate(
-                initialValue = 0f,
-                targetValue = 1f,
-                animationSpec = spring(dampingRatio = 0.82f, stiffness = 320f)
-            ) { t, _ ->
-                val k = 1f - t
-                offsetX = startX * k
-                offsetY = startY * k
-                rotation = offsetX / 50f
-                rotationYSwipe = startRy * k
-            }
-        }
-    }
 
 
 
@@ -1479,7 +1489,7 @@ fun SwipeablePetCard(
                     },
                     onTap = { tapOffset ->
                         val cardWidthVal = size.width.toFloat()
-                       // val totalImages = pet.additionalImages.size + 1
+                        // val totalImages = pet.additionalImages.size + 1
                         val totalImages = allImages.size
                         val x = tapOffset.x
                         val leftZoneEnd = cardWidthVal * 0.33f
