@@ -52,8 +52,8 @@ fun AddPetScreen(
     val addPetStatus by adoptionViewModel.addPetStatus.collectAsState()
 
     // Get stable data once here
-    val rawName = userData?.name ?: authViewModel.currentUser?.displayName
-    val stableName = if (rawName.isNullOrBlank()) "PawMate Shelter" else rawName
+    val stableShelterName = userData?.shelterName ?: userData?.name ?: "PawMate Shelter"
+    val stableOwnerName = userData?.ownerName ?: "Authorized Staff"
     val rawAddress = userData?.Address
     val stableAddress = if (rawAddress.isNullOrBlank()) "Binangonan, Rizal" else rawAddress
 
@@ -87,7 +87,8 @@ fun AddPetScreen(
                     mainImageUri = mainUri,
                     subImageUris = subUris,
                     shelterId = authViewModel.currentUser?.uid ?: "",
-                    shelterName = stableName,
+                    shelterName = stableShelterName,
+                    ownerName = stableOwnerName,
                     shelterAddress = stableAddress
                 )
             }

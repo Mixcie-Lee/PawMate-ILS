@@ -123,16 +123,21 @@ fun HomeScreen(
 
     val filteredChannels = remember(channels, searchQuery, currentUserRole) {
         val q = searchQuery.trim().lowercase(Locale.US)
-        val role = currentUserRole
         channels.filter { ch ->
             if (q.isEmpty()) return@filter true
-            val isShelter = role == "shelter"
 
-            // 🎯 NEWLY ADDED: Create a searchable string from the petNames list
+            // Match the fallback logic used in the LazyColumn
+            val currentShelterName = if (ch.shelterName.isNullOrBlank()) {
+                "Shelter ${ch.shelterId.takeLast(4)}"
+            } else {
+                ch.shelterName
+            }
+
+            val title = if (currentUserRole == "shelter") ch.adopterName ?: "Adopter" else currentShelterName
             val petNamesString = ch.petNames.joinToString(" ").lowercase(Locale.US)
 
-            val title = if (isShelter) "${ch.adopterName} $petNamesString" else "${ch.shelterName} $petNamesString"
-            title.contains(q) ||
+            title.lowercase().contains(q) ||
+                    petNamesString.contains(q) ||
                     ch.lastMessage.lowercase(Locale.US).contains(q)
         }
     }
@@ -226,7 +231,13 @@ fun HomeScreen(
                             val mainTitle = if (isShelterView) {
                                 channel.adopterName ?: "Adopter"
                             } else {
-                                channel.shelterName ?: "Animal Shelter"
+                                // 🆕 FIX: Specifically check for empty strings ("") or null
+                                if (channel.shelterName.isNullOrBlank()) {
+                                    // If the name is missing, try to use a snippet of the ID so it's at least unique
+                                    "Shelter ${channel.shelterId.takeLast(4)}"
+                                } else {
+                                    channel.shelterName
+                                }
                             }
                             val displayPhoto =
                                 if (isShelterView) channel.adopterPhotoUri else channel.shelterPhotoUri

@@ -7,8 +7,14 @@ data class Channel(
     val adopterId: String = "",
     val adopterName: String = "",
     val shelterId: String = "",
-    val shelterName: String = "",
-    val adopterPhotoUri: String? = null,
+    @get:PropertyName("shelterName")
+    @set:PropertyName("shelterName")
+    var shelterName: String = "",
+
+    @get:PropertyName("ownerName")
+    @set:PropertyName("ownerName")
+    var ownerName: String = "",
+    val adopterPhotoUri: String? = null, 
     val shelterPhotoUri: String? = null,
     val lastSenderId: String = "",
     val lastMessage: String = "",

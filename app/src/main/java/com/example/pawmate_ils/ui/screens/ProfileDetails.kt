@@ -124,11 +124,16 @@ fun ProfileDetailsScreen(
                         color = Color.Black
                     )
 
-                    Text(
-                        text = if (user.role == "shelter") "Verified Shelter" else "${user.Age} years old",
-                        fontSize = 14.sp,
-                        color = Color.Gray
-                    )
+                    if (user.role == "shelter" && !user.ownerName.isNullOrBlank()) {
+                        Text(
+                            text = "Owned by ${user.ownerName}",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFFE84D7A), // Using your theme pink
+                            modifier = Modifier.padding(top = 2.dp),
+                            textAlign = TextAlign.Center
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(20.dp))
 

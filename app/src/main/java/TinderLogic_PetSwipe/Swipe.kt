@@ -149,6 +149,8 @@ data class PetData(
     val name: String? = null,
     val breed: String? = null,
     val age: String? = null,
+    @get:PropertyName("ownerName") @set:PropertyName("ownerName")
+    var ownerName: String? = null,
     @get:PropertyName("gender") @set:PropertyName("gender")
     var gender: String? = null,// Maps to "Sex" in the UI
     val description: String? = null,
@@ -184,7 +186,7 @@ enum class PetFilter {
 @Composable
 fun PetSwipeScreen(navController: NavController) {
     var currentPetIndex by remember { mutableIntStateOf(0) }
-    val likedPets = remember { mutableListOf<String>() }
+    val likedPets = remember { mutableStateListOf<String>() }
     var petFilter by remember { mutableStateOf(PetFilter.ALL) }
     /** Bumps on user "Shuffle" so [filteredPets] reorders with a new seed (stable when unchanged). */
     var shuffleEpoch by remember { mutableIntStateOf(0) }
@@ -227,6 +229,7 @@ fun PetSwipeScreen(navController: NavController) {
 
     val homeViewModel: HomeViewModel = viewModel()
     val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
     val tutorialPrefs = remember(context) {
         context.getSharedPreferences(
@@ -234,6 +237,23 @@ fun PetSwipeScreen(navController: NavController) {
             android.content.Context.MODE_PRIVATE
         )
     }
+    val notificationAlert by homeViewModel.newNotificationAlert.collectAsState()
+
+    LaunchedEffect(notificationAlert) {
+        notificationAlert?.let { message ->
+            scope.launch {
+                snackbarHostState.showSnackbar(
+                    message = message,
+                    duration = SnackbarDuration.Long,
+                    withDismissAction = true
+                )
+            }
+            homeViewModel.clearNotificationAlert()
+        }
+    }
+
+
+
     val tutorialSeen = remember { tutorialPrefs.getBoolean("seen", false) }
     var showTutorial by remember { mutableStateOf(!tutorialSeen) }
     LaunchedEffect(showTutorial) {
@@ -418,7 +438,14 @@ fun PetSwipeScreen(navController: NavController) {
         }
     }
 
-
+    LaunchedEffect(Unit) {
+        // 🎯 REFRESH AGENDA: Every time user enters 'Home', get latest swiped IDs
+        if (currentUserId.isNotEmpty()) {
+            val latestSwipes = firestoreRepo.getSwipedPetIds(currentUserId)
+            swipedPetIds = latestSwipes
+            Log.d("PetSwipe", "Discovery deck refreshed. Hidden pets: ${latestSwipes.size}")
+        }
+    }
 
 
     @SuppressLint("SuspiciousIndentation")
@@ -432,18 +459,15 @@ fun PetSwipeScreen(navController: NavController) {
         if (direction > 0) {
             val hasGem = GemManager.consumeGems(5)
             if (hasGem) {
+                likedPets.add(currentPet.name ?: "Unknown Pet")
                 likedPetsViewmodel.addLikedPet(currentPet)
 
-               /* scope.launch {
+               scope.launch {
                     firestoreRepo.markAsSwiped(currentUserId, petIdToRecord)
                     swipedPetIds = swipedPetIds + petIdToRecord
                 }
-                */
-                android.widget.Toast.makeText(
-                    context,
-                    "This is already swiped! (Like triggered)",
-                    android.widget.Toast.LENGTH_SHORT
-                ).show()
+
+
 
                 // Reset the card position instead of letting it fly away
 
@@ -473,6 +497,10 @@ fun PetSwipeScreen(navController: NavController) {
                         val petNameToAdd = currentPet.name ?: "Unknown"
                         val uniqueChannelId = "$adopterId-$shelterId"
 
+
+                        val finalName = currentPet.shelterName?.takeIf { it.isNotBlank() } ?: "Angono Animal Shelter"
+
+
                         // 🏷️ NEWLY ADDED: Check local state for an existing channel pair
                         val existingChannel = homeViewModel.channels.value.firstOrNull {
                             it.channelId == uniqueChannelId
@@ -484,12 +512,25 @@ fun PetSwipeScreen(navController: NavController) {
                             // ==========================================================
                             Log.d("PetSwipe", "⚠️ Channel exists. Merging $petNameToAdd")
 
+                            scope.launch {
+                                firestoreRepo.updateChannelShelterName(uniqueChannelId, finalName)
+                            }
+
                             val currentPets = existingChannel.petNames
                             if (!currentPets.contains(petNameToAdd)) {
                                 val updatedList = currentPets + petNameToAdd
                                 // Update Firestore immediately with the new list
                                 firestoreRepo.updateChannelPetNames(uniqueChannelId, updatedList)
                                 Log.d("PetSwipe", "✅ Consolidated: $petNameToAdd added to $uniqueChannelId")
+
+                                //external notification
+                                scope.launch {
+                                    firestoreRepo.sendNotification(
+                                        receiverId = shelterId,
+                                        title = "Another Match! 🐾",
+                                        message = "$adopterName is also interested in $petNameToAdd!"
+                                    )
+                                }
                             }
                         } else {
                             // ==========================================================
@@ -501,7 +542,8 @@ fun PetSwipeScreen(navController: NavController) {
                                 adopterName = adopterName,
                                 adopterPhotoUri = adopterPhoto,
                                 shelterId = currentPet.shelterId ?: "",
-                                shelterName = shelterUser.name,
+                                shelterName = finalName,
+                                ownerName = shelterUser.ownerName?.takeIf { it.isNotBlank() } ?: "Authorized Staff",
                                 shelterPhotoUri = shelterPhoto,
                                 petNames = listOf(petNameToAdd),
                                 lastMessage = "Interested in $petNameToAdd",
@@ -511,8 +553,19 @@ fun PetSwipeScreen(navController: NavController) {
                                 adopterTier = currentTier.level,
                                 isPriority = currentTier.level == 3
                             )
-                            Log.d("PetSwipe", "✅ Created new consolidated channel: $uniqueChannelId")
+                            Log.d(
+                                "PetSwipe",
+                                "✅ Created new consolidated channel: $uniqueChannelId"
+                            )
                             homeViewModel.addChannel(channel)
+
+                            scope.launch {
+                                firestoreRepo.sendNotification(
+                                    receiverId = currentPet.shelterId ?: "",
+                                    title = "New Match! 🐾",
+                                    message = "$adopterName is interested in ${currentPet.name}!"
+                                )
+                            }
                         }
                     } catch (e: Exception) {
                         Log.e("PetSwipe", "❌ Consolidation Error: ${e.message}")
@@ -576,6 +629,20 @@ fun PetSwipeScreen(navController: NavController) {
 
     Scaffold(
         containerColor = backgroundColor,
+        snackbarHost = {
+            SnackbarHost(
+                hostState = snackbarHostState,
+                // Pushes the Snackbar ~1.5 inches up so it clears your AdopterBottomBar
+                modifier = Modifier.padding(bottom = 96.dp)
+            ) { data ->
+                Snackbar(
+                    containerColor = Color(0xFFFF9999), // PawMate Pink
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(12.dp),
+                    snackbarData = data
+                )
+            }
+        },
         bottomBar = {
             AdopterBottomBar(
                 navController = navController,
@@ -1224,6 +1291,7 @@ fun PetSwipeScreen(navController: NavController) {
 private fun PetInfoBackFace(
     pet: PetData,
     shelterDisplayName: String,
+    ownerName: String?,
     isTablet: Boolean,
     modifier: Modifier = Modifier
 ) {
@@ -1233,9 +1301,7 @@ private fun PetInfoBackFace(
         colors = listOf(Color(0xFFFFF8FA), Color(0xFFFFEEF2), Color(0xFFFFE0E8))
     )
 
-    val orgName = if (!pet.shelterName.isNullOrBlank()) pet.shelterName else "PawMate Shelter"
-    val ownerName = shelterDisplayName // This is "Kit"
-
+    val orgName = pet.shelterName.takeIf { !it.isNullOrBlank() } ?: shelterDisplayName.ifBlank { "PawMate Shelter" }
 
     Column(
         modifier = modifier
@@ -1265,7 +1331,9 @@ private fun PetInfoBackFace(
         DetailBox(label = "Sex", value = pet.gender ?: "Unknown")
         DetailBox(label = "Shelter", value = orgName ?: "Unknown")
 
-        if (ownerName.isNotBlank() && ownerName != orgName) {
+        if (!ownerName.isNullOrBlank() &&
+            ownerName != orgName &&
+            ownerName != "Authorized Staff") {
             DetailBox(label = "Managed by", value = ownerName)
         }
 
@@ -1813,6 +1881,7 @@ fun SwipeablePetCard(
                     PetInfoBackFace(
                         pet = pet,
                         shelterDisplayName = pet.shelterName ?: "Unknown Shelter",                        isTablet = isTablet,
+                        ownerName = pet.ownerName ?: "Authorized Staff",
                         modifier = Modifier.fillMaxSize()
                     )
                 }

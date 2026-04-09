@@ -53,7 +53,8 @@ fun ShelterProfileScreen(
 
     ShelterProfileContent(
         navController = navController,
-        username = userOnlineData?.name ?: settings.getUsername(),
+        shelterName = userOnlineData?.shelterName ?: settings.getUsername(),
+        ownerName = userOnlineData?.ownerName ?: "",
         photoUri = userOnlineData?.photoUri,
         petsCount = petsCount,
         onUpdateName = { newName ->
@@ -83,7 +84,8 @@ fun ShelterProfileScreen(
 @Composable
 fun ShelterProfileContent(
     navController: NavController,
-    username: String,
+    shelterName: String,     // Changed from 'username'
+    ownerName: String,
     photoUri: String?,
     petsCount: Int,
     onUpdateName: (String) -> Unit,
@@ -91,7 +93,7 @@ fun ShelterProfileContent(
     onLogout: () -> Unit
 ) {
     var isDarkMode by remember { mutableStateOf(ThemeManager.isDarkMode) }
-    var editableName by remember(username) { mutableStateOf(username) }
+    var editableName by remember(shelterName) { mutableStateOf(shelterName) }
     var showLogoutDialog by remember { mutableStateOf(false) }
 
     val backgroundColor = if (isDarkMode) Color(0xFF1A1A1A) else Color(0xFFFFF0F5)
@@ -324,7 +326,7 @@ fun ShelterMenuCard(
         }
     }
 }
-
+/*
 @Preview(showBackground = true)
 @Composable
 fun ShelterProfilePreview() {
@@ -338,3 +340,5 @@ fun ShelterProfilePreview() {
         onLogout = {}
     )
 }
+
+ */

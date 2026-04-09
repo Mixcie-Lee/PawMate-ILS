@@ -4,7 +4,9 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.pawmate_ils.firebase_models.Channel
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -23,8 +25,12 @@ class HomeViewModel(
     private var adopterChannels = emptyList<Channel>()
     private var shelterChannels = emptyList<Channel>()
 
+    private val _newNotificationAlert = MutableStateFlow<String?>(null)
+    val newNotificationAlert = _newNotificationAlert.asStateFlow()
+
     init {
         listenToChannels()
+        startNotificationListener() // 🔔 ADD THIS LINE HERE
     }
 
     // 🔹 LISTEN TO CHANNELS
@@ -73,12 +79,15 @@ class HomeViewModel(
     fun addChannel(channel: Channel) {
         viewModelScope.launch {
             try {
-                val adopterDoc = db.collection("users").document(channel.adopterId).get().await()
-                val shelterDoc = db.collection("users").document(channel.shelterId).get().await()
-
+                val finalAdopterName = channel.adopterName.ifBlank {
+                    db.collection("users").document(channel.adopterId).get().await().getString("name") ?: "Adopter"
+                }
+                val finalShelterName = channel.shelterName.ifBlank {
+                    db.collection("users").document(channel.shelterId).get().await().getString("name") ?: "Shelter"
+                }
                 val newChannel = channel.copy(
-                    adopterName = adopterDoc.getString("name") ?: "Adopter",
-                    shelterName = shelterDoc.getString("name") ?: "Shelter",
+                    adopterName = finalAdopterName,
+                    shelterName = finalShelterName,
                     adopterTier = channel.adopterTier,
                     isPriority = channel.isPriority,
                     createdAt = System.currentTimeMillis(),
@@ -137,6 +146,36 @@ class HomeViewModel(
         }
     }
 
+    fun startNotificationListener() {
+        val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: return
 
+        db.collection("users")
+            .document(currentUserId)
+            .collection("notifications")
+            .orderBy("timestamp", Query.Direction.DESCENDING)
+            .limit(1) // We only care about the latest one
+            .addSnapshotListener { snapshot, e ->
+                if (e != null) return@addSnapshotListener
+
+                val latestDoc = snapshot?.documents?.firstOrNull()
+                if (latestDoc != null) {
+                    val isRead = latestDoc.getBoolean("isRead") ?: true
+                    if (!isRead) {
+                        // 🔔 TRIGGER: This is where the magic happens!
+                        val title = latestDoc.getString("title") ?: "New Update"
+                        val message = latestDoc.getString("message") ?: ""
+
+                        _newNotificationAlert.value = "$title: $message"
+
+                        // Optional: Mark as read so it doesn't pop up again on next app start
+                        latestDoc.reference.update("isRead", true)
+                    }
+                }
+            }
+    }
+
+    fun clearNotificationAlert() {
+        _newNotificationAlert.value = null
+    }
 
 }
