@@ -335,9 +335,14 @@ fun PetSwipeScreen(navController: NavController) {
 // 3. COMBINE THEM (Important so both show up in the swipe stack)
     val combinedPets by remember(allPets, firestorePets) {
         derivedStateOf {
-            // Put firestorePets FIRST so they take priority in distinctBy
-            (firestorePets + allPets).distinctBy {
-                // Use petId if available, otherwise fallback to a unique combo of name and shelter
+            val dynamicOnly = (firestorePets + allPets).filter { pet ->
+                // Logic: Mock pets have IDs like "shelter1", "shelter2"...
+                // Real Firestore pets have long random strings.
+                // We hide any pet that belongs to the mock "shelter" IDs.
+                !pet.shelterId?.startsWith("shelter")!! && pet.name != "Blank Card"
+            }
+
+            dynamicOnly.distinctBy {
                 it.petId ?: "${it.name}-${it.shelterId}"
             }
         }
