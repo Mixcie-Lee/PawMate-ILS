@@ -172,7 +172,6 @@ class AdoptionCenterViewModel(
         subImageUris: List<Uri>,
         shelterId: String,
         shelterName: String?,
-        ownerName: String?,
         shelterAddress: String?
     ) {
         viewModelScope.launch {
@@ -211,7 +210,6 @@ class AdoptionCenterViewModel(
                     additionalImages = uploadedSubUrls, // Now a List<String>
                     shelterId = shelterId,
                     shelterName = shelterName,
-                    ownerName = ownerName,
                     shelterAddress = shelterAddress,
                     shelterIsOnline = true,
                     shelterLastActive = System.currentTimeMillis()

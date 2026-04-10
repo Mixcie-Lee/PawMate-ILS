@@ -22,6 +22,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalConfiguration
@@ -354,7 +355,8 @@ fun ArticleCard(
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = if (isDarkMode) Color.White else Color.Black,
-                    maxLines = 1
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -364,6 +366,7 @@ fun ArticleCard(
                     fontSize = 13.sp,
                     color = if (isDarkMode) Color.LightGray else Color.Gray,
                     maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                     lineHeight = 18.sp
                 )
             }

@@ -126,7 +126,9 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
         color = backgroundColor
     ) {
         Column(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
         ) {
             CenterAlignedTopAppBar(
                 title = {
@@ -155,6 +157,7 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
+                    .imePadding()
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
                 Card(

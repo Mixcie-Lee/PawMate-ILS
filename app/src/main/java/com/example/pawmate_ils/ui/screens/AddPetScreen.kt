@@ -88,7 +88,6 @@ fun AddPetScreen(
                     subImageUris = subUris,
                     shelterId = authViewModel.currentUser?.uid ?: "",
                     shelterName = stableShelterName,
-                    ownerName = stableOwnerName,
                     shelterAddress = stableAddress
                 )
             }
@@ -135,7 +134,7 @@ private fun StatelessAddPet(
         }
     ) { paddingValues ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(paddingValues).background(Color.White).verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 12.dp),
+            modifier = Modifier.fillMaxSize().padding(paddingValues).background(Color.White).verticalScroll(rememberScrollState()).imePadding().padding(horizontal = 24.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(text = "Pet Photos", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color(0xFFD67A7A))

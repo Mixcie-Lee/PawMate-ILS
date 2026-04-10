@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.ArrowBack
@@ -144,8 +145,15 @@ fun ChatScreen(
                             contentScale = ContentScale.Crop
                         )
                         Spacer(modifier = Modifier.width(10.dp))
-                        Column {
-                            Text(text = chatPartnerName, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = chatPartnerName,
+                                color = Color.White,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                             if (chatPartnerRole.isNotEmpty()) {
                                 Text(
                                     text = chatPartnerRole,
@@ -414,7 +422,8 @@ fun ChatBubble(
                     contentDescription = "Shared Image",
                     modifier = Modifier
                         .padding(bottom = 4.dp)
-                        .size(220.dp)
+                        .fillMaxWidth(0.65f)
+                        .aspectRatio(1f)
                         .clip(RoundedCornerShape(12.dp))
                         .background(Color.LightGray)
                         .clickable { onImageClick(message.imageUrl!!) },

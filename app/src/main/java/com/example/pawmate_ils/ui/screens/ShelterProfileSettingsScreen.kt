@@ -111,7 +111,7 @@ fun ShelterProfileContent(
     }
 
     Surface(modifier = Modifier.fillMaxSize(), color = backgroundColor) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
             CenterAlignedTopAppBar(
                 title = { Text("Shelter Profile", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textColor) },
                 navigationIcon = {
@@ -123,7 +123,7 @@ fun ShelterProfileContent(
             )
 
             Column(
-                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp)
+                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).imePadding().padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
                 // HEADER CARD
                 Card(

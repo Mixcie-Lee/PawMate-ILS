@@ -149,8 +149,6 @@ data class PetData(
     val name: String? = null,
     val breed: String? = null,
     val age: String? = null,
-    @get:PropertyName("ownerName") @set:PropertyName("ownerName")
-    var ownerName: String? = null,
     @get:PropertyName("gender") @set:PropertyName("gender")
     var gender: String? = null,// Maps to "Sex" in the UI
     val description: String? = null,
@@ -186,7 +184,7 @@ enum class PetFilter {
 @Composable
 fun PetSwipeScreen(navController: NavController) {
     var currentPetIndex by remember { mutableIntStateOf(0) }
-    val likedPets = remember { mutableStateListOf<String>() }
+    val likedPets = remember { mutableListOf<String>() }
     var petFilter by remember { mutableStateOf(PetFilter.ALL) }
     /** Bumps on user "Shuffle" so [filteredPets] reorders with a new seed (stable when unchanged). */
     var shuffleEpoch by remember { mutableIntStateOf(0) }
@@ -229,7 +227,6 @@ fun PetSwipeScreen(navController: NavController) {
 
     val homeViewModel: HomeViewModel = viewModel()
     val scope = rememberCoroutineScope()
-    val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
     val tutorialPrefs = remember(context) {
         context.getSharedPreferences(
@@ -237,23 +234,6 @@ fun PetSwipeScreen(navController: NavController) {
             android.content.Context.MODE_PRIVATE
         )
     }
-    val notificationAlert by homeViewModel.newNotificationAlert.collectAsState()
-
-    LaunchedEffect(notificationAlert) {
-        notificationAlert?.let { message ->
-            scope.launch {
-                snackbarHostState.showSnackbar(
-                    message = message,
-                    duration = SnackbarDuration.Long,
-                    withDismissAction = true
-                )
-            }
-            homeViewModel.clearNotificationAlert()
-        }
-    }
-
-
-
     val tutorialSeen = remember { tutorialPrefs.getBoolean("seen", false) }
     var showTutorial by remember { mutableStateOf(!tutorialSeen) }
     LaunchedEffect(showTutorial) {
@@ -443,14 +423,7 @@ fun PetSwipeScreen(navController: NavController) {
         }
     }
 
-    LaunchedEffect(Unit) {
-        // 🎯 REFRESH AGENDA: Every time user enters 'Home', get latest swiped IDs
-        if (currentUserId.isNotEmpty()) {
-            val latestSwipes = firestoreRepo.getSwipedPetIds(currentUserId)
-            swipedPetIds = latestSwipes
-            Log.d("PetSwipe", "Discovery deck refreshed. Hidden pets: ${latestSwipes.size}")
-        }
-    }
+
 
 
     @SuppressLint("SuspiciousIndentation")
@@ -464,15 +437,18 @@ fun PetSwipeScreen(navController: NavController) {
         if (direction > 0) {
             val hasGem = GemManager.consumeGems(5)
             if (hasGem) {
-                likedPets.add(currentPet.name ?: "Unknown Pet")
                 likedPetsViewmodel.addLikedPet(currentPet)
 
-               scope.launch {
+               /* scope.launch {
                     firestoreRepo.markAsSwiped(currentUserId, petIdToRecord)
                     swipedPetIds = swipedPetIds + petIdToRecord
                 }
-
-
+                */
+                android.widget.Toast.makeText(
+                    context,
+                    "This is already swiped! (Like triggered)",
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
 
                 // Reset the card position instead of letting it fly away
 
@@ -502,10 +478,6 @@ fun PetSwipeScreen(navController: NavController) {
                         val petNameToAdd = currentPet.name ?: "Unknown"
                         val uniqueChannelId = "$adopterId-$shelterId"
 
-
-                        val finalName = currentPet.shelterName?.takeIf { it.isNotBlank() } ?: "Angono Animal Shelter"
-
-
                         // 🏷️ NEWLY ADDED: Check local state for an existing channel pair
                         val existingChannel = homeViewModel.channels.value.firstOrNull {
                             it.channelId == uniqueChannelId
@@ -517,25 +489,12 @@ fun PetSwipeScreen(navController: NavController) {
                             // ==========================================================
                             Log.d("PetSwipe", "⚠️ Channel exists. Merging $petNameToAdd")
 
-                            scope.launch {
-                                firestoreRepo.updateChannelShelterName(uniqueChannelId, finalName)
-                            }
-
                             val currentPets = existingChannel.petNames
                             if (!currentPets.contains(petNameToAdd)) {
                                 val updatedList = currentPets + petNameToAdd
                                 // Update Firestore immediately with the new list
                                 firestoreRepo.updateChannelPetNames(uniqueChannelId, updatedList)
                                 Log.d("PetSwipe", "✅ Consolidated: $petNameToAdd added to $uniqueChannelId")
-
-                                //external notification
-                                scope.launch {
-                                    firestoreRepo.sendNotification(
-                                        receiverId = shelterId,
-                                        title = "Another Match! 🐾",
-                                        message = "$adopterName is also interested in $petNameToAdd!"
-                                    )
-                                }
                             }
                         } else {
                             // ==========================================================
@@ -547,8 +506,7 @@ fun PetSwipeScreen(navController: NavController) {
                                 adopterName = adopterName,
                                 adopterPhotoUri = adopterPhoto,
                                 shelterId = currentPet.shelterId ?: "",
-                                shelterName = finalName,
-                                ownerName = shelterUser.ownerName?.takeIf { it.isNotBlank() } ?: "Authorized Staff",
+                                shelterName = shelterUser.name,
                                 shelterPhotoUri = shelterPhoto,
                                 petNames = listOf(petNameToAdd),
                                 lastMessage = "Interested in $petNameToAdd",
@@ -558,19 +516,8 @@ fun PetSwipeScreen(navController: NavController) {
                                 adopterTier = currentTier.level,
                                 isPriority = currentTier.level == 3
                             )
-                            Log.d(
-                                "PetSwipe",
-                                "✅ Created new consolidated channel: $uniqueChannelId"
-                            )
+                            Log.d("PetSwipe", "✅ Created new consolidated channel: $uniqueChannelId")
                             homeViewModel.addChannel(channel)
-
-                            scope.launch {
-                                firestoreRepo.sendNotification(
-                                    receiverId = currentPet.shelterId ?: "",
-                                    title = "New Match! 🐾",
-                                    message = "$adopterName is interested in ${currentPet.name}!"
-                                )
-                            }
                         }
                     } catch (e: Exception) {
                         Log.e("PetSwipe", "❌ Consolidation Error: ${e.message}")
@@ -634,20 +581,6 @@ fun PetSwipeScreen(navController: NavController) {
 
     Scaffold(
         containerColor = backgroundColor,
-        snackbarHost = {
-            SnackbarHost(
-                hostState = snackbarHostState,
-                // Pushes the Snackbar ~1.5 inches up so it clears your AdopterBottomBar
-                modifier = Modifier.padding(bottom = 96.dp)
-            ) { data ->
-                Snackbar(
-                    containerColor = Color(0xFFFF9999), // PawMate Pink
-                    contentColor = Color.White,
-                    shape = RoundedCornerShape(12.dp),
-                    snackbarData = data
-                )
-            }
-        },
         bottomBar = {
             AdopterBottomBar(
                 navController = navController,
@@ -1296,54 +1229,102 @@ fun PetSwipeScreen(navController: NavController) {
 private fun PetInfoBackFace(
     pet: PetData,
     shelterDisplayName: String,
-    ownerName: String?,
     isTablet: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val cardPad = if (isTablet) 24.dp else 14.dp
-    val infoHeaderSize = if (isTablet) 22.sp else 18.sp
     val gradient = Brush.verticalGradient(
         colors = listOf(Color(0xFFFFF8FA), Color(0xFFFFEEF2), Color(0xFFFFE0E8))
     )
-
-    val orgName = pet.shelterName.takeIf { !it.isNullOrBlank() } ?: shelterDisplayName.ifBlank { "PawMate Shelter" }
+    val orgName = if (!pet.shelterName.isNullOrBlank()) pet.shelterName else "PawMate Shelter"
+    val cardPad = if (isTablet) 16.dp else 10.dp
 
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(gradient)
-            .padding(horizontal = cardPad, vertical = if (isTablet) 20.dp else 14.dp)
-            .verticalScroll(rememberScrollState()),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(horizontal = cardPad, vertical = cardPad),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.SpaceEvenly
     ) {
         Box(
             modifier = Modifier
-                .align(Alignment.CenterHorizontally)
-                .clip(RoundedCornerShape(14.dp))
+                .clip(RoundedCornerShape(12.dp))
                 .background(Color(0xFFFFB6C1).copy(alpha = 0.45f))
-                .padding(horizontal = 28.dp, vertical = 8.dp)
+                .padding(horizontal = 20.dp, vertical = 5.dp)
         ) {
             Text(
                 text = "Info",
-                fontSize = infoHeaderSize,
+                fontSize = if (isTablet) 18.sp else 15.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFFE85A7A)
             )
         }
-        Spacer(modifier = Modifier.height(18.dp))
-        DetailBox(label = "Name", value = pet.name ?: "Unknown")
-        DetailBox(label = "Age", value = pet.age ?: "N/A")
-        DetailBox(label = "Sex", value = pet.gender ?: "Unknown")
-        DetailBox(label = "Shelter", value = orgName ?: "Unknown")
+        BackFaceRow(label = "Name", value = pet.name ?: "Unknown")
+        BackFaceRow(label = "Age", value = pet.age ?: "N/A")
+        BackFaceRow(label = "Sex", value = pet.gender ?: "Unknown")
+        BackFaceRow(label = "Shelter", value = orgName ?: "Unknown")
+        BackFaceRow(label = "Address", value = pet.shelterAddress ?: "Address Loading...")
+        BackFaceHealthRow(status = pet.healthStatus)
+    }
+}
 
-        if (!ownerName.isNullOrBlank() &&
-            ownerName != orgName &&
-            ownerName != "Authorized Staff") {
-            DetailBox(label = "Managed by", value = ownerName)
+@Composable
+private fun BackFaceRow(label: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(Color.White)
+            .border(1.dp, Color(0xFFFFB6C1).copy(alpha = 0.4f), RoundedCornerShape(10.dp))
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFFD67A7A),
+            fontSize = 13.sp,
+            modifier = Modifier.width(68.dp)
+        )
+        Text(
+            text = value,
+            fontSize = 13.sp,
+            color = Color(0xFF333333),
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+private fun BackFaceHealthRow(status: String?) {
+    val medicalList = status?.split(",", "\n")?.filter { it.isNotBlank() } ?: emptyList()
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(Color.White)
+            .border(1.dp, Color(0xFFFFB6C1).copy(alpha = 0.4f), RoundedCornerShape(10.dp))
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "Health",
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFFD67A7A),
+            fontSize = 13.sp,
+            modifier = Modifier.width(68.dp)
+        )
+        if (medicalList.isEmpty()) {
+            Text(text = "Healthy", fontSize = 13.sp, color = Color(0xFF333333))
+        } else {
+            Column(modifier = Modifier.weight(1f)) {
+                medicalList.forEach { point ->
+                    Text(text = "• ${point.trim()}", fontSize = 12.sp, color = Color(0xFF333333))
+                }
+            }
         }
-
-        DetailBox(label = "Address", value = pet.shelterAddress ?: "Address Loading...")
-        HealthStatusBox(status = pet.healthStatus)
     }
 }
 
@@ -1886,7 +1867,6 @@ fun SwipeablePetCard(
                     PetInfoBackFace(
                         pet = pet,
                         shelterDisplayName = pet.shelterName ?: "Unknown Shelter",                        isTablet = isTablet,
-                        ownerName = pet.ownerName ?: "Authorized Staff",
                         modifier = Modifier.fillMaxSize()
                     )
                 }
@@ -2556,71 +2536,6 @@ fun GCashMultiStepDialog(
             }
         }
     )
-}
-@Composable
-fun DetailBox(label: String, value: String) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color.White)
-            .border(1.dp, Color(0xFFFFB6C1).copy(alpha = 0.65f), RoundedCornerShape(12.dp))
-            .padding(12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = label,
-            fontWeight = FontWeight.ExtraBold,
-            color = Color(0xFFD67A7A),
-            fontSize = 16.sp
-        )
-        Text(
-            text = value,
-            fontSize = 14.sp,
-            color = if(ThemeManager.isDarkMode) Color.White else Color.Black,
-            textAlign = TextAlign.Center
-        )
-    }
-}
-
-@Composable
-fun HealthStatusBox(status: String?) {
-    val medicalList = status?.split(",", "\n")?.filter { it.isNotBlank() } ?: emptyList()
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color.White)
-            .border(1.dp, Color(0xFFFFB6C1).copy(alpha = 0.65f), RoundedCornerShape(12.dp))
-            .padding(12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = "Health Status",
-            fontWeight = FontWeight.ExtraBold,
-            color = Color(0xFFD67A7A),
-            fontSize = 16.sp
-        )
-
-        if (medicalList.isEmpty()) {
-            Text(
-                text = "Healthy",
-                fontSize = 14.sp,
-                color = if (ThemeManager.isDarkMode) Color.White else Color.Black
-            )
-        } else {
-            medicalList.forEach { point ->
-                Text(
-                    text = "• ${point.trim()}",
-                    fontSize = 13.sp,
-                    color = if(ThemeManager.isDarkMode) Color.White else Color.Black
-                )
-            }
-        }
-    }
 }
 
 

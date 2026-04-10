@@ -91,7 +91,8 @@
                 color = Color.White.copy(alpha = 0.88f),
                 shadowElevation = 8.dp,
                 modifier = Modifier
-                    .width(320.dp)
+                    .fillMaxWidth(0.85f)
+                    .widthIn(max = 360.dp)
                     .padding(16.dp)
             ) {
                 Column(
@@ -104,8 +105,8 @@
                         contentDescription = "Welcome Image",
                         modifier = Modifier
                             .align(Alignment.CenterHorizontally)
-                            .width(180.dp)
-                            .height(150.dp)
+                            .fillMaxWidth(0.55f)
+                            .aspectRatio(180f / 150f)
                             .scale(logoScale),
                         contentScale = ContentScale.Fit
                     )

@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -143,6 +144,7 @@ fun HomeScreen(
     }
 
     Scaffold(
+        modifier = Modifier.imePadding(),
         containerColor = pageBg,
         bottomBar = {
             AdopterBottomBar(

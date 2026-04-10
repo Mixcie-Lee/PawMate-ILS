@@ -120,6 +120,7 @@ fun EditPetScreen(
                 .padding(paddingValues)
                 .background(Color.White)
                 .verticalScroll(scrollState)
+                .imePadding()
                 .padding(horizontal = 24.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {

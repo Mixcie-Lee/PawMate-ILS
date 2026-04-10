@@ -99,11 +99,11 @@ fun AdopterBottomBar(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 10.dp),
+                    .padding(horizontal = 4.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.Bottom
             ) {
-                Box(modifier = Modifier.width(58.dp), contentAlignment = Alignment.BottomCenter) {
+                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.BottomCenter) {
                     AdopterBottomBarItem("Education", selectedTab == "Education", accent, { navigate("educational") }) { tint, selected ->
                         BottomBarIcon(
                             contentDescription = "Education",
@@ -114,7 +114,7 @@ fun AdopterBottomBar(
                         )
                     }
                 }
-                Box(modifier = Modifier.width(58.dp), contentAlignment = Alignment.BottomCenter) {
+                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.BottomCenter) {
                     AdopterBottomBarItem("Favorites", selectedTab == "Favorites", accent, { navigate("adopter_home") }) { tint, selected ->
                         BottomBarIcon(
                             contentDescription = "Favorites",
@@ -126,7 +126,7 @@ fun AdopterBottomBar(
                     }
                 }
 
-                Box(modifier = Modifier.width(58.dp), contentAlignment = Alignment.BottomCenter) {
+                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.BottomCenter) {
                     AdopterBottomBarItem("Home", selectedTab == "Home", accent, { navigate("pet_swipe") }) { tint, selected ->
                         BottomBarIcon(
                             contentDescription = "Home",
@@ -138,7 +138,7 @@ fun AdopterBottomBar(
                     }
                 }
 
-                Box(modifier = Modifier.width(58.dp), contentAlignment = Alignment.BottomCenter) {
+                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.BottomCenter) {
                     AdopterBottomBarItem("Message", selectedTab == "Message", accent, { navigate("chat_home") }) { tint, selected ->
                         BottomBarIcon(
                             contentDescription = "Message",
@@ -150,7 +150,7 @@ fun AdopterBottomBar(
                     }
                 }
 
-                Box(modifier = Modifier.width(58.dp), contentAlignment = Alignment.BottomCenter) {
+                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.BottomCenter) {
                     AdopterBottomBarItem("Shop", selectedTab == "Shop", accent, { navigate("shop") }) { tint, selected ->
                         BottomBarIcon(
                             contentDescription = "Shop",
@@ -161,7 +161,7 @@ fun AdopterBottomBar(
                         )
                     }
                 }
-                Box(modifier = Modifier.width(58.dp), contentAlignment = Alignment.BottomCenter) {
+                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.BottomCenter) {
                     AdopterBottomBarItem("Profile", selectedTab == "Profile", accent, { navigate("profile_settings") }) { tint, selected ->
                         BottomBarIcon(
                             contentDescription = "Profile",
@@ -203,7 +203,7 @@ private fun AdopterBottomBarItem(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .offset(y = yOffset)
-            .width(58.dp),
+            .fillMaxWidth(),
         verticalArrangement = Arrangement.Center
     ) {
         Card(

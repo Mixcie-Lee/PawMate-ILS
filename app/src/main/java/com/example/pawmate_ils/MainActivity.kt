@@ -3,9 +3,7 @@
     import android.os.Bundle
     import androidx.activity.ComponentActivity
     import androidx.activity.compose.setContent
-    import androidx.core.view.WindowCompat
-    import androidx.core.view.WindowInsetsCompat
-    import androidx.core.view.WindowInsetsControllerCompat
+    import androidx.activity.enableEdgeToEdge
     import androidx.compose.foundation.layout.Box
     import androidx.compose.foundation.layout.fillMaxSize
     import androidx.compose.foundation.layout.padding
@@ -22,8 +20,6 @@
     import com.example.pawmate_ils.ui.screens.SignUpScreen
     import com.example.pawmate_ils.ui.screens.UserTypeSelectionScreen
     import TinderLogic_PetSwipe.PetSwipeScreen
-    import android.view.View
-    import android.view.WindowManager
     import androidx.activity.viewModels
     import androidx.compose.runtime.LaunchedEffect
     import androidx.compose.runtime.mutableStateOf
@@ -112,31 +108,9 @@ import com.example.pawmate_ils.Firebase_Utils.PetsRepository
 
         override fun onCreate(savedInstanceState: Bundle?) {
             super.onCreate(savedInstanceState)
+            enableEdgeToEdge()
             GemManager.init(applicationContext)
             CloudinaryHelper.init(this)
-            // EXTREME fullscreen - hide everything
-            window.setFlags(
-                WindowManager.LayoutParams.FLAG_FULLSCREEN or
-                        WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
-                        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                        WindowManager.LayoutParams.FLAG_LAYOUT_INSET_DECOR or
-                        WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS,
-                WindowManager.LayoutParams.FLAG_FULLSCREEN or
-                        WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
-                        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                        WindowManager.LayoutParams.FLAG_LAYOUT_INSET_DECOR or
-                        WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS
-                   )
-
-            // Force hide system UI
-            window.decorView.systemUiVisibility = (
-                    View.SYSTEM_UI_FLAG_FULLSCREEN or
-                            View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
-                            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
-                            View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
-                            View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
-                            View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                    )
 
 
 
