@@ -88,7 +88,6 @@ fun AddPetScreen(
                     subImageUris = subUris,
                     shelterId = authViewModel.currentUser?.uid ?: "",
                     shelterName = stableShelterName,
-                    ownerName = stableOwnerName,
                     shelterAddress = stableAddress
                 )
             }
