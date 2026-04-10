@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.StarOutline
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -46,6 +47,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -53,6 +55,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -71,12 +74,24 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.pawmate_ils.Firebase_Utils.AuthViewModel
 import com.example.pawmate_ils.Firebase_Utils.LikedPet
 import com.example.pawmate_ils.Firebase_Utils.LikedPetsViewModel
 import com.example.pawmate_ils.GemManager
 import com.example.pawmate_ils.ThemeManager
 import com.example.pawmate_ils.ui.components.AdopterBottomBar
 import kotlinx.coroutines.delay
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.pawmate_ils.Firebase_Utils.HomeViewModel
+import kotlinx.coroutines.launch
+import androidx.compose.material3.Snackbar
 
 /**
  * [painterResource] only supports types that decode to a bitmap/vector.
@@ -99,17 +114,47 @@ private fun android.content.Context.canLoadDrawableAsComposePainter(resId: Int):
 
 @Composable
 fun AdopterLikeScreen(navController: NavController) {
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val homeViewModel: HomeViewModel = viewModel()
+    val notificationAlert by homeViewModel.newNotificationAlert.collectAsState()
+
     var showGemDialog by remember { mutableStateOf(false) }
     var tapCount by remember { mutableIntStateOf(0) }
     var showDogAnimation by remember { mutableStateOf(false) }
     var searchOpen by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
 
+    var petToUnfavorite by remember { mutableStateOf<LikedPet?>(null) }
+
+    val unfavoritePresets = listOf("Changed my mind", "Found another pet",  "Accidental like")
+    var customReason by remember { mutableStateOf("") }
+
+
     val likedPetsViewModel: LikedPetsViewModel = viewModel()
     val likedPets by likedPetsViewModel.likedPets.collectAsState(initial = emptyList())
     LaunchedEffect(likedPets) {
         Log.d("AdopterLikeScreen", "likedPets updated: ${likedPets.size} pets")
     }
+
+    val scope = rememberCoroutineScope()
+    val firestoreRepo = remember { com.example.pawmate_ils.Firebase_Utils.FirestoreRepository() }
+    val authViewModel: AuthViewModel = viewModel()
+
+    LaunchedEffect(notificationAlert) {
+        notificationAlert?.let { message ->
+            scope.launch {
+                snackbarHostState.showSnackbar(
+                    message = message,
+                    duration = SnackbarDuration.Long,
+                    withDismissAction = true
+                )
+            }
+            homeViewModel.clearNotificationAlert()
+        }
+    }
+
+
 
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
@@ -126,14 +171,28 @@ fun AdopterLikeScreen(navController: NavController) {
         if (searchQuery.isBlank()) likedPets
         else likedPets.filter {
             it.name.contains(searchQuery, ignoreCase = true) ||
-                it.breed.contains(searchQuery, ignoreCase = true) ||
-                it.type.contains(searchQuery, ignoreCase = true)
+                    it.breed.contains(searchQuery, ignoreCase = true) ||
+                    it.type.contains(searchQuery, ignoreCase = true)
         }
     }
 
     Scaffold(
         modifier = Modifier.imePadding(),
         containerColor = pageBg,
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState) { data ->
+                Snackbar(
+                    containerColor = pinkAccent, // Matches your Adopter theme
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(12.dp),
+                    snackbarData = data
+                )
+            }
+        },
+
+
+
+
         bottomBar = {
             AdopterBottomBar(navController = navController, selectedTab = "Favorites")
         }
@@ -293,7 +352,9 @@ fun AdopterLikeScreen(navController: NavController) {
                                 titleColor = titleColor,
                                 subtitleColor = subtitleColor,
                                 heartColor = heartColor,
-                                onUnfavorite = { likedPetsViewModel.removeLikedPet(pet) }
+                                onUnfavorite = {
+                                    petToUnfavorite = pet
+                                }
                             )
                             HorizontalDivider(
                                 modifier = Modifier.padding(start = 72.dp),
@@ -303,6 +364,129 @@ fun AdopterLikeScreen(navController: NavController) {
                     }
                 }
             }
+
+
+            // --- CONFIRMATION DIALOG ---
+            if (petToUnfavorite != null) {
+                AlertDialog(
+                    onDismissRequest = {
+                        petToUnfavorite = null
+                        customReason = ""
+                    },
+                    containerColor = surface,
+                    title = { Text("Break the Match? 💔", fontWeight = FontWeight.Bold, color = pinkAccent) },
+                    text = {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text("Please let the shelter know why you're unfavoriting ${petToUnfavorite?.name}:", fontSize = 14.sp, color = subtitleColor)
+
+                            // --- PRESET BUTTONS ---
+                            unfavoritePresets.forEach { preset ->
+                                OutlinedButton(
+                                    onClick = {
+                                        val pet = petToUnfavorite!!
+                                        scope.launch {
+                                            // 1. Notify Shelter with preset reason
+                                            val adopterName = authViewModel.currentUser?.displayName ?: "An adopter"
+                                            firestoreRepo.sendNotification(
+                                                receiverId = pet.shelterId,
+                                                title = "Match Withdrawn 💔",
+                                                message = "$adopterName is no longer interested in ${pet.name}. Reason: $preset"
+                                            )
+                                            val petsFromSameShelter = likedPets.filter { it.shelterId == pet.shelterId }
+                                            if (petsFromSameShelter.size > 1) {
+                                                // CASE A: More pets exist. Only remove this specific pet and swipe record.
+                                                // DO NOT delete the channel.
+                                                likedPetsViewModel.removeSinglePetKeepChannel(pet)
+
+                                                scope.launch {
+                                                    snackbarHostState.showSnackbar(
+                                                        "Removed ${pet.name}. Chat stays open for other matches."
+                                                    )
+                                                }
+                                            } else {
+                                                likedPetsViewModel.unfavoriteAndRestore(pet)
+
+                                                scope.launch {
+                                                    snackbarHostState.showSnackbar("Match with shelter fully dismantled.")
+                                                }
+                                            }
+
+                                            petToUnfavorite = null
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(12.dp),
+                                    border = BorderStroke(1.dp, pinkAccent.copy(alpha = 0.5f))
+                                ) {
+                                    Text(preset, color = pinkAccent)
+                                }
+                            }
+
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = subtitleColor.copy(alpha = 0.12f))
+
+                            // --- CUSTOM INPUT ---
+                            OutlinedTextField(
+                                value = customReason,
+                                onValueChange = { customReason = it },
+                                placeholder = { Text("Other reason...", fontSize = 14.sp) },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                maxLines = 2,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = pinkAccent,
+                                    unfocusedBorderColor = subtitleColor.copy(alpha = 0.3f)
+                                )
+                            )
+
+                            Button(
+                                onClick = {
+                                    val pet = petToUnfavorite!!
+                                    scope.launch {
+                                        val adopterName = authViewModel.currentUser?.displayName ?: "An adopter"
+                                        firestoreRepo.sendNotification(
+                                            receiverId = pet.shelterId,
+                                            title = "Match Withdrawn 💔",
+                                            message = "$adopterName is no longer interested in ${pet.name}. Reason: $customReason"
+                                        )
+                                        val petsFromSameShelter = likedPets.filter { it.shelterId == pet.shelterId }
+                                        if (petsFromSameShelter.size > 1) {
+
+                                            likedPetsViewModel.removeSinglePetKeepChannel(pet)
+                                            scope.launch {
+                                                snackbarHostState.showSnackbar(
+                                                    "Removed ${pet.name}. Chat stays open for other matches."
+                                                )
+                                            }
+
+                                        } else {
+                                            likedPetsViewModel.unfavoriteAndRestore(pet)
+                                        }
+                                        petToUnfavorite = null
+                                        customReason = ""
+                                    }
+                                },
+                                enabled = customReason.isNotBlank(),
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = pinkAccent),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text("Send Reason & Unfavorite")
+                            }
+                        }
+                    },
+                    confirmButton = {}, // Logic handled by internal buttons
+                    dismissButton = {
+                        TextButton(onClick = {
+                            petToUnfavorite = null
+                            customReason = ""
+                        }) {
+                            Text("Cancel", color = subtitleColor)
+                        }
+                    },
+                    shape = RoundedCornerShape(24.dp)
+                )
+            }
+
 
             if (showDogAnimation) {
                 DogEmojiAnimation(

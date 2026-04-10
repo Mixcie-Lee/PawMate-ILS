@@ -209,7 +209,6 @@ class FirestoreRepository {
     }
 
 
-
     // ------------------- UPDATE PHONE NUMBER -------------------
 // Requires a PhoneAuthCredential from verification
     suspend fun updateEmail(uid: String, newEmail: String) {
@@ -259,7 +258,8 @@ class FirestoreRepository {
 
             val batch = db.batch()
             for (doc in pets.documents) {
-                batch.update(doc.reference,
+                batch.update(
+                    doc.reference,
                     "shelterIsOnline", isOnline,
                     "shelterLastActive", System.currentTimeMillis()
                 )
@@ -270,7 +270,12 @@ class FirestoreRepository {
             Log.e("FirestoreRepo", "❌ Failed to sync pet presence: ${e.message}")
         }
     }
-    suspend fun updateAdopterPresenceInChannels(adopterId: String, isOnline: Boolean, timestamp: Long) {
+
+    suspend fun updateAdopterPresenceInChannels(
+        adopterId: String,
+        isOnline: Boolean,
+        timestamp: Long
+    ) {
         try {
             // Find every chat channel where this user is the adopter
             val channels = db.collection("channels")
@@ -282,7 +287,8 @@ class FirestoreRepository {
 
             val batch = db.batch()
             for (doc in channels.documents) {
-                batch.update(doc.reference,
+                batch.update(
+                    doc.reference,
                     "online", isOnline,
                     "lastActive", timestamp
                 )
@@ -293,7 +299,12 @@ class FirestoreRepository {
             Log.e("FirestoreRepo", "❌ Error syncing adopter presence: ${e.message}")
         }
     }
-    suspend fun updateShelterPresenceInChannels(shelterId: String, isOnline: Boolean, timestamp: Long) {
+
+    suspend fun updateShelterPresenceInChannels(
+        shelterId: String,
+        isOnline: Boolean,
+        timestamp: Long
+    ) {
         try {
             // Find every chat channel where this user is the SHELTER
             val channels = db.collection("channels")
@@ -305,7 +316,8 @@ class FirestoreRepository {
 
             val batch = db.batch()
             for (doc in channels.documents) {
-                batch.update(doc.reference,
+                batch.update(
+                    doc.reference,
                     "online", isOnline,
                     "lastActive", timestamp
                 )
@@ -329,6 +341,7 @@ class FirestoreRepository {
             throw e
         }
     }
+
     suspend fun recordSwipe(userId: String, petId: String) {
         val swipeData = hashMapOf(
             "userId" to userId,
@@ -360,7 +373,113 @@ class FirestoreRepository {
         }
     }
 
+    suspend fun removePetFromFavorites(userId: String, petId: String) {
+        try {
+            // 🎯 FIX: Targeting the subcollection used by the ViewModel
+            db.collection("users")
+                .document(userId)
+                .collection("likedPets")
+                .document(petId)
+                .delete()
+                .await()
+            Log.d("FirestoreRepo", "✅ Pet $petId removed from likedPets subcollection")
+        } catch (e: Exception) {
+            Log.e("FirestoreRepo", "❌ Failed to remove favorite: ${e.message}")
+            throw e
+        }
+    }
 
+    suspend fun removePetFromSwipedHistory(userId: String, petId: String) {
+        try {
+            db.collection("users")
+                .document(userId)
+                .collection("swipedPets") // Must match markAsSwiped exactly
+                .document(petId)
+                .delete()
+                .await()
+            Log.d("FirestoreRepo", "✅ Pet $petId removed from swipe history (Restored to deck)")
+        } catch (e: Exception) {
+            Log.e("FirestoreRepo", "❌ Failed to restore pet: ${e.message}")
+            throw e
+        }
+    }
+
+    /** 🧹 AGENDA PART 3: Delete the chat channel associated with this match */
+    suspend fun deleteChannel(adopterId: String, shelterId: String) {
+        try {
+            val channelId = "$adopterId-$shelterId"
+            db.collection("channels")
+                .document(channelId)
+                .delete()
+                .await()
+            Log.d("FirestoreRepo", "✅ Channel $channelId deleted successfully")
+        } catch (e: Exception) {
+            Log.e("FirestoreRepo", "❌ Error deleting channel: ${e.message}")
+            throw e
+        }
+    }
+    suspend fun sendNotification(receiverId: String, title: String, message: String) {
+        try {
+            val notificationData = hashMapOf(
+                "title" to title,
+                "message" to message,
+                "timestamp" to System.currentTimeMillis(),
+                "isRead" to false,
+                "type" to "match_update" // Helps the UI decide which icon to show
+            )
+
+            db.collection("users")
+                .document(receiverId)
+                .collection("notifications")
+                .add(notificationData)
+                .await()
+            Log.d("Notification", "✅ Notification sent to $receiverId")
+        } catch (e: Exception) {
+            Log.e("NotificationError", "❌ Failed to send: ${e.message}")
+        }
+    }
+
+    suspend fun removePetFromAdopterFavorites(adopterId: String, petName: String) {
+        try {
+            val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+
+            // 1. Remove from LikedPets
+            val likedSnapshot = db.collection("users").document(adopterId)
+                .collection("likedPets").whereEqualTo("name", petName).get().await()
+            for (doc in likedSnapshot.documents) doc.reference.delete().await()
+
+            // 2. Remove from SwipedPets (so it reappears in the Swipe Deck)
+            val swipedSnapshot = db.collection("users").document(adopterId)
+                .collection("swipedPets").whereEqualTo("petId", petName).get().await()
+            for (doc in swipedSnapshot.documents) doc.reference.delete().await()
+
+        } catch (e: Exception) {
+            Log.e("FirestoreRepo", "Cleanup failed: ${e.message}")
+        }
+    }
+
+    suspend fun updateChannelShelterName(channelId: String, newName: String) {
+        try {
+            db.collection("channels")
+                .document(channelId)
+                .update("shelterName", newName) // This maps to your @PropertyName("shelterName")
+                .await()
+        } catch (e: Exception) {
+            Log.e("FirestoreRepo", "Error updating shelter name: ${e.message}")
+        }
+    }
+    suspend fun removePetNameFromChannel(channelId: String, petName: String) {
+        try {
+            db.collection("channels")
+                .document(channelId)
+                .update("petNames", com.google.firebase.firestore.FieldValue.arrayRemove(petName))
+                .await()
+            Log.d("FirestoreRepo", "✅ Removed $petName from channel $channelId")
+        } catch (e: Exception) {
+            Log.e("FirestoreRepo", "❌ Failed to remove pet name: ${e.message}")
+            throw e
+        }
+    }
 
 
 }

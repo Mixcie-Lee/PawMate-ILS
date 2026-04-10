@@ -1,5 +1,6 @@
 package com.example.pawmate_ils.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -34,7 +35,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import com.example.pawmate_ils.firebase_models.User
-
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 
 private fun formatChatTimestamp(timestampMs: Long): Pair<String, Boolean> {
     if (timestampMs <= 0L) return "" to false
@@ -73,7 +75,16 @@ fun AdoptionCenterDashboard(
     val pets by adoptionCenterViewModel.shelterPets.collectAsState(initial = emptyList())
     val uploadedCount by adoptionCenterViewModel.uploadedPetsCount.collectAsState()
     var channelToReject by remember { mutableStateOf<Channel?>(null) }
+    val notificationAlert by homeViewModel.newNotificationAlert.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val rejectPresets = listOf("Pet already adopted", "Incomplete profile")
+    var customReason by remember { mutableStateOf("") }
+    var backPressedTime by remember { mutableLongStateOf(0L) }
+
+    val scope = rememberCoroutineScope()
+    val firestoreRepo = remember { com.example.pawmate_ils.Firebase_Utils.FirestoreRepository() }
 
     LaunchedEffect(Unit) {
         homeViewModel.listenToChannels()
@@ -81,7 +92,34 @@ fun AdoptionCenterDashboard(
         if (currentShelterId.isNotEmpty()) {
             adoptionCenterViewModel.listenToUploadedPetsCount(currentShelterId)
         }
+
     }
+    BackHandler(enabled = true) {
+        val currentTime = System.currentTimeMillis()
+        // If the second swipe happens within 2 seconds of the first
+        if (currentTime - backPressedTime < 2000) {
+            // Exit the app completely instead of going back to Login
+            (context as? android.app.Activity)?.finish()
+        } else {
+            backPressedTime = currentTime
+            android.widget.Toast.makeText(context, "Swipe again to exit PawMate", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
+
+    LaunchedEffect(notificationAlert) {
+        notificationAlert?.let { message ->
+            scope.launch {
+                snackbarHostState.showSnackbar(
+                    message = message,
+                    duration = SnackbarDuration.Long,
+                    withDismissAction = true
+                )
+            }
+            homeViewModel.clearNotificationAlert()
+        }
+    }
+
 
     var tick by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) {
@@ -101,7 +139,8 @@ fun AdoptionCenterDashboard(
         navController = navController,
         onDeleteChannel = { ch -> channelToReject = ch },
         authViewModel = authViewModel,
-        homeViewModel = homeViewModel // Pass it here
+        homeViewModel = homeViewModel, // Pass it here
+        snackbarHostState = snackbarHostState
     )
 
     ProfileRequirementDialog(
@@ -111,26 +150,94 @@ fun AdoptionCenterDashboard(
     )
     if (channelToReject != null) {
         AlertDialog(
-            onDismissRequest = { channelToReject = null },
-            title = { Text("Reject Application?", fontWeight = FontWeight.Bold) },
-            text = {
-                Text("Are you sure you want to reject ${channelToReject?.adopterName}'s application? This will permanently delete the chat and the match.")
+            onDismissRequest = {
+                channelToReject = null
+                customReason = ""
             },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        channelToReject?.let { ch ->
-                            homeViewModel.deleteChannel(ch)
-                            channelToReject = null // Close dialog
+            title = { Text("Reject Application", fontWeight = FontWeight.Bold, color = Color(0xFFD67A7A)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Why are you declining this application?", fontSize = 14.sp, color = Color.Gray)
+
+                    // --- PRESET BUTTONS ---
+                    rejectPresets.forEach { preset ->
+                        OutlinedButton(
+                            onClick = {
+                                val ch = channelToReject!!
+                                scope.launch {
+                                    // 1. Notify Adopter with preset reason
+                                    firestoreRepo.sendNotification(ch.adopterId, "Application Declined 💔", "$centerName: $preset")
+                                    // 2. Remove pet from Adopter's deck and favorites
+                                    if (ch.petNames.size > 1) {
+
+                                        val petToRemove = ch.petNames.first()
+
+                                        // Clean up the Adopter's favorites/deck for this pet
+                                        firestoreRepo.removePetFromAdopterFavorites(ch.adopterId, petToRemove)
+
+                                        // Update the Channel's array in Firestore
+                                        firestoreRepo.removePetNameFromChannel(ch.channelId, petToRemove)
+
+                                        // RESULT: Card stays, text updates to show fewer pets.
+                                    } else {
+                                        // 🧨 DISMANTLE: Last pet, so delete everything.
+                                        ch.petNames.forEach { name ->
+                                            firestoreRepo.removePetFromAdopterFavorites(ch.adopterId, name)
+                                        }
+                                        homeViewModel.deleteChannel(ch)
+
+                                    }
+                                    channelToReject = null
+                                    customReason = ""
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, Color(0xFFD67A7A).copy(alpha = 0.5f))
+                        ) {
+                            Text(preset, color = Color(0xFFD67A7A))
                         }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
-                ) {
-                    Text("Reject", color = Color.White)
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = Color.LightGray.copy(alpha = 0.3f))
+
+                    // --- CUSTOM INPUT ---
+                    OutlinedTextField(
+                        value = customReason,
+                        onValueChange = { customReason = it },
+                        placeholder = { Text("Write custom reason...", fontSize = 14.sp) },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        maxLines = 2,
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFFD67A7A))
+                    )
+
+                    Button(
+                        onClick = {
+                            val ch = channelToReject!!
+                            scope.launch {
+                                firestoreRepo.sendNotification(ch.adopterId, "Application Declined 💔", "$centerName: $customReason")
+                                ch.petNames.forEach { name -> firestoreRepo.removePetFromAdopterFavorites(ch.adopterId, name) }
+                                homeViewModel.deleteChannel(ch)
+                                channelToReject = null
+                                customReason = ""
+                            }
+                        },
+                        enabled = customReason.isNotBlank(),
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD67A7A)),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Send Custom Reason")
+                    }
                 }
             },
+            confirmButton = {}, // Logic moved into the custom buttons above
             dismissButton = {
-                TextButton(onClick = { channelToReject = null }) {
+                TextButton(onClick = {
+                    channelToReject = null
+                    customReason = ""
+                }) {
                     Text("Cancel", color = Color.Gray)
                 }
             },
@@ -153,10 +260,26 @@ private fun StatelessFullDashboard(
     navController: NavController,
     onDeleteChannel: (Channel) -> Unit,
     authViewModel: AuthViewModel,
-    homeViewModel: HomeViewModel // Added parameter
+    homeViewModel: HomeViewModel, // Added parameter
+    snackbarHostState: SnackbarHostState
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
+            snackbarHost = {
+                SnackbarHost(
+                    hostState = snackbarHostState,
+                    modifier = Modifier.padding(bottom = 120.dp)
+                ) { data ->
+                    Snackbar(
+                        containerColor = Color(0xFFD67A7A), // PawMate Pink
+                        contentColor = Color.White,
+                        shape = RoundedCornerShape(12.dp),
+                        snackbarData = data
+                    )
+                }
+            },
+
+
             topBar = {
                 TopAppBar(
                     title = {

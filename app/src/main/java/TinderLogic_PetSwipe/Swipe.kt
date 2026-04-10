@@ -39,7 +39,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
@@ -595,7 +594,6 @@ fun PetSwipeScreen(navController: NavController) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
                         .padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
@@ -710,8 +708,7 @@ fun PetSwipeScreen(navController: NavController) {
                             Image(
                                 painter = painterResource(id = R.drawable.blackpawmateicon3),
                                 contentDescription = "PawMate Logo",
-                                modifier = Modifier.size(if (isTablet) 64.dp else 56.dp),
-                                colorFilter = if (isDarkMode) ColorFilter.tint(Color.White) else null
+                                modifier = Modifier.size(if (isTablet) 64.dp else 56.dp)
                             )
 
                             Column {
@@ -1077,7 +1074,7 @@ fun PetSwipeScreen(navController: NavController) {
                                         contentDescription = "Tutorial ${tutorialStep + 1}",
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .heightIn(max = if (isTablet) 700.dp else 500.dp),
+                                            .height(if (isTablet) 700.dp else 600.dp),
                                         contentScale = ContentScale.FillWidth
                                     )
                                 }
@@ -1230,102 +1227,52 @@ private fun PetInfoBackFace(
     isTablet: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val cardPad = if (isTablet) 24.dp else 14.dp
+    val infoHeaderSize = if (isTablet) 22.sp else 18.sp
     val gradient = Brush.verticalGradient(
         colors = listOf(Color(0xFFFFF8FA), Color(0xFFFFEEF2), Color(0xFFFFE0E8))
     )
+
     val orgName = if (!pet.shelterName.isNullOrBlank()) pet.shelterName else "PawMate Shelter"
-    val cardPad = if (isTablet) 16.dp else 10.dp
+    val ownerName = shelterDisplayName // This is "Kit"
+
 
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(gradient)
-            .padding(horizontal = cardPad, vertical = cardPad),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceEvenly
+            .padding(horizontal = cardPad, vertical = if (isTablet) 20.dp else 14.dp)
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(
             modifier = Modifier
-                .clip(RoundedCornerShape(12.dp))
+                .align(Alignment.CenterHorizontally)
+                .clip(RoundedCornerShape(14.dp))
                 .background(Color(0xFFFFB6C1).copy(alpha = 0.45f))
-                .padding(horizontal = 20.dp, vertical = 5.dp)
+                .padding(horizontal = 28.dp, vertical = 8.dp)
         ) {
             Text(
                 text = "Info",
-                fontSize = if (isTablet) 18.sp else 15.sp,
+                fontSize = infoHeaderSize,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFFE85A7A)
             )
         }
-        FillDetailRow(label = "Name", value = pet.name ?: "Unknown")
-        FillDetailRow(label = "Age", value = pet.age ?: "N/A")
-        FillDetailRow(label = "Sex", value = pet.gender ?: "Unknown")
-        FillDetailRow(label = "Shelter", value = orgName ?: "Unknown")
-        FillDetailRow(label = "Address", value = pet.shelterAddress ?: "Address Loading...")
-        FillHealthRow(status = pet.healthStatus)
-    }
-}
+        Spacer(modifier = Modifier.height(18.dp))
+        DetailBox(label = "Name", value = pet.name ?: "Unknown")
+        DetailBox(label = "Age", value = pet.age ?: "N/A")
+        DetailBox(label = "Sex", value = pet.gender ?: "Unknown")
+        DetailBox(label = "Shelter", value = orgName ?: "Unknown")
 
-@Composable
-private fun FillDetailRow(label: String, value: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .background(Color.White)
-            .border(1.dp, Color(0xFFFFB6C1).copy(alpha = 0.4f), RoundedCornerShape(10.dp))
-            .padding(horizontal = 14.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = label,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFFD67A7A),
-            fontSize = 13.sp,
-            modifier = Modifier.width(68.dp)
-        )
-        Text(
-            text = value,
-            fontSize = 13.sp,
-            color = Color(0xFF333333),
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
-        )
-    }
-}
-
-@Composable
-private fun FillHealthRow(status: String?) {
-    val medicalList = status?.split(",", "\n")?.filter { it.isNotBlank() } ?: emptyList()
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .background(Color.White)
-            .border(1.dp, Color(0xFFFFB6C1).copy(alpha = 0.4f), RoundedCornerShape(10.dp))
-            .padding(horizontal = 14.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = "Health",
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFFD67A7A),
-            fontSize = 13.sp,
-            modifier = Modifier.width(68.dp)
-        )
-        if (medicalList.isEmpty()) {
-            Text(text = "Healthy", fontSize = 13.sp, color = Color(0xFF333333))
-        } else {
-            Column(modifier = Modifier.weight(1f)) {
-                medicalList.forEach { point ->
-                    Text(text = "• ${point.trim()}", fontSize = 12.sp, color = Color(0xFF333333))
-                }
-            }
+        if (ownerName.isNotBlank() && ownerName != orgName) {
+            DetailBox(label = "Managed by", value = ownerName)
         }
+
+        DetailBox(label = "Address", value = pet.shelterAddress ?: "Address Loading...")
+        HealthStatusBox(status = pet.healthStatus)
     }
 }
-
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
@@ -1708,7 +1655,7 @@ fun SwipeablePetCard(
                         ) {
                             Row(
                                 modifier = Modifier
-                                    .fillMaxWidth(0.5f)
+                                    .widthIn(max = 168.dp)
                                     .clip(RoundedCornerShape(20.dp))
                                     .clickable(
                                         indication = null, // Removes the ripple so it looks like your colleague's design
@@ -1946,7 +1893,7 @@ fun EnhancedInfoChip(
     Card(
         modifier = Modifier
             .scale(animatedScale)
-            .widthIn(min = 90.dp),
+            .widthIn(min = 110.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (isDarkMode) Color(0xFF3A3A3A) else Color(0xFFFFB6C1).copy(alpha = 0.15f)
         ),
@@ -2153,8 +2100,7 @@ private fun GemTierPackageCard(
                 fontWeight = FontWeight.Medium,
                 color = if (isDark) Color(0xFFE8E0E3) else Color(0xFF4A4246),
                 textAlign = TextAlign.Center,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
+                maxLines = 2
             )
             Text(
                 text = perkBody,
@@ -2536,6 +2482,71 @@ fun GCashMultiStepDialog(
             }
         }
     )
+}
+@Composable
+fun DetailBox(label: String, value: String) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color.White)
+            .border(1.dp, Color(0xFFFFB6C1).copy(alpha = 0.65f), RoundedCornerShape(12.dp))
+            .padding(12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = label,
+            fontWeight = FontWeight.ExtraBold,
+            color = Color(0xFFD67A7A),
+            fontSize = 16.sp
+        )
+        Text(
+            text = value,
+            fontSize = 14.sp,
+            color = if(ThemeManager.isDarkMode) Color.White else Color.Black,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+@Composable
+fun HealthStatusBox(status: String?) {
+    val medicalList = status?.split(",", "\n")?.filter { it.isNotBlank() } ?: emptyList()
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color.White)
+            .border(1.dp, Color(0xFFFFB6C1).copy(alpha = 0.65f), RoundedCornerShape(12.dp))
+            .padding(12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "Health Status",
+            fontWeight = FontWeight.ExtraBold,
+            color = Color(0xFFD67A7A),
+            fontSize = 16.sp
+        )
+
+        if (medicalList.isEmpty()) {
+            Text(
+                text = "Healthy",
+                fontSize = 14.sp,
+                color = if (ThemeManager.isDarkMode) Color.White else Color.Black
+            )
+        } else {
+            medicalList.forEach { point ->
+                Text(
+                    text = "• ${point.trim()}",
+                    fontSize = 13.sp,
+                    color = if(ThemeManager.isDarkMode) Color.White else Color.Black
+                )
+            }
+        }
+    }
 }
 
 

@@ -75,6 +75,12 @@ data class User(
     @set:PropertyName("likedPetsCount")
     var likedPetsCount: Int = 0,
 
+
+
+    @get:PropertyName("ownerName")
+    @set:PropertyName("ownerName")
+    var ownerName: String = "",
+
     @get:PropertyName("isNewUser")
     @set:PropertyName("isNewUser")
     var isNewUser: Boolean = true,

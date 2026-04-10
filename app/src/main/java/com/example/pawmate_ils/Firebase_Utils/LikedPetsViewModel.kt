@@ -20,6 +20,8 @@ data class LikedPet(
     val description: String = "",
     val type: String = "",
     val imageRes: Int = 0,
+    val shelterId: String = "", // 🎯 Added this
+    val petId: String = "",
     /** Subcollection document id — used for delete; not written to Firestore. */
     @get:Exclude
     val documentId: String = ""
@@ -71,6 +73,8 @@ private fun DocumentSnapshot.toLikedPetOrNull(): LikedPet? {
             description = readFieldAsString("description"),
             type = readFieldAsString("type"),
             imageRes = readFieldAsInt("imageRes"),
+            shelterId = readFieldAsString("shelterId"),
+            petId = readFieldAsString("petId"),
             documentId = id
         )
     } catch (e: Exception) {
@@ -92,6 +96,8 @@ class LikedPetsViewModel : ViewModel() {
 
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage
+
+    private val firestoreRepo = FirestoreRepository()
 
     init {
         Log.d("LikedPetsVM", "ViewModel initialized")
@@ -142,7 +148,9 @@ class LikedPetsViewModel : ViewModel() {
             age = pet.age ?: "undefined age",
             description = pet.description ?: "no description",
             type = pet.type ?: "undefined type",
-            imageRes = pet.imageRes
+            imageRes = pet.imageRes,
+            shelterId = pet.shelterId ?: "",
+            petId = pet.petId ?: ""
         )
         Log.d("LikedPetsVM", "Adding liked pet: ${likedPet.name}")
 
@@ -151,7 +159,7 @@ class LikedPetsViewModel : ViewModel() {
             firestore.collection("users")
                 .document(userId)
                 .collection("likedPets")
-                .document(likedPet.name) // using name as ID; can change to UUID if needed
+                .document(likedPet.petId.ifBlank { likedPet.name }) // using name as ID; can change to UUID if needed
                 .set(likedPet)
                 .addOnSuccessListener {
                     Log.d("LikedPetsVM", "Pet added successfully")
@@ -167,22 +175,8 @@ class LikedPetsViewModel : ViewModel() {
     /** 💔 Remove a liked pet (e.g., from adopter like screen). */
     fun removeLikedPet(pet: LikedPet) {
         val userId = auth.currentUser?.uid ?: return
-        val docId = pet.documentId.ifBlank { pet.name }
-        if (docId.isBlank()) {
-            Log.w("LikedPetsVM", "removeLikedPet: empty document id")
-            return
-        }
 
-        viewModelScope.launch {
-            firestore.collection("users")
-                .document(userId)
-                .collection("likedPets")
-                .document(docId)
-                .delete()
-                .addOnFailureListener {
-                    _errorMessage.value = it.message
-                }
-        }
+        unfavoriteAndRestore(pet)
     }
 
     /** 🔢 Get the total number of liked pets (in-memory). */
@@ -206,4 +200,83 @@ class LikedPetsViewModel : ViewModel() {
             }
             .addOnFailureListener { onComplete(false) }
     }
+
+    fun unfavoriteAndRestore(pet: LikedPet) {
+        viewModelScope.launch {
+            try {
+                // 1. Setup IDs and Auth
+                val adopterId = auth.currentUser?.uid ?: return@launch
+                val petId = pet.petId.ifBlank { pet.documentId }
+                val shelterId = pet.shelterId
+                val adopterName = auth.currentUser?.displayName ?: "An adopter"
+
+
+
+
+                // 2. Validation check
+                if (petId.isBlank()) {
+                    Log.e("RestoreError", "Cannot restore: Pet ID is missing.")
+                    return@launch
+                }
+
+                // 3. 🔔 Notify the Shelter (Do this before deleting the channel)
+                if (shelterId.isNotEmpty()) {
+                    firestoreRepo.sendNotification(
+                        receiverId = shelterId,
+                        title = "Match Withdrawn 💔",
+                        message = "$adopterName is no longer interested in ${pet.name}."
+                    )
+                    Log.d("Restore", "Notification sent to shelter: $shelterId")
+                }
+
+                // 4. 🔥 Database Cleanup
+                // Remove from Adopter's Favorites collection
+                firestoreRepo.removePetFromFavorites(adopterId, petId)
+
+                // Remove from Swiped history so it reappears in the Swipe Screen
+                firestoreRepo.removePetFromSwipedHistory(adopterId, petId)
+
+                // Delete the Chat Channel to dismantle the match
+                if (shelterId.isNotEmpty()) {
+                    firestoreRepo.deleteChannel(adopterId, shelterId)
+                    Log.d("Restore", "Channel $adopterId-$shelterId deleted.")
+                }
+
+                Log.d("Restore", "Success: ${pet.name} (ID: $petId) is now back in the Discovery deck.")
+
+            } catch (e: Exception) {
+                Log.e("RestoreError", "Failed to restore pet: ${e.message}")
+            }
+        }
+    }
+
+    fun removeSinglePetKeepChannel(pet: LikedPet) {
+        viewModelScope.launch {
+            try {
+                val adopterId = auth.currentUser?.uid ?: return@launch
+                val petId = pet.petId.ifBlank { pet.documentId }
+                val shelterId = pet.shelterId
+
+                if (petId.isBlank()) return@launch
+
+                // 1. Remove from Adopter's Favorites
+                firestoreRepo.removePetFromFavorites(adopterId, petId)
+
+                // 2. Remove from Swiped history (returns to Discovery deck)
+                firestoreRepo.removePetFromSwipedHistory(adopterId, petId)
+
+                // 3. Update the Channel's pet names list (Remove JUST this pet)
+                if (shelterId.isNotEmpty()) {
+                    val channelId = "$adopterId-$shelterId"
+                    firestoreRepo.removePetNameFromChannel(channelId, pet.name)
+                    Log.d("Restore", "Updated channel $channelId: Removed ${pet.name}")
+                }
+
+            } catch (e: Exception) {
+                Log.e("RestoreError", "Failed to partially remove pet: ${e.message}")
+            }
+        }
+    }
+
+
 }
