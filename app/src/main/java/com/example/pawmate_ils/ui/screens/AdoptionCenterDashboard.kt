@@ -18,6 +18,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
+import android.app.Activity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -35,6 +39,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import com.example.pawmate_ils.firebase_models.User
+import com.example.pawmate_ils.ThemeManager
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 
@@ -335,21 +340,38 @@ fun FloatingNavBar(
     selectedTab: Int,
     modifier: Modifier = Modifier
 ) {
+    val isDarkMode = ThemeManager.isDarkMode
+    val view = LocalView.current
+    val navBarScrim = if (isDarkMode) Color(0xFF121212) else Color(0xFFF5F5F5)
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as? Activity)?.window ?: return@SideEffect
+            window.navigationBarColor = navBarScrim.toArgb()
+            WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !isDarkMode
+        }
+    }
+
     val tabs = listOf(
         Triple("Home", Icons.Default.Dashboard, "adoption_center_dashboard"),
         Triple("Add", Icons.Default.Pets, "add_pet"),
         Triple("Manage", Icons.AutoMirrored.Filled.List, "adoption_center_pets")
     )
 
+    val surface = if (isDarkMode) Color(0xFF2C2C2E).copy(alpha = 0.98f) else Color.White.copy(alpha = 0.95f)
+    val borderCol = if (isDarkMode) Color.White.copy(alpha = 0.12f) else Color.LightGray.copy(alpha = 0.3f)
+    val muted = if (isDarkMode) Color(0xFF9CA3AF) else Color.LightGray
+    val accentColor = Color(0xFFD67A7A)
+
     Card(
         modifier = modifier
-            .padding(horizontal = 24.dp, vertical = 24.dp)
+            .navigationBarsPadding()
+            .padding(horizontal = 24.dp, vertical = 12.dp)
             .fillMaxWidth()
             .height(82.dp),
         shape = RoundedCornerShape(36.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.95f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
-        border = BorderStroke(0.5.dp, Color.LightGray.copy(alpha = 0.3f))
+        colors = CardDefaults.cardColors(containerColor = surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isDarkMode) 16.dp else 10.dp),
+        border = BorderStroke(0.5.dp, borderCol)
     ) {
         Row(
             modifier = Modifier.fillMaxSize(),
@@ -358,7 +380,6 @@ fun FloatingNavBar(
         ) {
             tabs.forEachIndexed { index, (label, icon, route) ->
                 val isSelected = selectedTab == index
-                val accentColor = Color(0xFFD67A7A)
 
                 Column(
                     modifier = Modifier
@@ -377,7 +398,7 @@ fun FloatingNavBar(
                     Icon(
                         imageVector = icon,
                         contentDescription = label,
-                        tint = if (isSelected) accentColor else Color.LightGray,
+                        tint = if (isSelected) accentColor else muted,
                         modifier = Modifier.size(26.dp)
                     )
 
@@ -385,7 +406,7 @@ fun FloatingNavBar(
                         text = label,
                         fontSize = 11.sp,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                        color = if (isSelected) accentColor else Color.LightGray
+                        color = if (isSelected) accentColor else muted
                     )
 
                     if (isSelected) {

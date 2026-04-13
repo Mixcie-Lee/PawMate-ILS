@@ -26,6 +26,24 @@ import androidx.compose.ui.unit.sp
 import com.example.pawmate_ils.R
 import kotlinx.coroutines.launch
 
+@Composable
+private fun TermsBlock(title: String, body: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            text = title,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color(0xFF3D3D3D)
+        )
+        Text(
+            text = body,
+            fontSize = 12.sp,
+            color = Color(0xFF5A5A5A),
+            lineHeight = 18.sp
+        )
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun OnboardingScreen(onComplete: () -> Unit) {
@@ -103,20 +121,42 @@ fun OnboardingScreen(onComplete: () -> Unit) {
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    Text(
-                        text = pages[index].description,
-                        fontSize = 14.sp,
-                        color = Color(0xFF6B6B6B),
-                        textAlign = TextAlign.Center,
-                        lineHeight = 22.sp,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 8.dp)
-                    )
-
                     if (index == pages.size - 1) {
-                        Spacer(modifier = Modifier.height(24.dp))
-
+                        val terms = OnboardingData.AdoptionTerms
+                        Text(
+                            text = pages[index].description,
+                            fontSize = 13.sp,
+                            color = Color(0xFF6B6B6B),
+                            textAlign = TextAlign.Center,
+                            lineHeight = 20.sp,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.92f)),
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .padding(16.dp)
+                                    .fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Text(
+                                    text = terms.sectionTitle,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF2D2D2D)
+                                )
+                                TermsBlock(title = terms.section1Title, body = terms.section1Body)
+                                TermsBlock(title = terms.section2Title, body = terms.section2Body)
+                                TermsBlock(title = terms.section3Title, body = terms.section3Body)
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(20.dp))
                         Card(
                             colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.85f)),
                             shape = RoundedCornerShape(16.dp)
@@ -136,7 +176,7 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "I agree to the Terms of Service and Privacy Policy",
+                                    text = "I have read and agree to the Terms and Conditions (including Adoption Terms), Terms of Service, and Privacy Policy",
                                     fontSize = 13.sp,
                                     color = Color(0xFF444444),
                                     fontWeight = FontWeight.Medium,
@@ -145,6 +185,17 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                                 )
                             }
                         }
+                    } else {
+                        Text(
+                            text = pages[index].description,
+                            fontSize = 14.sp,
+                            color = Color(0xFF6B6B6B),
+                            textAlign = TextAlign.Center,
+                            lineHeight = 22.sp,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp)
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(24.dp))

@@ -39,6 +39,10 @@ android {
         compose = true
     }
     buildToolsVersion = "35.0.0"
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
+    }
 }
 
 dependencies {

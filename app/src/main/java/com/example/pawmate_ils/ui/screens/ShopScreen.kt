@@ -2,9 +2,13 @@ package com.example.pawmate_ils.ui.screens
 
 import android.content.Context
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -87,6 +91,8 @@ import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.navigation.NavController
 import com.example.pawmate_ils.R
 import com.example.pawmate_ils.ThemeManager
@@ -96,67 +102,97 @@ import com.google.gson.Gson
 import kotlinx.coroutines.delay
 import java.util.Locale
 
-data class MerchandiseItem(
+data class MerchandiseVariant(
     val imageRes: Int,
+    val label: String
+)
+
+/**
+ * [variants] holds one or more photos (front/back, colors, styles) for the same product name.
+ * [imageRes] is kept for Gson carts saved before variants existed; also mirrors the first photo when using variants.
+ */
+data class MerchandiseItem(
     val name: String,
     val category: String,
     val price: String,
     val badge: String,
-    val description: String
-)
+    val description: String,
+    val variants: List<MerchandiseVariant>? = null,
+    val imageRes: Int = 0
+) {
+    fun effectiveVariants(): List<MerchandiseVariant> {
+        if (!variants.isNullOrEmpty()) return variants
+        if (imageRes != 0) return listOf(MerchandiseVariant(imageRes, ""))
+        return emptyList()
+    }
+}
 
 private data class CartEntry(
     val item: MerchandiseItem,
-    val quantity: Int
+    val quantity: Int,
+    /** Which [MerchandiseItem.effectiveVariants] index was added to cart. */
+    val selectedVariantIndex: Int = 0
 )
 
-private fun resolveDrawableId(context: android.content.Context, name: String): Int {
-    val packageName = context.packageName
-    val candidates = listOf(name, "a_$name", "ic_$name", "img_$name")
-    for (candidate in candidates) {
-        val resId = context.resources.getIdentifier(candidate, "drawable", packageName)
-        if (resId != 0) return resId
-    }
-    return 0
-}
-
-private fun buildShopItems(context: android.content.Context): List<MerchandiseItem> {
-    val hiRefs = (1..8).mapNotNull { index ->
-        val id = resolveDrawableId(context, "hi$index")
-        if (id != 0) id else null
-    }
-
-    if (hiRefs.isNotEmpty()) {
-        val names = listOf(
-            "PawMate Graphic Tee", "PawMate Collectible Figure", "PawMate Insulated Mug",
-            "PawMate Hoodie", "PawMate Keychain", "PawMate Tote Bag",
-            "PawMate Sticker Pack", "PawMate Desk Figurine"
-        )
-        val categories = listOf(
-            "Apparel", "Collectibles", "Drinkware", "Apparel",
-            "Accessories", "Accessories", "Accessories", "Collectibles"
-        )
-        val prices = listOf(
-            "PHP 250.00", "PHP 450.00", "PHP 250.00", "PHP 699.00",
-            "PHP 149.00", "PHP 199.00", "PHP 99.00", "PHP 399.00"
-        )
-        return hiRefs.mapIndexed { i, image ->
-            MerchandiseItem(
-                imageRes = image,
-                name = names.getOrElse(i) { "PawMate Item ${i + 1}" },
-                category = categories.getOrElse(i) { "Accessories" },
-                price = prices.getOrElse(i) { "PHP 199.00" },
-                badge = "New",
-                description = "Official PawMate merchandise item."
-            )
-        }
-    }
-
+private fun buildShopItems(): List<MerchandiseItem> {
+    // Official merch: grouped variants share one product name; swipe to change view / colorway.
     return listOf(
-        MerchandiseItem(R.drawable.dog1, "PawMate Graphic Tee", "Apparel", "PHP 250.00", "New", "Soft cotton shirt with PawMate print."),
-        MerchandiseItem(R.drawable.shitzu, "PawMate Insulated Mug", "Drinkware", "PHP 250.00", "New", "Daily-use mug with insulated lining."),
-        MerchandiseItem(R.drawable.chow, "PawMate Figurine", "Collectibles", "PHP 450.00", "New", "Desk collectible for PawMate fans."),
-        MerchandiseItem(R.drawable.dog1, "PawMate Hoodie", "Apparel", "PHP 699.00", "Popular", "Premium fleece hoodie for cool weather.")
+        MerchandiseItem(
+            name = "I Found My Way Home — Tee",
+            category = "Apparel",
+            price = "PHP 599.00",
+            badge = "New",
+            description = "Official PawMate tee — swipe to see front and back.",
+            variants = listOf(
+                MerchandiseVariant(R.drawable.who, "Front"),
+                MerchandiseVariant(R.drawable.whoback, "Back")
+            ),
+            imageRes = R.drawable.who
+        ),
+        MerchandiseItem(
+            name = "PawMate Hoodie",
+            category = "Apparel",
+            price = "PHP 849.00",
+            badge = "Popular",
+            description = "Hoodies and pullovers — swipe for graphic print, classic pullover, and alternate colorway.",
+            variants = listOf(
+                MerchandiseVariant(R.drawable.whohooded, "Graphic"),
+                MerchandiseVariant(R.drawable.hooded, "Pullover"),
+                MerchandiseVariant(R.drawable.hooded2, "Alt color")
+            ),
+            imageRes = R.drawable.whohooded
+        ),
+        MerchandiseItem(
+            name = "PawMate Insulated Mug",
+            category = "Drinkware",
+            price = "PHP 399.00",
+            badge = "New",
+            description = "Daily-use mug with PawMate artwork.",
+            variants = listOf(MerchandiseVariant(R.drawable.mugs, "")),
+            imageRes = R.drawable.mugs
+        ),
+        MerchandiseItem(
+            name = "PawMate Pet Toys Set",
+            category = "Accessories",
+            price = "PHP 449.00",
+            badge = "New",
+            description = "Play kit for pets — supports shelter missions.",
+            variants = listOf(MerchandiseVariant(R.drawable.toys, "")),
+            imageRes = R.drawable.toys
+        ),
+        MerchandiseItem(
+            name = "I Found My Way Home — Campaign Tee",
+            category = "Apparel",
+            price = "PHP 599.00",
+            badge = "New",
+            description = "Campaign tee — swipe for front, back, and alternate back print.",
+            variants = listOf(
+                MerchandiseVariant(R.drawable.ifoundmywayhomefront, "Front"),
+                MerchandiseVariant(R.drawable.ifoundmywayhomeback, "Back"),
+                MerchandiseVariant(R.drawable.ifoundmywayhomeback1, "Back alt")
+            ),
+            imageRes = R.drawable.ifoundmywayhomefront
+        )
     )
 }
 
@@ -172,13 +208,115 @@ private fun parsePrice(priceLabel: String): Double {
 
 private fun formatPhp(amount: Double): String = String.format(Locale.US, "PHP %.2f", amount)
 
-private fun addOrMergeEntry(entries: MutableList<CartEntry>, product: MerchandiseItem, quantity: Int) {
-    val existingIndex = entries.indexOfFirst { it.item.name == product.name }
+private fun addOrMergeEntry(
+    entries: MutableList<CartEntry>,
+    product: MerchandiseItem,
+    quantity: Int,
+    selectedVariantIndex: Int = 0
+) {
+    val existingIndex = entries.indexOfFirst {
+        it.item.name == product.name && it.selectedVariantIndex == selectedVariantIndex
+    }
     if (existingIndex >= 0) {
         val existing = entries[existingIndex]
         entries[existingIndex] = existing.copy(quantity = existing.quantity + quantity)
     } else {
-        entries.add(CartEntry(product, quantity))
+        entries.add(CartEntry(product, quantity, selectedVariantIndex))
+    }
+}
+
+private fun cartLineImageRes(entry: CartEntry): Int {
+    val vars = entry.item.effectiveVariants()
+    if (vars.isEmpty()) return entry.item.imageRes
+    val idx = entry.selectedVariantIndex.coerceIn(vars.indices)
+    return vars[idx].imageRes
+}
+
+private fun cartLineVariantLabel(entry: CartEntry): String? {
+    val vars = entry.item.effectiveVariants()
+    if (vars.isEmpty()) return null
+    val idx = entry.selectedVariantIndex.coerceIn(vars.indices)
+    val label = vars[idx].label.trim()
+    return label.takeIf { it.isNotEmpty() }
+}
+
+@Composable
+private fun ProductImagePager(
+    variants: List<MerchandiseVariant>,
+    modifier: Modifier = Modifier,
+    imagePadding: androidx.compose.ui.unit.Dp = 8.dp,
+    showDots: Boolean = true,
+    dotColor: Color = Color.White,
+    inactiveDotAlpha: Float = 0.35f
+) {
+    if (variants.isEmpty()) {
+        Box(modifier = modifier)
+    } else {
+        ProductImagePagerContent(
+            variants = variants,
+            modifier = modifier,
+            imagePadding = imagePadding,
+            showDots = showDots,
+            dotColor = dotColor,
+            inactiveDotAlpha = inactiveDotAlpha
+        )
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun ProductImagePagerContent(
+    variants: List<MerchandiseVariant>,
+    modifier: Modifier,
+    imagePadding: androidx.compose.ui.unit.Dp,
+    showDots: Boolean,
+    dotColor: Color,
+    inactiveDotAlpha: Float
+) {
+    val pagerState = rememberPagerState(
+        initialPage = 0,
+        pageCount = { variants.size }
+    )
+    Column(modifier = modifier.fillMaxWidth()) {
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1f),
+            verticalAlignment = Alignment.CenterVertically
+        ) { page ->
+            Image(
+                painter = painterResource(id = variants[page].imageRes),
+                contentDescription = variants[page].label,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(imagePadding),
+                contentScale = ContentScale.Fit
+            )
+        }
+        if (showDots && variants.size > 1) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 2.dp, bottom = 8.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                repeat(variants.size) { i ->
+                    Box(
+                        modifier = Modifier
+                            .padding(horizontal = 3.dp)
+                            .size(if (pagerState.currentPage == i) 6.dp else 5.dp)
+                            .background(
+                                dotColor.copy(
+                                    alpha = if (pagerState.currentPage == i) 1f else inactiveDotAlpha
+                                ),
+                                CircleShape
+                            )
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -225,7 +363,7 @@ private fun ShopCartOverlay(
     val onSurface = if (isDarkMode) Color(0xFFF5F5F5) else Color(0xFF1A1A1A)
     val muted = if (isDarkMode) Color(0xFFAEAEAE) else Color(0xFF7A7377)
     val lineChecked = remember { mutableStateListOf<Boolean>() }
-    val cartSignature = cartItems.joinToString("|") { "${it.item.name}@${it.quantity}" }
+    val cartSignature = cartItems.joinToString("|") { "${it.item.name}@${it.selectedVariantIndex}@${it.quantity}" }
 
     LaunchedEffect(cartSignature) {
         lineChecked.clear()
@@ -362,15 +500,20 @@ private fun ShopCartOverlay(
                                         )
                                     ) {
                                         Image(
-                                            painter = painterResource(id = entry.item.imageRes),
+                                            painter = painterResource(id = cartLineImageRes(entry)),
                                             contentDescription = entry.item.name,
-                                            modifier = Modifier.size(72.dp),
-                                            contentScale = ContentScale.Crop
+                                            modifier = Modifier
+                                                .size(72.dp)
+                                                .padding(4.dp),
+                                            contentScale = ContentScale.Fit
                                         )
                                     }
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
-                                            entry.item.name,
+                                            buildString {
+                                                append(entry.item.name)
+                                                cartLineVariantLabel(entry)?.let { append(" · ").append(it) }
+                                            },
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 16.sp,
                                             color = onSurface,
@@ -473,10 +616,12 @@ private fun ShopCartOverlay(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Image(
-                                        painter = painterResource(id = entry.item.imageRes),
+                                        painter = painterResource(id = cartLineImageRes(entry)),
                                         contentDescription = entry.item.name,
-                                        modifier = Modifier.size(40.dp),
-                                        contentScale = ContentScale.Crop
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .padding(2.dp),
+                                        contentScale = ContentScale.Fit
                                     )
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
@@ -570,6 +715,7 @@ private fun ShopCartOverlay(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ShopProductDetailOverlay(
     product: MerchandiseItem,
@@ -581,8 +727,8 @@ private fun ShopProductDetailOverlay(
     quantity: Int,
     onQuantityChange: (Int) -> Unit,
     onDismiss: () -> Unit,
-    onAddToCart: () -> Unit,
-    onBuyNow: () -> Unit,
+    onAddToCart: (selectedVariantIndex: Int) -> Unit,
+    onBuyNow: (selectedVariantIndex: Int) -> Unit,
 ) {
     val pink = Color(0xFFC16565)
     val pinkSoft = Color(0xFFFFE4EE)
@@ -593,6 +739,17 @@ private fun ShopProductDetailOverlay(
     val imageCardBg = if (isDarkMode) Color(0xFF2E2629) else Color(0xFFFFF8FA)
     val imageInnerBg = if (isDarkMode) Color(0xFF33292D) else pinkSoft
     var descriptionExpanded by remember(product.name) { mutableStateOf(true) }
+    val variants = product.effectiveVariants()
+    val pageCount = variants.size.coerceAtLeast(1)
+    val pagerState = rememberPagerState(
+        initialPage = 0,
+        pageCount = { pageCount }
+    )
+    LaunchedEffect(product.name) {
+        pagerState.scrollToPage(0)
+    }
+    val scope = rememberCoroutineScope()
+    val variantChipScroll = rememberScrollState()
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -634,29 +791,81 @@ private fun ShopProductDetailOverlay(
                                 .fillMaxWidth()
                                 .background(imageInnerBg)
                         ) {
-                            Image(
-                                painter = painterResource(id = product.imageRes),
-                                contentDescription = product.name,
+                            if (variants.size <= 1) {
+                                Image(
+                                    painter = painterResource(id = variants.firstOrNull()?.imageRes ?: product.imageRes),
+                                    contentDescription = product.name,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(308.dp)
+                                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                                    contentScale = ContentScale.Fit
+                                )
+                            } else {
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    HorizontalPager(
+                                        state = pagerState,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(308.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) { page ->
+                                        Image(
+                                            painter = painterResource(id = variants[page].imageRes),
+                                            contentDescription = "${product.name} — ${variants[page].label}",
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                                            contentScale = ContentScale.Fit
+                                        )
+                                    }
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 6.dp, bottom = 16.dp),
+                                        horizontalArrangement = Arrangement.Center,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        repeat(variants.size) { i ->
+                                            Box(
+                                                modifier = Modifier
+                                                    .padding(horizontal = 4.dp)
+                                                    .size(if (pagerState.currentPage == i) 8.dp else 6.dp)
+                                                    .background(
+                                                        if (pagerState.currentPage == i) pink else muted.copy(alpha = 0.45f),
+                                                        CircleShape
+                                                    )
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        if (variants.size > 1) {
+                            Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(288.dp)
-                                    .padding(12.dp),
-                                contentScale = ContentScale.Fit
-                            )
-                            Column(
-                                modifier = Modifier
-                                    .align(Alignment.CenterStart)
-                                    .padding(start = 18.dp, top = 72.dp, bottom = 72.dp),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                                    .horizontalScroll(variantChipScroll)
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                repeat(3) { i ->
-                                    Box(
-                                        modifier = Modifier
-                                            .size(if (i == 0) 8.dp else 7.dp)
-                                            .background(
-                                                color = if (i == 0) pink else muted.copy(alpha = 0.35f),
-                                                shape = CircleShape
-                                            )
+                                variants.forEachIndexed { i, v ->
+                                    val label = v.label.ifBlank { "View ${i + 1}" }
+                                    AssistChip(
+                                        onClick = { scope.launch { pagerState.animateScrollToPage(i) } },
+                                        label = { Text(label, fontSize = 12.sp) },
+                                        colors = AssistChipDefaults.assistChipColors(
+                                            containerColor = if (pagerState.currentPage == i) {
+                                                pink.copy(alpha = if (isDarkMode) 0.35f else 0.22f)
+                                            } else {
+                                                surface
+                                            },
+                                            labelColor = if (pagerState.currentPage == i) pink else muted
+                                        ),
+                                        border = BorderStroke(
+                                            1.dp,
+                                            pink.copy(alpha = if (pagerState.currentPage == i) 0.9f else 0.25f)
+                                        )
                                     )
                                 }
                             }
@@ -870,7 +1079,7 @@ private fun ShopProductDetailOverlay(
                                 )
                             }
                             Button(
-                                onClick = onAddToCart,
+                                onClick = { onAddToCart(pagerState.currentPage) },
                                 modifier = Modifier.height(48.dp),
                                 shape = RoundedCornerShape(24.dp),
                                 colors = ButtonDefaults.buttonColors(
@@ -887,7 +1096,7 @@ private fun ShopProductDetailOverlay(
                             }
                         }
                         OutlinedButton(
-                            onClick = onBuyNow,
+                            onClick = { onBuyNow(pagerState.currentPage) },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(48.dp),
@@ -967,7 +1176,7 @@ fun ShopScreen(navController: NavController) {
         }
     }
 
-    val items = remember { buildShopItems(context) }
+    val items = remember { buildShopItems() }
     val filtered = items.filter {
         (selectedCategory == "All" || it.category == selectedCategory) &&
                 (search.isBlank() || it.name.contains(search, ignoreCase = true))
@@ -1052,11 +1261,26 @@ fun ShopScreen(navController: NavController) {
                         rowItems.forEach { product ->
                             Card(modifier = Modifier.weight(1f).clickable { selectedProduct = product }, colors = CardDefaults.cardColors(containerColor = Color(0xFFFFC9BF)), shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)) {
                                 Column(modifier = Modifier.padding(6.dp)) {
-                                    Card(shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFF4F4F4))) {
-                                        Image(painter = painterResource(id = product.imageRes), contentDescription = product.name, modifier = Modifier.fillMaxWidth().aspectRatio(1f), contentScale = ContentScale.Fit)
+                                    Card(shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = if (isDarkMode) Color(0xFF333333) else Color(0xFFF4F4F4))) {
+                                        ProductImagePager(
+                                            variants = product.effectiveVariants(),
+                                            modifier = Modifier.fillMaxWidth(),
+                                            imagePadding = 8.dp,
+                                            showDots = product.effectiveVariants().size > 1,
+                                            dotColor = Color.White,
+                                            inactiveDotAlpha = 0.42f
+                                        )
                                     }
                                     Spacer(modifier = Modifier.height(6.dp))
-                                    Text(text = product.name, color = Color.White, fontWeight = FontWeight.Medium, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(
+                                        text = product.name,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 13.sp,
+                                        lineHeight = 16.sp,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
                                     if (promoApplied) {
                                         Text(text = product.price, color = Color.White.copy(alpha = 0.7f), fontSize = 11.sp, textDecoration = TextDecoration.LineThrough)
                                         Text(text = discountedPriceLabel(product.price, true), color = Color(0xFFDB3049), fontWeight = FontWeight.Bold, fontSize = 12.sp)
@@ -1093,7 +1317,7 @@ fun ShopScreen(navController: NavController) {
                     gcashPurchaseAction = {
                         checkoutIndices.sortedDescending().forEach { idx ->
                             val line = cartItems[idx]
-                            addOrMergeEntry(boughtItems, line.item, line.quantity)
+                            addOrMergeEntry(boughtItems, line.item, line.quantity, line.selectedVariantIndex)
                             cartItems.removeAt(idx)
                         }
                         saveCart(context, cartItems.toList())
@@ -1117,15 +1341,15 @@ fun ShopScreen(navController: NavController) {
                 quantity = quantity,
                 onQuantityChange = { quantity = it },
                 onDismiss = { selectedProduct = null },
-                onAddToCart = {
-                    addOrMergeEntry(cartItems, product, quantity)
+                onAddToCart = { variantIdx ->
+                    addOrMergeEntry(cartItems, product, quantity, variantIdx)
                     selectedProduct = null
                 },
-                onBuyNow = {
+                onBuyNow = { variantIdx ->
                     val priceNum = parsePrice(product.price)
                     val finalPrice = if (promoApplied) priceNum * 0.8 else priceNum
                     pendingTotalAmount = formatPhp(finalPrice * quantity)
-                    gcashPurchaseAction = { addOrMergeEntry(boughtItems, product, quantity) }
+                    gcashPurchaseAction = { addOrMergeEntry(boughtItems, product, quantity, variantIdx) }
                     selectedProduct = null
                     showShopConfirmation = true
                 }

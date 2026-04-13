@@ -735,7 +735,8 @@ fun PetSwipeScreen(navController: NavController) {
                             Image(
                                 painter = painterResource(id = R.drawable.blackpawmateicon3),
                                 contentDescription = "PawMate Logo",
-                                modifier = Modifier.size(if (isTablet) 64.dp else 56.dp)
+                                modifier = Modifier.size(if (isTablet) 64.dp else 56.dp),
+                                colorFilter = if (isDarkMode) ColorFilter.tint(Color.White) else null
                             )
 
                             Column {
