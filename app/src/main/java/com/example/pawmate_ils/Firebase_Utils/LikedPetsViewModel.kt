@@ -11,6 +11,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import com.example.pawmate_ils.GemManager
 
 // Data model for each liked pet
 data class LikedPet(
@@ -211,7 +212,7 @@ class LikedPetsViewModel : ViewModel() {
                 val adopterName = auth.currentUser?.displayName ?: "An adopter"
 
 
-
+                GemManager.addGems(5)
 
                 // 2. Validation check
                 if (petId.isBlank()) {

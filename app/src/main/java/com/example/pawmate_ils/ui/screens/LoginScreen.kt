@@ -25,6 +25,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.platform.LocalContext
+import androidx.fragment.app.FragmentActivity
+import com.example.pawmate_ils.BiometricHelper
 import com.example.pawmate_ils.Firebase_Utils.AuthViewModel
 import com.example.pawmate_ils.R
 import com.google.android.gms.auth.api.signin.GoogleSignIn
@@ -46,6 +48,28 @@ fun LoginScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val scrollState = rememberScrollState()
     val context = LocalContext.current
+
+    //ADDITIONAL SECURITY : FINGERPRINT
+    val biometricHelper = remember { BiometricHelper(context) }
+    LaunchedEffect(Unit) {
+        if (biometricHelper.isBiometricAvailable()) {
+            biometricHelper.showBiometricPrompt(
+                activity = context as FragmentActivity,
+                onSuccess = {
+                    if (authViewModel.currentUser != null) {
+                        onLoginSuccess()
+                    } else {
+                        android.widget.Toast.makeText(context, "Identity Verified!", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                },
+                onError = { error ->
+                    Log.e("BIO_AUTH", "Authentication Error: $error")
+                }
+            )
+        }
+    }
+
+
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()

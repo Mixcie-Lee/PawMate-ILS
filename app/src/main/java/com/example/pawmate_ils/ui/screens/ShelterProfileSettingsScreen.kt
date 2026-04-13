@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -33,6 +34,7 @@ import com.example.pawmate_ils.Firebase_Utils.AuthViewModel
 import com.example.pawmate_ils.SettingsManager
 import com.example.pawmate_ils.ThemeManager
 import com.example.pawmate_ils.R
+import com.example.pawmate_ils.firebase_models.Channel
 
 // --- 1. THE MAIN SCREEN (Stateful) ---
 @Composable
@@ -47,6 +49,13 @@ fun ShelterProfileScreen(
     val userOnlineData by authViewModel.userData.collectAsState(initial = null)
     val petsCount by adoptionCenterViewModel.uploadedPetsCount.collectAsState(initial = 0)
 
+    val homeViewModel: com.example.pawmate_ils.Firebase_Utils.HomeViewModel = viewModel()
+    val channels by homeViewModel.channels.collectAsState(initial = emptyList())
+
+    LaunchedEffect(Unit) {
+        homeViewModel.listenToChannels()
+    }
+
 
 
 
@@ -57,6 +66,7 @@ fun ShelterProfileScreen(
         ownerName = userOnlineData?.ownerName ?: "",
         photoUri = userOnlineData?.photoUri,
         petsCount = petsCount,
+        channels = channels,
         onUpdateName = { newName ->
             authViewModel.updateProfile(newName = newName) { success, _ ->
                 if (success) settings.setUsername(newName)
@@ -75,7 +85,11 @@ fun ShelterProfileScreen(
                     popUpTo(navController.graph.id) { inclusive = true }
                 }
             }
-        }
+        },
+        authViewModel = authViewModel,
+        settings = settings,
+        context = context,
+
     )
 }
 
@@ -90,10 +104,23 @@ fun ShelterProfileContent(
     petsCount: Int,
     onUpdateName: (String) -> Unit,
     onUploadPhoto: (Uri) -> Unit,
-    onLogout: () -> Unit
-) {
-    var isDarkMode by remember { mutableStateOf(ThemeManager.isDarkMode) }
+    onLogout: () -> Unit,
+    authViewModel: AuthViewModel,
+    settings: SettingsManager,
+    context: android.content.Context,
+    channels: List<Channel>
+    ) {
     var editableName by remember(shelterName) { mutableStateOf(shelterName) }
+    val userOnlineData by authViewModel.userData.collectAsState()
+    LaunchedEffect(userOnlineData) {
+        userOnlineData?.let { data ->
+            if (!data.shelterName.isNullOrEmpty() && data.shelterName != editableName) {
+                editableName = data.shelterName
+            }
+        }
+    }
+
+    var isDarkMode by remember { mutableStateOf(ThemeManager.isDarkMode) }
     var showLogoutDialog by remember { mutableStateOf(false) }
 
     val backgroundColor = if (isDarkMode) Color(0xFF1A1A1A) else Color(0xFFFFF0F5)
@@ -136,12 +163,36 @@ fun ShelterProfileContent(
                         modifier = Modifier.fillMaxWidth().padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(modifier = Modifier.size(72.dp).clickable { imagePicker.launch("image/*") }) {
-                            Box(modifier = Modifier.fillMaxSize().clip(CircleShape).background(primaryColor.copy(alpha = 0.2f)), contentAlignment = Alignment.Center) {
+                        Box(
+                            modifier = Modifier.size(72.dp).clickable { imagePicker.launch("image/*")
+                            }) {
+
+                            Box(
+                                modifier = Modifier.fillMaxSize()
+                                    .clip(CircleShape)
+                                    .background(primaryColor.copy(alpha = 0.2f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                // 🎯 Define the fallback icon
+                                val shelterPlaceholder = R.drawable.shelter
+
                                 if (!photoUri.isNullOrEmpty()) {
-                                    AsyncImage(model = photoUri, contentDescription = null, modifier = Modifier.fillMaxSize().clip(CircleShape), contentScale = ContentScale.Crop)
+                                    AsyncImage(
+                                        model = photoUri.takeIf { it.isNotBlank() },
+                                        contentDescription = "Shelter Photo",
+                                        modifier = Modifier.fillMaxSize().clip(CircleShape),
+                                        contentScale = ContentScale.Crop, // 👈 Parenthesis removed from here
+                                        placeholder = painterResource(shelterPlaceholder),
+                                        error = painterResource(shelterPlaceholder),
+                                        fallback = painterResource(shelterPlaceholder)
+                                    )
                                 } else {
-                                    Icon(Icons.Default.Person, null, tint = primaryColor, modifier = Modifier.size(35.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.Person,
+                                        contentDescription = null,
+                                        tint = primaryColor,
+                                        modifier = Modifier.size(35.dp)
+                                    )
                                 }
                             }
                             Box(modifier = Modifier.align(Alignment.BottomEnd).size(28.dp).offset(x = (-2).dp, y = (-2).dp).clip(CircleShape).border(2.dp, Color.White, CircleShape).background(accentPink), contentAlignment = Alignment.Center) {
@@ -159,8 +210,36 @@ fun ShelterProfileContent(
                                 colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = primaryColor, unfocusedBorderColor = Color.Gray.copy(alpha = 0.25f), cursorColor = primaryColor),
                                 shape = RoundedCornerShape(14.dp),
                                 trailingIcon = {
-                                    IconButton(onClick = { onUpdateName(editableName) }) {
-                                        Icon(Icons.Default.Edit, null, tint = accentPink, modifier = Modifier.size(20.dp))
+                                    // 🎯 Use the authViewModel to trigger the cloud update
+                                    IconButton(onClick = {
+                                        if (editableName.isNotBlank()) {
+                                            authViewModel.updateProfile(
+                                                newName = editableName,
+                                                // We pass null for the others so they don't get overwritten
+                                                newPhotoUri = null,
+                                                newShelterHours = null,
+                                                aboutMe = null
+                                            ) { success, message ->
+                                                if (success) {
+                                                    // 1. Sync local cache
+                                                    settings.setUsername(editableName)
+
+                                                    // 2. Feedback to the user
+                                                    android.widget.Toast.makeText(context, "Shelter name updated! 🐾", android.widget.Toast.LENGTH_SHORT).show()
+                                                } else {
+                                                    android.widget.Toast.makeText(context, "Error: $message", android.widget.Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                        } else {
+                                            android.widget.Toast.makeText(context, "Name cannot be empty", android.widget.Toast.LENGTH_SHORT).show()
+                                        }
+                                    }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = "Save Shelter Name",
+                                            tint = accentPink,
+                                            modifier = Modifier.size(20.dp)
+                                        )
                                     }
                                 }
                             )
@@ -185,7 +264,7 @@ fun ShelterProfileContent(
                 // STAT TILES
                 Row(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     ShelterStatTile("Uploaded Pets", petsCount.toString(), Icons.Default.Pets, isDarkMode, primaryColor, accentPink, Modifier.weight(1f))
-                    ShelterStatTile("Applications", "0", Icons.AutoMirrored.Filled.Assignment, isDarkMode, primaryColor, accentPink, Modifier.weight(1f), useCardBg = true)
+                    ShelterStatTile("Applications",channels.size.toString(), Icons.AutoMirrored.Filled.Assignment, isDarkMode, primaryColor, accentPink, Modifier.weight(1f), useCardBg = true)
                 }
 
                 Text("Settings", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textColor, modifier = Modifier.padding(bottom = 16.dp))

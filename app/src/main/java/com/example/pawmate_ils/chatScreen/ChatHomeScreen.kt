@@ -218,8 +218,14 @@ fun HomeScreen(
                         ),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        items(filteredChannels, key = { it.channelId }) { channel ->
+                        items(
+                            filteredChannels, key = { channel ->
+                                "${channel.channelId}_${channel.shelterPhotoUri}_${channel.adopterPhotoUri}_${channel.shelterName}_${channel.adopterName}"
+                            }
+
+                        ) { channel ->
                             val isShelterView = currentUserRole == "shelter"
+                            val isAdopterView = currentUserRole == "adopter"
                             val currentUserId = authViewModel.currentUser?.uid ?: ""
                             val shouldShowBadge =
                                 channel.unreadCount > 0 && channel.lastSenderId != currentUserId
@@ -243,9 +249,11 @@ fun HomeScreen(
                             }
                             val displayPhoto =
                                 if (isShelterView) channel.adopterPhotoUri else channel.shelterPhotoUri
-                            val defaultSubtitle =
-                                if (isShelterView) "Interested in $petsDisplay"
-                                else "About $petsDisplay"
+                            val defaultSubtitle = if (isShelterView) {
+                                "Interested in $petsDisplay" // If I am the Shelter, I see who is interested
+                            } else {
+                                "Shelter of $petsDisplay"    // If I am the Adopter, I see who the Shelter is
+                            }
                             val preview =
                                 if (channel.lastMessage.isNotEmpty()) channel.lastMessage else defaultSubtitle
                             val (timeLabel, timeRecent) = formatChatTimestamp(channel.timestamp)

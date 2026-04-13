@@ -5,8 +5,13 @@ import com.google.firebase.firestore.PropertyName
 data class Channel(
     val channelId: String = "",
     val adopterId: String = "",
-    val adopterName: String = "",
     val shelterId: String = "",
+
+    @get:PropertyName("adopterName")
+    @set:PropertyName("adopterName")
+    var adopterName: String = "",
+
+
     @get:PropertyName("shelterName")
     @set:PropertyName("shelterName")
     var shelterName: String = "",
@@ -14,8 +19,15 @@ data class Channel(
     @get:PropertyName("ownerName")
     @set:PropertyName("ownerName")
     var ownerName: String = "",
-    val adopterPhotoUri: String? = null, 
-    val shelterPhotoUri: String? = null,
+
+    @get:PropertyName("shelterPhotoUri")
+    @set:PropertyName("shelterPhotoUri")
+    var shelterPhotoUri: String = "", // 🎯 Add PropertyName and change type
+
+    @get:PropertyName("adopterPhotoUri")
+    @set:PropertyName("adopterPhotoUri")
+    var adopterPhotoUri: String = "",
+
     val lastSenderId: String = "",
     val lastMessage: String = "",
     val timestamp: Long = System.currentTimeMillis(),

@@ -102,7 +102,9 @@ class GemManager {
         // 🔹 Directly set gem count
         fun setGemCount(amount: Int) {                               // ✅ MODIFIED: update StateFlow value
             _gemCount.value = amount
-            saveData()
+            if (::context.isInitialized) {
+                saveData()
+            }
         }
 
         // 🔹 Open gem purchase dialog
@@ -199,7 +201,7 @@ class GemManager {
 
                 // 3. 💾 Sync both Disk and Cloud in one go
                 saveData()
-                syncTierToFirestore(userId, _currentTier.value)
+                syncTierToFirestore(userId, _currentTier.value, _gemCount.value)
 
                 // 4. 🧹 Cleanup
                 _pendingPackage = null
@@ -250,15 +252,37 @@ class GemManager {
 
 
 
-        fun syncTierToFirestore(userId: String, newTier: UserTier) {
+        fun syncTierToFirestore(userId: String, newTier: UserTier, gems: Int) {
             val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+
+            val updates = mapOf(
+                "tier" to newTier.level.toString(),
+                "gems" to gems // This ensures the cloud keeps the correct gem count!
+            )
+
             db.collection("users").document(userId)
-                .update("adopterTier", newTier.level) // Save the level (1, 2, or 3)
+                .update(updates) // Save the level (1, 2, or 3)
                 .addOnSuccessListener {
                     Log.d("GEM_SYSTEM", "🚀 Cloud Sync Success! Tier ${newTier.level} saved.")
                 }
 
         }
+
+        fun updateLocalTier(newTierLevel: Int) {
+            if (!::context.isInitialized) return // Safety check
+
+            val tierEnum = UserTier.entries.find { it.level == newTierLevel } ?: UserTier.TIER_0
+
+            // Only update if it's different to save on memory/disk writes
+            if (_currentTier.value != tierEnum) {
+                _currentTier.value = tierEnum
+                saveData() // Persist to SharedPreferences so it's there next time they open the app
+                Log.d("GEM_SYSTEM", "🔄 Local Tier synced from Cloud: ${tierEnum.level}")
+            }
+        }
+
+
+
 
     }
 }

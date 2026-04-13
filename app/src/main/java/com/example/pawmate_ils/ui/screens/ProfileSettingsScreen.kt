@@ -57,6 +57,8 @@ import com.example.pawmate_ils.R
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import android.widget.Toast
+import androidx.compose.material.icons.filled.Star
 
 
 @SuppressLint("SimpleDateFormat")
@@ -82,6 +84,40 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
     var profilePhotoUri by remember { mutableStateOf(settings.getProfilePhotoUri()?.let { Uri.parse(it) }) }
 
     val userOnlineData by authViewModel.userData.collectAsState()
+
+    val isVip by remember(userOnlineData) {
+        derivedStateOf {
+            val currentTier = userOnlineData?.tier?.toString() ?: "Free"
+            currentTier == "3"
+        }
+    }
+
+// 🎯 2. Debugging: This will pop up a message to tell you what the app thinks
+    LaunchedEffect(userOnlineData) {
+        val currentTier = userOnlineData?.tier
+        if (userOnlineData == null) {
+            android.util.Log.d("VIP_CHECK", "Data is still null (waiting for internet...)")
+        } else {
+            android.util.Log.d("VIP_CHECK", "Data received! Tier is: $currentTier (Type: ${currentTier?.javaClass?.simpleName})")
+
+            // If the data is actually there, this Toast will definitely show
+            if (isVip) {
+                Toast.makeText(context, "VIP Active! 👑", Toast.LENGTH_SHORT).show()
+            } else {
+                // This helps you see if the tier is "2" or something else instead of 3
+                Toast.makeText(context, "User Tier: $currentTier", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+    val goldGradient = Brush.linearGradient(
+        colors = listOf(Color(0xFFFFD700), Color(0xFFFFA500), Color(0xFFFFD700))
+    )
+
+
+
+
+
+
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let { localUri ->
             // Directly upload and save to the cloud
@@ -109,6 +145,19 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
     LaunchedEffect(Unit) {
         isDarkMode = ThemeManager.isDarkMode
     }
+
+    LaunchedEffect(userOnlineData) {
+        userOnlineData?.let { data ->
+            // Check both fields to see which one the user is using
+            val cloudName = if (data.role == "shelter") data.shelterName else data.name
+            if (!cloudName.isNullOrEmpty() && cloudName != editableName) {
+                editableName = cloudName
+            }
+        }
+    }
+
+
+
     val backgroundColor = if (isDarkMode) Color(0xFF1A1A1A) else Color(0xFFFFF0F5)
     val cardColor = if (isDarkMode) Color(0xFF2A2A2A) else Color.White
     val textColor = if (isDarkMode) Color.White else Color.Black
@@ -184,35 +233,35 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                                     .fillMaxSize()
                                     .clip(CircleShape)
                                     .then(
-                                        if (!userOnlineData?.photoUri.isNullOrEmpty()) {
-                                            Modifier.background(
-                                                Brush.linearGradient(
-                                                    colors = listOf(
-                                                        primaryColor.copy(alpha = 0.85f),
-                                                        primaryColor.copy(alpha = 0.55f)
+                                        when {
+                                            isVip -> Modifier.border(3.dp, goldGradient, CircleShape)
+                                            !userOnlineData?.photoUri.isNullOrEmpty() -> {
+                                                Modifier.background(
+                                                    Brush.linearGradient(
+                                                        colors = listOf(primaryColor.copy(alpha = 0.85f), primaryColor.copy(alpha = 0.55f))
                                                     )
                                                 )
-                                            )
-                                        } else {
-                                            Modifier
+                                            }
+                                            else -> Modifier
                                         }
                                     ),
                                 contentAlignment = Alignment.Center
                             ) {
                                 val photoUrl = userOnlineData?.photoUri
                                 val userGender = userOnlineData?.gender ?: "Other"
+                                val placeholderRes = ProfilePhotoDefaults.placeholderResForGender(userGender)
                                 if (!photoUrl.isNullOrEmpty()) {
                                     AsyncImage(
-                                        model = photoUrl,
+                                        model = photoUrl?.takeIf { it.isNotBlank() },
                                         contentDescription = "Profile Photo",
                                         modifier = Modifier
                                             .fillMaxSize()
                                             .clip(CircleShape),
-                                        contentScale = ContentScale.Crop
+                                        placeholder = painterResource(placeholderRes), // Shown while loading
+                                        error = painterResource(placeholderRes),       // Shown if URL is dead
+                                        fallback = painterResource(placeholderRes)
                                     )
                                 } else {
-                                    val placeholderRes =
-                                        ProfilePhotoDefaults.placeholderResForGender(userGender)
                                     Image(
                                         painter = painterResource(placeholderRes),
                                         contentDescription = "Profile",
@@ -223,6 +272,29 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                                     )
                                 }
                             }
+                            if (isVip) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .align(Alignment.TopStart)
+                                        .offset(x = (-4).dp, y = (-4).dp)
+                                        .clip(CircleShape)
+                                        .background(Color.White.copy(alpha = 0.8f)), // Makes crown visible
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Star, // You can also use R.drawable.diamond
+                                        contentDescription = "VIP Badge",
+                                        tint = Color(0xFFFFD700),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+
+
+
+
+
                             Box(
                                 modifier = Modifier
                                     .align(Alignment.BottomEnd)
@@ -258,15 +330,31 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                                 ),
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = primaryColor,
-                                    unfocusedBorderColor = Color.Gray.copy(alpha = 0.25f),
-                                    cursorColor = primaryColor,
+                                    focusedBorderColor = if (isVip) Color(0xFFFFD700) else primaryColor,
+                                    unfocusedBorderColor = if (isVip) Color(0xFFFFD700).copy(alpha = 0.5f) else Color.Gray.copy(alpha = 0.25f),
+                                    cursorColor = if (isVip) Color(0xFFFFD700) else primaryColor,
                                     focusedContainerColor = cardColor,
                                     unfocusedContainerColor = cardColor
                                 ),
                                 shape = RoundedCornerShape(14.dp),
                                 trailingIcon = {
-                                    IconButton(onClick = { settings.setUsername(editableName) }) {
+                                    IconButton(onClick = {
+                                        if (editableName.isNotBlank()) {
+                                            // 🎯 This is the missing link: Saving to the database!
+                                            authViewModel.updateProfile(newName = editableName) { success, message ->
+                                                if (success) {
+                                                    // Update local cache and SharedViewModel
+                                                    settings.setUsername(editableName)
+
+                                                    Toast.makeText(context, "Name updated successfully! 🐾", Toast.LENGTH_SHORT).show()
+                                                } else {
+                                                    Toast.makeText(context, "Update failed: $message", Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                        } else {
+                                            Toast.makeText(context, "Name cannot be empty", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }) {
                                         Icon(
                                             imageVector = Icons.Default.Edit,
                                             contentDescription = "Save name",

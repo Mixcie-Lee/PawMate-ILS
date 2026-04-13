@@ -18,6 +18,7 @@ import java.util.UUID
 class FirestoreRepository {
     private val db = FirebaseFirestore.getInstance()
     private val usersCollection = db.collection("users")
+    private val adoptersCollection = db.collection("adopters")
 
 
     suspend fun getUserRole(uid: String): com.google.firebase.firestore.DocumentSnapshot {
@@ -480,6 +481,29 @@ class FirestoreRepository {
             throw e
         }
     }
+
+    suspend fun updateUserTier(uid: String, newTier: String) {
+        try {
+            db.collection("users").document(uid)
+                .update("tier", newTier) // 🎯 This MUST be "tier" to match your AuthViewModel
+                .await()
+            Log.d("FirestoreRepo", "✅ Tier updated to $newTier in cloud")
+        } catch (e: Exception) {
+            Log.e("FirestoreRepo", "❌ Tier update failed: ${e.message}")
+        }
+    }
+
+    suspend fun addAdopterProfile(user: User) {
+        try {
+            // This saves the data to the specific "adopters" folder
+            adoptersCollection.document(user.id).set(user).await()
+            Log.d("FirestoreRepo", "✅ Adopter profile saved to adopters collection")
+        } catch (e: Exception) {
+            Log.e("FirestoreRepo", "❌ Failed to save to adopters: ${e.message}")
+            throw e
+        }
+    }
+
 
 
 }

@@ -52,6 +52,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview:1.8.3")
     implementation ("androidx.compose.material3:material3-lint:1.4.0-alpha18")
     implementation("com.cloudinary:cloudinary-android:3.1.2")
+    implementation("androidx.biometric:biometric:1.2.0-alpha05")
     implementation(libs.androidx.navigation.fragment.ktx)
     implementation(libs.androidx.navigation.ui.ktx)
     implementation (libs.androidx.navigation.compose)
@@ -75,8 +76,6 @@ dependencies {
     implementation(libs.firebase.database)
 
     implementation("com.google.code.gson:gson:2.10.1")
-
-
     implementation(libs.googleid)
     implementation (platform("com.google.firebase:firebase-bom:34.2.0"))
     implementation(libs.firebase.crashlytics.buildtools)

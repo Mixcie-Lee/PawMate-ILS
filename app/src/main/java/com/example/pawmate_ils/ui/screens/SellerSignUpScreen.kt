@@ -78,6 +78,7 @@
         val scope = rememberCoroutineScope()
         var isGoogleLoading by remember { mutableStateOf(false) }
         var shelterHours by  remember {mutableStateOf("")}
+        var aboutMe by remember { mutableStateOf("") }
     
         // 💎 ADDED: Dialog State
         var showVerificationDialog by remember { mutableStateOf(false) }
@@ -137,17 +138,21 @@
                             contentDescription = null,
                             modifier = Modifier.size(100.dp)
                         )
-                        Text(text = "Create Account", fontSize = 32.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = "Create Account",
+                            fontSize = 32.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                         Text(text = "Shelter Sign Up", color = Color.Gray)
                         Spacer(modifier = Modifier.height(48.dp))
-    
+
                         OutlinedTextField(
                             value = email, onValueChange = { email = it },
                             label = { Text("Email") },
                             modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp),
                             shape = RoundedCornerShape(28.dp)
                         )
-    
+
                         OutlinedTextField(
                             value = password, onValueChange = { password = it },
                             label = { Text("Password") },
@@ -155,7 +160,7 @@
                             modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
                             shape = RoundedCornerShape(28.dp)
                         )
-    
+
                         Button(
                             onClick = {
                                 if (email.isBlank() || password.isBlank()) {
@@ -167,7 +172,7 @@
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFB6C1)),
                             shape = RoundedCornerShape(28.dp)
                         ) { Text("Continue") }
-    
+
                         Spacer(Modifier.height(20.dp))
                         OutlinedButton(
                             onClick = {
@@ -183,8 +188,13 @@
                             if (isGoogleLoading) CircularProgressIndicator(Modifier.size(24.dp))
                             else Text("Continue with Google")
                         }
-    
-                        TextButton(onClick = onLoginClick) { Text("Log in", color = Color(0xFFFF9999)) }
+
+                        TextButton(onClick = onLoginClick) {
+                            Text(
+                                "Log in",
+                                color = Color(0xFFFF9999)
+                            )
+                        }
                         TextButton(onClick = onNavigateToAdopterSignUp) {
                             Text(
                                 "Adopter? Sign up here",
@@ -192,12 +202,12 @@
                             )
                         }
                     }
-    
+
                     2 -> {
                         // --- STEP 2 UI (Details) ---
                         Text("About Your Shelter", fontSize = 32.sp, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(32.dp))
-    
+
                         OutlinedTextField(
                             value = shelterName,
                             onValueChange = { shelterName = it },
@@ -224,7 +234,7 @@
                                 keyboardType = KeyboardType.NumberPassword // Use NumberPassword or Phone
                             )
                         )
-    
+
                         Spacer(Modifier.height(16.dp))
                         OutlinedTextField(
                             value = address,
@@ -242,8 +252,19 @@
                             shape = RoundedCornerShape(28.dp),
                             keyboardOptions = KeyboardOptions(
                                 keyboardType = KeyboardType.NumberPassword
-                            )                    )
-    
+                            )
+                        )
+                        OutlinedTextField(
+                            value = aboutMe,
+                            onValueChange = { aboutMe = it },
+                            label = { Text("About the Shelter") },
+                            placeholder = { Text("Describe your shelter's mission or history...") },
+                            modifier = Modifier.fillMaxWidth(),
+                            minLines = 3,
+                            shape = RoundedCornerShape(28.dp)
+                        )
+                        Spacer(Modifier.height(16.dp))
+
                         OutlinedTextField(
                             value = shelterHours,
                             onValueChange = { input ->
@@ -253,7 +274,10 @@
                                     cleaned.length < shelterHours.length -> cleaned
 
                                     // 2. The "Magic Dash": If it ends with am/pm and has no dash yet, add the separator
-                                    (cleaned.endsWith("am", ignoreCase = true) || cleaned.endsWith("pm", ignoreCase = true)) &&
+                                    (cleaned.endsWith(
+                                        "am",
+                                        ignoreCase = true
+                                    ) || cleaned.endsWith("pm", ignoreCase = true)) &&
                                             !cleaned.contains("-") -> "$cleaned - "
 
                                     // 3. Prevent double dashes or spaces if they type it manually
@@ -276,63 +300,123 @@
                                 )
                             }
                         )
-    
+
                         Spacer(Modifier.height(24.dp))
-    
+
                         Button(
                             onClick = {
-                                if (shelterName.isBlank() || OwnerName.isBlank()) {
+                                if (shelterName.isBlank() || OwnerName.isBlank() || mobileNumber.isBlank() || address.isBlank() || establishedYear.isBlank() || shelterHours.isBlank()) {
                                     errorMessage = "Please fill all fields"; return@Button
                                 }
-    
+
                                 isLoading = true
-                                authViewModel.signUp(email, password) { success, message ->
-                                    if (success) {
-                                        scope.launch {
-                                            val firebaseuser = FirebaseAuth.getInstance().currentUser // 🎯 This is the Object
-                                            val uid = FirebaseAuth.getInstance().currentUser?.uid
-                                            if (firebaseuser != null && uid != null) {
-                                                val profileUpdates = com.google.firebase.auth.userProfileChangeRequest {
+
+                                // 🎯 ELEMENT ADDED: Check if the user is already authenticated via Google
+                                val firebaseUser = FirebaseAuth.getInstance().currentUser
+                                val isGoogleUser =
+                                    firebaseUser?.providerData?.any { it.providerId == "google.com" } == true
+
+                                if (isGoogleUser) {
+                                    // 🎯 ELEMENT ADDED: If Google, jump straight to your original save logic
+                                    scope.launch {
+                                        val uid = firebaseUser?.uid
+                                        if (firebaseUser != null && uid != null) {
+                                            // --- YOUR ORIGINAL PROFILE UPDATE LOGIC ---
+                                            val profileUpdates =
+                                                com.google.firebase.auth.userProfileChangeRequest {
                                                     displayName = "$shelterName $OwnerName"
                                                 }
-                                                firebaseuser.updateProfile(profileUpdates).await()
-                                                val defaultShelterPhoto = "android.resource://${context.packageName}/${R.drawable.shelter}"
-    
-    
-                                                val user = User(
-                                                    id = uid,
-                                                    name = "$shelterName $OwnerName",
-                                                    email = email,
-                                                    MobileNumber = mobileNumber,
-                                                    Address = address,
-                                                    Age = establishedYear,
-                                                    role = "shelter",
-                                                    shelterHours = shelterHours,
-                                                    photoUri = defaultShelterPhoto,
-                                                    gems = 10,
-                                                    likedPetsCount = 0
-                                                )
-                                                try {
-                                                    firestoreRepo.addUser(user)
-                                                    ShelterRepository().addShelter(user)
-    
-                                                    val settings = SettingsManager(context)
-                                                    settings.setUsername("$shelterName $OwnerName")
-                                                    sharedViewModel.username.value =
-                                                        "$shelterName $OwnerName"
-    
-                                                    authViewModel.startUserProfileListener()
-                                                    showVerificationDialog = true
-    
-                                                } catch (e: Exception) {
-                                                    errorMessage = e.message
-                                                    isLoading = false
+                                            firebaseUser.updateProfile(profileUpdates).await()
+                                            val defaultShelterPhoto =
+                                                "android.resource://${context.packageName}/${R.drawable.shelter}"
+
+                                            val user = User(
+                                                id = uid,
+                                                name = "$shelterName $OwnerName",
+                                                email = firebaseUser.email ?: "",
+                                                MobileNumber = mobileNumber,
+                                                Address = address,
+                                                Age = establishedYear,
+                                                aboutMe = aboutMe,
+                                                role = "shelter",
+                                                shelterHours = shelterHours,
+                                                photoUri = defaultShelterPhoto,
+                                                gems = 10,
+                                                likedPetsCount = 0
+                                            )
+                                            try {
+                                                firestoreRepo.addUser(user)
+                                                ShelterRepository().addShelter(user)
+                                                val settings = SettingsManager(context)
+                                                settings.setUsername("$shelterName $OwnerName")
+                                                sharedViewModel.username.value =
+                                                    "$shelterName $OwnerName"
+
+                                                isLoading = false
+                                                // 🎯 ELEMENT ADDED: Navigate home for Google (No verification needed)
+                                                navController.navigate("shelter_home") {
+                                                    popUpTo("seller_signup") { inclusive = true }
                                                 }
+                                            } catch (e: Exception) {
+                                                errorMessage = e.message
+                                                isLoading = false
                                             }
                                         }
-                                    } else {
-                                        errorMessage = message
-                                        isLoading = false
+                                    }
+                                } else {
+                                    // --- YOUR ORIGINAL EMAIL/PASSWORD SIGN UP ---
+                                    authViewModel.signUp(email, password) { success, message ->
+                                        if (success) {
+                                            scope.launch {
+                                                val firebaseuser =
+                                                    FirebaseAuth.getInstance().currentUser
+                                                val uid =
+                                                    FirebaseAuth.getInstance().currentUser?.uid
+                                                if (firebaseuser != null && uid != null) {
+                                                    val profileUpdates =
+                                                        com.google.firebase.auth.userProfileChangeRequest {
+                                                            displayName = "$shelterName $OwnerName"
+                                                        }
+                                                    firebaseuser.updateProfile(profileUpdates)
+                                                        .await()
+                                                    val defaultShelterPhoto =
+                                                        "android.resource://${context.packageName}/${R.drawable.shelter}"
+
+                                                    val user = User(
+                                                        id = uid,
+                                                        name = "$shelterName $OwnerName",
+                                                        email = email,
+                                                        MobileNumber = mobileNumber,
+                                                        Address = address,
+                                                        Age = establishedYear,
+                                                        role = "shelter",
+                                                        shelterHours = shelterHours,
+                                                        photoUri = defaultShelterPhoto,
+                                                        gems = 10,
+                                                        likedPetsCount = 0
+                                                    )
+                                                    try {
+                                                        firestoreRepo.addUser(user)
+                                                        ShelterRepository().addShelter(user)
+
+                                                        val settings = SettingsManager(context)
+                                                        settings.setUsername("$shelterName $OwnerName")
+                                                        sharedViewModel.username.value =
+                                                            "$shelterName $OwnerName"
+
+                                                        authViewModel.startUserProfileListener()
+                                                        showVerificationDialog = true
+
+                                                    } catch (e: Exception) {
+                                                        errorMessage = e.message
+                                                        isLoading = false
+                                                    }
+                                                }
+                                            }
+                                        } else {
+                                            errorMessage = message
+                                            isLoading = false
+                                        }
                                     }
                                 }
                             },
@@ -349,6 +433,7 @@
                         }
                     }
                 }
+
     
                 errorMessage?.let { /* Error Card logic here */ }
             }

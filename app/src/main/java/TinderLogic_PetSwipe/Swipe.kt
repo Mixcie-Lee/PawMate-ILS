@@ -45,6 +45,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.navigation.NavController
 import android.content.res.Configuration
 import android.util.Log
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -158,7 +159,9 @@ data class PetData(
     val imageUrl: String? = null,
     val additionalImages: List<String> = emptyList(),
     // Shelter Info for the New Design
-    val shelterId: String? = null,
+    @get:PropertyName("shelterId") @set:PropertyName("shelterId")
+    var shelterId: String? = null,
+
     @get:PropertyName("shelterName") @set:PropertyName("shelterName")
     var shelterName: String? = null,
     @get:PropertyName("shelterAddress") @set:PropertyName("shelterAddress")
@@ -261,13 +264,33 @@ fun PetSwipeScreen(navController: NavController) {
     val gemCount by GemManager.gemCount.collectAsState()
     val currentTier by GemManager.currentTier.collectAsState()
 
+    var backPressedTime by remember { mutableLongStateOf(0L) }
+
+
     LaunchedEffect(currentUserId) {
         if (currentUserId.isNotEmpty()) {
             swipedPetIds = firestoreRepo.getSwipedPetIds(currentUserId)
         }
     }
 
+    BackHandler(enabled = true) {
+        val currentTime = System.currentTimeMillis()
+        if (currentTime - backPressedTime < 2000) {
+            // 🎯 1. Mark them offline so they don't show a green dot while gone
+            authViewModel.updateOnlineStatus(false)
 
+            // 🎯 2. Minimize the app instead of "Finishing" it.
+            // This keeps the session ALIVE in the background.
+            val intent = android.content.Intent(android.content.Intent.ACTION_MAIN).apply {
+                addCategory(android.content.Intent.CATEGORY_HOME)
+                flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            context.startActivity(intent)
+        } else {
+            backPressedTime = currentTime
+            android.widget.Toast.makeText(context, "Swipe again to exit PawMate", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
 
 
 
@@ -444,11 +467,7 @@ fun PetSwipeScreen(navController: NavController) {
                     swipedPetIds = swipedPetIds + petIdToRecord
                 }
                 */
-                android.widget.Toast.makeText(
-                    context,
-                    "This is already swiped! (Like triggered)",
-                    android.widget.Toast.LENGTH_SHORT
-                ).show()
+
 
                 // Reset the card position instead of letting it fly away
 
@@ -462,6 +481,7 @@ fun PetSwipeScreen(navController: NavController) {
 
                 scope.launch {
                     try {
+                        val currentUser = authViewModel.userData.value
                         val shelterId = currentPet.shelterId
                         if (shelterId.isNullOrEmpty()) return@launch
 
@@ -470,9 +490,11 @@ fun PetSwipeScreen(navController: NavController) {
 
                         val adopterId = authViewModel.currentUser?.uid ?: return@launch
                         val adopterUser = allUsers.find { it.id == adopterId }
-                        val adopterPhoto = adopterUser?.photoUri
-                        val shelterPhoto = shelterUser.photoUri
                         val adopterName = authViewModel.currentUser?.displayName ?: "Unknown"
+                        val shelterName = shelterUser.name ?: "Unknown Shelter"
+
+                        val adopterPhoto = currentUser?.photoUri?.takeIf { it.isNotBlank() } ?: ""
+                        val shelterPhoto = shelterUser.photoUri?.takeIf { it.isNotBlank() } ?: ""
 
                         // 🏷️ NEWLY ADDED: Variable Sync for consolidation
                         val petNameToAdd = currentPet.name ?: "Unknown"
@@ -505,8 +527,8 @@ fun PetSwipeScreen(navController: NavController) {
                                 adopterId = adopterId,
                                 adopterName = adopterName,
                                 adopterPhotoUri = adopterPhoto,
-                                shelterId = currentPet.shelterId ?: "",
-                                shelterName = shelterUser.name,
+                                shelterId = shelterId,
+                                shelterName = shelterName,
                                 shelterPhotoUri = shelterPhoto,
                                 petNames = listOf(petNameToAdd),
                                 lastMessage = "Interested in $petNameToAdd",
@@ -2426,6 +2448,14 @@ fun GCashMultiStepDialog(
     // 🚦 0: Final Assurance | 1: QR Code | 2: Processing | 3: Success
     var currentStep by remember { mutableIntStateOf(0) }
 
+
+   //SECURITY CHECK
+    val context = LocalContext.current
+    val activity = context as? androidx.fragment.app.FragmentActivity
+    val biometricHelper = remember { com.example.pawmate_ils.BiometricHelper(context) }
+
+
+
     // 🎨 PAWMATE COLOR PALETTE SYNC
     val isDarkMode = ThemeManager.isDarkMode
     val pawMatePink = if (isDarkMode) Color(0xFFFF9999) else Color(0xFFFFB6C1)
@@ -2481,7 +2511,7 @@ fun GCashMultiStepDialog(
                     }
                     2 -> { // ⏳ STEP 2: PROCESSING
                         LaunchedEffect(Unit) {
-                            delay(5000)
+                            delay(3000)
                             GemManager.initiatePurchase(packageType)
                             val uid = authViewModel.currentUser?.uid ?: ""
                             GemManager.confirmPurchase(uid) {
@@ -2512,8 +2542,24 @@ fun GCashMultiStepDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    if (currentStep < 2) currentStep++
-                    else if (currentStep == 3) onDismiss()
+                    if (currentStep < 2) {
+                        // 🛡️ SECURITY ADDITION: If we are at the very start (Step 0), ask for Fingerprint
+                        if (currentStep == 0 && activity != null && biometricHelper.isBiometricAvailable()) {
+                            biometricHelper.showBiometricPrompt(
+                                activity = activity,
+                                onSuccess = { currentStep++ }, // Success? Move to Step 1 (QR)
+                                onError = { error ->
+                                    android.widget.Toast.makeText(context, "Authorization Required", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            )
+                        } else {
+                            // This handles Step 1 -> Step 2, OR acts as a fallback if biometrics aren't set up
+                            currentStep++
+                        }
+                    }
+                    else if (currentStep == 3) {
+                        onDismiss()
+                    }
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = pawMatePink),
                 shape = RoundedCornerShape(20.dp)

@@ -7,6 +7,7 @@ import com.example.pawmate_ils.firebase_models.Channel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -29,8 +30,12 @@ class HomeViewModel(
     val newNotificationAlert = _newNotificationAlert.asStateFlow()
 
     init {
-        listenToChannels()
-        startNotificationListener() // 🔔 ADD THIS LINE HERE
+        viewModelScope.launch {
+            delay(500) // Now it's inside a coroutine, so it works!
+            listenToChannels()
+            startNotificationListener()
+        }
+        // 🔔 ADD THIS LINE HERE
     }
 
     // 🔹 LISTEN TO CHANNELS
@@ -82,6 +87,11 @@ class HomeViewModel(
                 val finalAdopterName = channel.adopterName.ifBlank {
                     db.collection("users").document(channel.adopterId).get().await().getString("name") ?: "Adopter"
                 }
+                if (channel.shelterId.isBlank() || channel.adopterId.isBlank()) {
+                    Log.e("HOME_VM", "❌ Rejecting channel: Missing IDs (Shelter: ${channel.shelterId})")
+                    return@launch
+                }
+
                 val finalShelterName = channel.shelterName.ifBlank {
                     db.collection("users").document(channel.shelterId).get().await().getString("name") ?: "Shelter"
                 }

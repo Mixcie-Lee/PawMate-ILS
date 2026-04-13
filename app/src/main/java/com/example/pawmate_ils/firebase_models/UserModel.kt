@@ -57,7 +57,7 @@ data class User(
 
     @get:PropertyName("tier")
     @set:PropertyName("tier")
-    var tier: String = "Free",
+    var tier: String = "0",
 
     @get:PropertyName("createdAt")
     @set:PropertyName("createdAt")

@@ -24,12 +24,19 @@ class SettingsManager(private val context: Context) {
     fun setProfilePhotoUri(uri: String?) {
         prefs.edit().putString(KEY_PFP_URI, uri).apply()
     }
+    fun setBiometricEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean("biometric_enabled", enabled).apply()
+    }
 
+    fun isBiometricEnabled(): Boolean {
+        return prefs.getBoolean("biometric_enabled", false)
+    }
 
     // for image handling
     fun clear() {
         prefs.edit().clear().apply()
     }
+
 
     companion object {
         private const val KEY_NOTIFICATIONS = "notifications_enabled"

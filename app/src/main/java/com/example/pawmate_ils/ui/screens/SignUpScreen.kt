@@ -88,6 +88,7 @@ fun SignUpScreen(
     val newUser by authViewModel.newUser.observeAsState()
 
     // --- GOOGLE SIGN-UP/SIGN-IN HANDLER ---
+    // --- GOOGLE SIGN-UP/SIGN-IN HANDLER ---
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -97,21 +98,29 @@ fun SignUpScreen(
             val idToken = account?.idToken
             if (idToken == null) {
                 errorMessage = "Failed to get Google ID Token."
+                isGoogleLoading = false
                 return@rememberLauncherForActivityResult
             }
-            authViewModel.signUpWithGoogle(context, idToken) { success, message ->
+            authViewModel.signUpWithGoogle(context, idToken) { success, status ->
                 isGoogleLoading = false
                 if (success) {
-                    currentStep = 2
+                    if (status == "new") {
+                        currentStep = 2 // Move to Step 2 for new users
+                    } else {
+                        navController.navigate("adopter_home") {
+                            popUpTo("signup") { inclusive = true }
+                        }
+                    }
                 } else {
-                    errorMessage = message ?: "Google Sign-In failed. Try again."
+                    errorMessage = status ?: "Google Sign-In failed."
                 }
             }
-        } catch (e: ApiException) {
+        } catch (e: Exception) { // Added missing catch block
             isGoogleLoading = false
             errorMessage = "Google sign in failed: ${e.message}"
         }
     }
+
 
     Box(
         modifier = Modifier
@@ -356,6 +365,7 @@ fun SignUpScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
+                    // --- UPDATED COMPLETE SIGN UP BUTTON ---
                     Button(
                         onClick = {
                             if (firstName.isBlank() || lastName.isBlank() || age.isBlank() || gender.isBlank() || mobileNumber.isBlank() || address.isBlank() || aboutMe.isBlank() ) {
@@ -365,56 +375,96 @@ fun SignUpScreen(
                             errorMessage = null
                             isLoading = true
 
-                            authViewModel.signUp(email, password) { success, message ->
-                                if (success) {
-                                    scope.launch {
-                                        val uid = FirebaseAuth.getInstance().currentUser?.uid
-                                        if (uid != null) {
+                            val firebaseUser = FirebaseAuth.getInstance().currentUser
 
-                                            val defaultAvatar =
-                                                ProfilePhotoDefaults.photoUriForGender(context, gender)
+                            // 🎯 CHECK: If this is a Google user, we skip authViewModel.signUp
+                            // because they are already authenticated!
+                            val isGoogleUser = firebaseUser?.providerData?.any { it.providerId == "google.com" } == true
 
+                            if (isGoogleUser) {
+                                // --- GOOGLE USER PATH ---
+                                scope.launch {
+                                    val uid = firebaseUser!!.uid
+                                    val defaultAvatar = ProfilePhotoDefaults.photoUriForGender(context, gender)
+                                    val isNewUser = firestoreRepo.isNewUser(uid)
 
+                                    val user = User(
+                                        id = uid,
+                                        name = "$firstName $lastName",
+                                        email = firebaseUser.email ?: "",
+                                        gender = gender,
+                                        photoUri = defaultAvatar,
+                                        MobileNumber = mobileNumber,
+                                        Address = address,
+                                        Age = age,
+                                        aboutMe = aboutMe,
+                                        role = "adopter",
+                                        tier = "0",
+                                        gems = if (isNewUser) 10 else 0,
+                                        createdAt = System.currentTimeMillis()
+                                    )
+                                    try {
+                                        firestoreRepo.addUser(user)
+                                        firestoreRepo.addAdopterProfile(user)
+                                        val settings = SettingsManager(context)
+                                        settings.setUsername("$firstName $lastName")
+                                        sharedViewModel.username.value = "$firstName $lastName"
 
+                                        isLoading = false
+                                        // Google users go straight to home (no verification needed)
+                                        navController.navigate("adopter_home") {
+                                            popUpTo("signup") { inclusive = true }
+                                        }
+                                    } catch (e: Exception) {
+                                        errorMessage = e.message
+                                        isLoading = false
+                                    }
+                                }
+                            } else {
+                                // --- EMAIL/PASSWORD PATH (YOUR ORIGINAL LOGIC) ---
+                                authViewModel.signUp(email, password) { success, message ->
+                                    if (success) {
+                                        scope.launch {
+                                            val uid = FirebaseAuth.getInstance().currentUser?.uid
+                                            if (uid != null) {
+                                                val defaultAvatar = ProfilePhotoDefaults.photoUriForGender(context, gender)
+                                                val isNewUser = firestoreRepo.isNewUser(uid)
+                                                val user = User(
+                                                    id = uid,
+                                                    name = "$firstName $lastName",
+                                                    email = email,
+                                                    gender = gender,
+                                                    photoUri = defaultAvatar,
+                                                    MobileNumber = mobileNumber,
+                                                    Address = address,
+                                                    Age = age,
+                                                    aboutMe = aboutMe,
+                                                    role = "adopter",
+                                                    gems = if (isNewUser) 10 else 0,
+                                                    createdAt = System.currentTimeMillis()
+                                                )
+                                                try {
+                                                    firestoreRepo.addUser(user)
+                                                    val settings = SettingsManager(context)
+                                                    settings.setUsername("$firstName $lastName")
+                                                    sharedViewModel.username.value = "$firstName $lastName"
 
-                                            val isNewUser = firestoreRepo.isNewUser(uid)
-                                            val user = User(
-                                                id = uid,
-                                                name = "$firstName $lastName",
-                                                email = email,
-                                                gender = gender,
-                                                photoUri = defaultAvatar,
-                                                MobileNumber = mobileNumber,
-                                                Address = address,
-                                                Age = age,
-                                                aboutMe = aboutMe,
-                                                role = "adopter",
-                                                gems = if (isNewUser) 10 else 0,
-                                                createdAt = System.currentTimeMillis()
-                                            )
-                                            try {
-                                                firestoreRepo.addUser(user)
-                                                val settings = SettingsManager(context)
-                                                settings.setUsername("$firstName $lastName")
-                                                sharedViewModel.username.value = "$firstName $lastName"
-
-                                                isLoading = false
-                                                showVerificationDialog = true
-
-
-
-                                            } catch (e: Exception) {
-                                                errorMessage = e.message
-                                                isLoading = false
+                                                    isLoading = false
+                                                    showVerificationDialog = true
+                                                } catch (e: Exception) {
+                                                    errorMessage = e.message
+                                                    isLoading = false
+                                                }
                                             }
                                         }
+                                    } else {
+                                        errorMessage = message
+                                        isLoading = false
                                     }
-                                } else {
-                                    errorMessage = message
-                                    isLoading = false
                                 }
                             }
                         },
+                        // --- END OF UPDATED LOGIC ---
                         modifier = Modifier.fillMaxWidth().height(56.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFB6C1)),
                         shape = RoundedCornerShape(28.dp),

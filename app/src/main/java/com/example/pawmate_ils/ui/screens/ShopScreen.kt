@@ -946,6 +946,12 @@ fun ShopScreen(navController: NavController) {
     var gcashPurchaseAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     var showShopConfirmation by remember { mutableStateOf(false) }
 
+    //SECURITY SETTINGS
+    val activity = context as? androidx.fragment.app.FragmentActivity
+    val biometricHelper = remember { com.example.pawmate_ils.BiometricHelper(context) }
+
+
+
     LaunchedEffect(cartItems.size, cartItems.sumOf { it.quantity }) {
         saveCart(context, cartItems.toList())
     }
@@ -1139,8 +1145,23 @@ fun ShopScreen(navController: NavController) {
                 confirmButton = {
                     Button(
                         onClick = {
-                            showShopConfirmation = false
-                            showGCashFlow = true // 🚀 Launch GCash ONLY after this confirmation
+                            if (activity != null && biometricHelper.isBiometricAvailable()) {
+                                biometricHelper.showBiometricPrompt(
+                                    activity = activity,
+                                    onSuccess = {
+                                        // 🔓 AUTHORIZED: Only move to GCash now
+                                        showShopConfirmation = false
+                                        showGCashFlow = true
+                                    },
+                                    onError = { error ->
+                                        android.widget.Toast.makeText(context, "Authorization Failed", android.widget.Toast.LENGTH_SHORT).show()
+                                    }
+                                )
+                            } else {
+                                // Fallback if hardware security is unavailable
+                                showShopConfirmation = false
+                                showGCashFlow = true
+                            }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC16565))
                     ) {

@@ -96,10 +96,17 @@ fun AdoptionCenterDashboard(
     }
     BackHandler(enabled = true) {
         val currentTime = System.currentTimeMillis()
-        // If the second swipe happens within 2 seconds of the first
         if (currentTime - backPressedTime < 2000) {
-            // Exit the app completely instead of going back to Login
-            (context as? android.app.Activity)?.finish()
+            // 🎯 1. Mark them offline so they don't show a green dot while gone
+            authViewModel.updateOnlineStatus(false)
+
+            // 🎯 2. Minimize the app instead of "Finishing" it.
+            // This keeps the session ALIVE in the background.
+            val intent = android.content.Intent(android.content.Intent.ACTION_MAIN).apply {
+                addCategory(android.content.Intent.CATEGORY_HOME)
+                flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            context.startActivity(intent)
         } else {
             backPressedTime = currentTime
             android.widget.Toast.makeText(context, "Swipe again to exit PawMate", android.widget.Toast.LENGTH_SHORT).show()
@@ -492,7 +499,7 @@ fun ChannelCardDesign(
     homeViewModel: HomeViewModel
 ){
     val isLive = authViewModel.isUserActuallyOnline(
-        User(isOnline = channel.isOnline, lastActive = channel.lastActive)
+        User(isOnline = channel.isOnline, lastActive = channel.lastActive ?: 0L)
     )
 
     val (timeLabel, isRecent) = formatChatTimestamp(channel.timestamp)
