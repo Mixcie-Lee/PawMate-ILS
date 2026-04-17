@@ -13,10 +13,12 @@ import kotlinx.coroutines.flow.StateFlow
 enum class UserTier(val level: Int, val cost: Int) {
     TIER_0(0, 0),    // No access (Locked)
     TIER_1(1, 10),   // Swipe & Chat(can swipe and chat)
-    TIER_2(2, 25),   // Detailed Info(adopter can see the detailed info)
-    TIER_3(3, 50)    // Priority Inbox(chat priority on top of channels)
+    TIER_2(2, 25),   // Swipe & Chat additional gems but no features
+    TIER_3(3, 50)    // Premium subscription. Priority Inbox(chat priority on top of channels)
 }
 class GemManager {
+
+
     companion object {
 
         private const val KEY_USER_TIER = "user_tier"
@@ -34,6 +36,8 @@ class GemManager {
 
         private val _currentTier = MutableStateFlow(UserTier.TIER_0)
         val currentTier: StateFlow<UserTier> get() = _currentTier
+
+        var showExpiryDialog by mutableStateOf(false)
 
 
         private lateinit var context: Context
@@ -173,41 +177,41 @@ class GemManager {
 
         fun confirmPurchase(userId: String, onTier3Unlocked: () -> Unit = {}) {
             _pendingPackage?.let { pkg ->
-                // 1. 💎 ALWAYS add the gems (Stackable logic)
+                // 1. 💎 ALWAYS add gems
                 _gemCount.value += pkg.gemAmount
 
-                // 2. 👑 PERMANENT Tier Logic
-                // Determine what tier this package represents
-                val packageTierLevel = when (pkg) {
-                    GemPackage.SMALL -> 1
-                    GemPackage.MEDIUM -> 2
-                    GemPackage.LARGE -> 3
-                }
-
                 val currentLevel = _currentTier.value.level
+                var expiryTimestamp = 0L
 
-                // Only update if the purchased package is a HIGHER tier than current
-                if (packageTierLevel > currentLevel) {
-                    _currentTier.value = UserTier.entries.find { it.level == packageTierLevel } ?: _currentTier.value
-                    Log.d("GEM_SYSTEM", "Permanent Tier Upgraded to: ${packageTierLevel}")
-                } else {
-                    Log.d("GEM_SYSTEM", "Tier ${currentLevel} maintained. Added gems to existing perks.")
+                // 2. 👑 Tier logic based on package
+                when (pkg) {
+                    GemPackage.SMALL, GemPackage.MEDIUM -> {
+                        // Tiers 1 and 2 are PERMANENT
+                        val targetLevel = if (pkg == GemPackage.SMALL) 1 else 2
+                        if (targetLevel > currentLevel) {
+                            _currentTier.value = UserTier.entries.find { it.level == targetLevel } ?: _currentTier.value
+                            Log.d("GEM_SYSTEM", "Permanent Tier Upgraded to: $targetLevel")
+                        }
+                    }
+                    GemPackage.LARGE -> {
+                        // 🎯 Tier 3 is a 30-DAY SUBSCRIPTION
+                        val calendar = java.util.Calendar.getInstance()
+                        calendar.add(java.util.Calendar.DAY_OF_YEAR, 30)
+                        expiryTimestamp = calendar.timeInMillis
+
+                        _currentTier.value = UserTier.TIER_3
+                        onTier3Unlocked()
+                        Log.d("GEM_SYSTEM", "Tier 3 Subscription Active. Expires: $expiryTimestamp")
+                    }
                 }
 
-                if (packageTierLevel == 3) {
-                    onTier3Unlocked()
-                }
-
-
-                // 3. 💾 Sync both Disk and Cloud in one go
+                // 3. 💾 Save locally and sync to Cloud
                 saveData()
-                syncTierToFirestore(userId, _currentTier.value, _gemCount.value)
+                syncTierToFirestore(userId, _currentTier.value, _gemCount.value, expiryTimestamp)
 
                 // 4. 🧹 Cleanup
                 _pendingPackage = null
                 closePurchaseDialog()
-
-                Log.d("GEM_SYSTEM", "Purchase Complete: +${pkg.gemAmount} Gems. Current Tier: ${_currentTier.value.level}")
             }
         }
 
@@ -224,7 +228,7 @@ class GemManager {
             onShowDialog: (String, String) -> Unit, // 🟢 Added Title and Message
             onDirectPurchase: () -> Unit
         ) {
-            val packageTierLevel = when (selectedPackage) {
+            val packageLevel = when (selectedPackage) {
                 GemPackage.SMALL -> 1
                 GemPackage.MEDIUM -> 2
                 GemPackage.LARGE -> 3
@@ -232,18 +236,13 @@ class GemManager {
 
             val currentLevel = _currentTier.value.level
 
-            if (currentLevel > packageTierLevel) {
+            if (currentLevel > packageLevel) {
                 // Higher Tier Case
                 onShowDialog(
-                    "Premium Status Active",
-                    "You are a Tier $currentLevel member. Purchasing this will add ${selectedPackage.gemAmount} Gems to your account. Your higher-tier perks will remain unchanged."
-                )
-            } else if (currentLevel == packageTierLevel) {
+                    "Premium Status Active", "You are Tier $currentLevel. This adds ${selectedPackage.gemAmount} Gems; your perks remain.")
+            } else if (currentLevel == packageLevel && packageLevel != 3) {
                 // Same Tier Case
-                onShowDialog(
-                    "Tier Already Unlocked",
-                    "You already have the permanent perks for this tier. This purchase will only add ${selectedPackage.gemAmount} Gems to your balance."
-                )
+                onShowDialog("Tier Already Unlocked", "You have these permanent perks. This adds ${selectedPackage.gemAmount} Gems.")
             } else {
                 // New Upgrade
                 onDirectPurchase()
@@ -252,13 +251,19 @@ class GemManager {
 
 
 
-        fun syncTierToFirestore(userId: String, newTier: UserTier, gems: Int) {
+        fun syncTierToFirestore(userId: String, newTier: UserTier, gems: Int, expiry: Long = 0L) {
             val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
 
-            val updates = mapOf(
+            val updates = mutableMapOf<String, Any>(
                 "tier" to newTier.level.toString(),
-                "gems" to gems // This ensures the cloud keeps the correct gem count!
+                "gems" to gems
             )
+
+            if (newTier == UserTier.TIER_3) {
+                updates["tierExpiry"] = expiry
+            }
+
+
 
             db.collection("users").document(userId)
                 .update(updates) // Save the level (1, 2, or 3)
@@ -267,6 +272,14 @@ class GemManager {
                 }
 
         }
+        fun triggerExpiryNotice() {
+            showExpiryDialog = true
+        }
+
+
+
+
+
 
         fun updateLocalTier(newTierLevel: Int) {
             if (!::context.isInitialized) return // Safety check
@@ -308,9 +321,13 @@ private fun saveGemCount() {
 
 /**
  * Gem packages available for purchase
+ *
+ *
  */
 enum class GemPackage(val gemAmount: Int, val price: String) {
-    SMALL(10, "₱49 | offers swiping pets and chat with adopters(default)"),
-    MEDIUM(25, "₱149 | offers a more detailed view of pet info"),
-    LARGE(50, "₱249 | offers a priority inbox for chat messages and offers the same feature of tier 2 "),
+    SMALL(10, "₱79 | offers swiping pets and chat with shelters"),
+    MEDIUM(25, "₱149 | top-up gems for more swipes and chat messages"),
+    LARGE(50, "₱349 | Ultimate: Full access to priority inbox and detailed pet info for 1 month"),
 }
+
+

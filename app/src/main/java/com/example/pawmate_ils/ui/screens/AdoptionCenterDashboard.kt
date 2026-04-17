@@ -1,5 +1,6 @@
 package com.example.pawmate_ils.ui.screens
 
+import NotificationHelper
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -22,6 +23,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -82,8 +84,8 @@ fun AdoptionCenterDashboard(
     var channelToReject by remember { mutableStateOf<Channel?>(null) }
     val notificationAlert by homeViewModel.newNotificationAlert.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
-
     val context = androidx.compose.ui.platform.LocalContext.current
+    val notifier = remember { NotificationHelper(context) }
     val rejectPresets = listOf("Pet already adopted", "Incomplete profile")
     var customReason by remember { mutableStateOf("") }
     var backPressedTime by remember { mutableLongStateOf(0L) }
@@ -91,10 +93,54 @@ fun AdoptionCenterDashboard(
     val scope = rememberCoroutineScope()
     val firestoreRepo = remember { com.example.pawmate_ils.Firebase_Utils.FirestoreRepository() }
 
+
+
+  //PERMISSION TO ALLOW NOTIFICATIONS
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (!isGranted) android.util.Log.e("SHELTER_NOTIF", "Permission Denied")
+    }
+
     LaunchedEffect(Unit) {
-        homeViewModel.listenToChannels()
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            permissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    LaunchedEffect(notificationAlert) {
+        notificationAlert?.let { alertMessage ->
+            // Trigger outside notification
+            // Logic: If message contains 'matched', it's a swipe. If 'withdrawn', it's an unswipe.
+            val title = when {
+                alertMessage.contains("matched", ignoreCase = true) -> "New Pet Match! 🐾"
+                alertMessage.contains("withdrawn", ignoreCase = true) -> "Application Update"
+                else -> "PawMate Notification"
+            }
+
+            notifier.sendDashboardNotification(
+                title = title,
+                message = alertMessage
+            )
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+
+    LaunchedEffect(Unit) {
         val currentShelterId = authViewModel.currentUser?.uid ?: ""
         if (currentShelterId.isNotEmpty()) {
+            homeViewModel.listenToChannels()
+            homeViewModel.startNotificationListener()
             adoptionCenterViewModel.listenToUploadedPetsCount(currentShelterId)
         }
 

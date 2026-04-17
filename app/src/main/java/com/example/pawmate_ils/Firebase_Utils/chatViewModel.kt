@@ -42,6 +42,8 @@ class ChatViewModel(
         replyName: String? = null
     ) {
         val currentUser = authViewModel.currentUser ?: return
+        val firestoreRepo = FirestoreRepository()
+
 
         val message = Message(
             messageId = "",
@@ -72,6 +74,18 @@ class ChatViewModel(
                 )
                 db.collection("channels").document(channelId).update(updates)
                 // 🟢 Stop typing immediately after sending
+
+
+
+                viewModelScope.launch {
+                    firestoreRepo.sendNotification(
+                        receiverId = receiverId,
+                        title = "New Message from ${currentUser.displayName ?: "User"} 💬",
+                        message = messageText
+                    )
+                }
+
+
                 setTypingStatus(channelId, false, immediate = true)
                 Log.d("ChatViewModel", "✅ Message sent and Channel updated")
             }
@@ -154,6 +168,16 @@ class ChatViewModel(
                             "unreadCount" to com.google.firebase.firestore.FieldValue.increment(1)
                         )
                         db.collection("channels").document(channelId).update(updates)
+
+                        viewModelScope.launch {
+                            val firestoreRepo = FirestoreRepository()
+                            firestoreRepo.sendNotification(
+                                receiverId = receiverId,
+                                title = "New Photo from ${currentUserName} 📷",
+                                message = "Sent a photo"
+                            )
+                        }
+
                     }
             }
         }

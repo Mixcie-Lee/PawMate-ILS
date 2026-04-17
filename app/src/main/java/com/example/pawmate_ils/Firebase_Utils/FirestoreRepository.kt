@@ -419,6 +419,7 @@ class FirestoreRepository {
             throw e
         }
     }
+
     suspend fun sendNotification(receiverId: String, title: String, message: String) {
         try {
             val notificationData = hashMapOf(
@@ -469,6 +470,7 @@ class FirestoreRepository {
             Log.e("FirestoreRepo", "Error updating shelter name: ${e.message}")
         }
     }
+
     suspend fun removePetNameFromChannel(channelId: String, petName: String) {
         try {
             db.collection("channels")
@@ -504,7 +506,31 @@ class FirestoreRepository {
         }
     }
 
+    //NOTIFICATION UPON SWIPING A PET
+    suspend fun triggerMatchNotification(adopterName: String, shelterId: String, petName: String) {
+        // 🔍 DIAGNOSTIC 1: Check if the Swipe Screen actually reached this function
+        Log.d("NOTIF_TRACE", "➡️ Entering triggerMatchNotification")
+        Log.d(
+            "NOTIF_TRACE",
+            "📦 Params - Adopter: $adopterName, ShelterID: $shelterId, Pet: $petName"
+        )
 
+        if (shelterId.isEmpty()) {
+            Log.e("NOTIF_TRACE", "❌ ERROR: shelterId is empty! Cannot route notification.")
+            return
+        }
 
+        try {
+            sendNotification(
+                receiverId = shelterId,
+                title = "New Pet Match! 🐾",
+                message = "$adopterName is interested in $petName!"
+            )
+            // 🔍 DIAGNOSTIC 2: Confirm the sendNotification call finished
+            Log.d("NOTIF_TRACE", "✅ sendNotification dispatch completed")
+        } catch (e: Exception) {
+            Log.e("NOTIF_TRACE", "❌ EXCEPTION: ${e.message}")
+        }
+    }
 }
 

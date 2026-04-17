@@ -88,4 +88,12 @@ data class User(
     @get:PropertyName("shelterHours")
     @set:PropertyName("shelterHours")
      var shelterHours: String = "",
+
+
+    @get:PropertyName("tierExpiry")
+    @set:PropertyName("tierExpiry")
+    var tierExpiry: Long = 0L
+
+
+
 )

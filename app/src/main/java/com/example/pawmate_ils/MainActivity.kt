@@ -84,12 +84,14 @@
         import androidx.compose.runtime.collectAsState
         import androidx.compose.ui.Alignment
         import androidx.compose.ui.unit.dp
+        import androidx.core.view.WindowCompat
         import kotlinx.coroutines.delay
 
 
         class MainActivity : androidx.fragment.app.FragmentActivity() {
             private val sharedViewModel: SharedViewModel by viewModels()
             private val authViewModel: AuthViewModel by viewModels()
+
 
 
 
@@ -114,23 +116,16 @@
             }
 
 
-
-
             override fun onCreate(savedInstanceState: Bundle?) {
                 super.onCreate(savedInstanceState)
                 enableEdgeToEdge()
                 GemManager.init(applicationContext)
                 CloudinaryHelper.init(this)
-
+                WindowCompat.setDecorFitsSystemWindows(window, false)
 
 
 
                 setContent {
-
-
-
-
-
 
 
                     PawMateILSTheme(darkTheme = ThemeManager.isDarkMode) {

@@ -70,6 +70,10 @@
         //THIS HANDLES THE ACTIVE STATUS
         private val rtdb = FirebaseDatabase.getInstance().reference
 
+        private val _showExpiryDialog = MutableStateFlow(false)
+        val showExpiryDialog: StateFlow<Boolean> = _showExpiryDialog
+
+
 
         init {
             checkAuthStatus()
@@ -277,6 +281,9 @@
             _userData.value = null
             _currentUserRole.value = null
             _profilePhotoUrl.value = null
+
+
+            context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE).edit().clear().apply()
 
             // Revoke the Firebase Auth Token
             auth.signOut()
@@ -586,10 +593,10 @@
 
                             val tierInt = fixedTier.toIntOrNull() ?: 0
                             GemManager.updateLocalTier(tierInt)
+
+                            checkSubscriptionExpiry(it)
+
                         }
-
-
-
 
                     }
                 }
@@ -668,6 +675,20 @@
                 }
             }
         }
+        //DIALOG UPON EXPIRATION OF SUBSCRIPTION SO THAT USERS CAN CLEARLY SEE THEIR SBSCRIPTION STATUS INSTEAD OF A TOAST
+        fun dismissExpiryDialog() {
+            _showExpiryDialog.value = false
+        }
+
+
+
+
+
+
+
+
+
+
 
 
         //HELPER FUNCTION  TO UPDATE ONLINE STATUS
@@ -782,9 +803,31 @@
             }
         }
 
+        private fun checkSubscriptionExpiry(user: User) {
+            val uid = auth.currentUser?.uid ?: return
+            val currentTime = System.currentTimeMillis()
+            val expiry = user.tierExpiry ?: 0L
+
+            // LOGIC: If user is Tier 3 and the current time is past the expiry date
+            if (user.tier == "3" && expiry != 0L && currentTime > expiry) {
+                viewModelScope.launch {
+                    try {
+                        val resetUpdates = mapOf(
+                            "tier" to "2",        // Demote to Tier 2 (as per Boss Plan)
+                            "tierExpiry" to 0L    // Clear the timer
+                        )
+                        db.collection("users").document(uid).update(resetUpdates).await()
+
+                        // Sync local GemManager so UI updates instantly
+                        GemManager.updateLocalTier(2)
+                        _showExpiryDialog.value = true
 
 
-
-
-
+                        Log.d("SUBSCRIPTION", "✅ Tier 3 expired. User demoted to Tier 2.")
+                    } catch (e: Exception) {
+                        Log.e("SUBSCRIPTION", "❌ Auto-reset failed: ${e.message}")
+                    }
+                }
+            }
+        }
     }

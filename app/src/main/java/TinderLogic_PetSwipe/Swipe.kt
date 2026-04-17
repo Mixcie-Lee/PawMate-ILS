@@ -1,5 +1,6 @@
 package TinderLogic_PetSwipe
 
+import NotificationHelper
 import android.annotation.SuppressLint
 import androidx.compose.animation.core.*
 import androidx.compose.animation.*
@@ -44,8 +45,11 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.navigation.NavController
 import android.content.res.Configuration
+import android.os.Build
 import android.util.Log
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -97,6 +101,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.Alignment
 import coil.compose.AsyncImage
+import com.example.pawmate_ils.ThemeManager.isDarkMode
 import com.example.pawmate_ils.firebase_models.User
 import com.example.pawmate_ils.ui.components.AdopterBottomBar
 import com.google.firebase.database.PropertyName
@@ -189,6 +194,7 @@ fun PetSwipeScreen(navController: NavController) {
     var currentPetIndex by remember { mutableIntStateOf(0) }
     val likedPets = remember { mutableListOf<String>() }
     var petFilter by remember { mutableStateOf(PetFilter.ALL) }
+
     /** Bumps on user "Shuffle" so [filteredPets] reorders with a new seed (stable when unchanged). */
     var shuffleEpoch by remember { mutableIntStateOf(0) }
     var shuffleIconSpinTarget by remember { mutableFloatStateOf(0f) }
@@ -198,7 +204,6 @@ fun PetSwipeScreen(navController: NavController) {
         label = "shuffle_icon_spin"
     )
     var showFilterDialog by remember { mutableStateOf(false) }
-
     var offsetX by remember(currentPetIndex) { mutableFloatStateOf(0f) }
     var offsetY by remember(currentPetIndex) { mutableFloatStateOf(0f) }
     var rotation by remember(currentPetIndex) { mutableFloatStateOf(0f) }
@@ -221,22 +226,55 @@ fun PetSwipeScreen(navController: NavController) {
     val chatViewModel: ChatViewModel = viewModel(factory = factory)
     val firestoreRepo = remember { FirestoreRepository() }
     val likedPetsViewmodel: LikedPetsViewModel = viewModel()
-    val petRepository : PetsRepository = viewModel()
+    val petRepository: PetsRepository = viewModel()
     //INITIALIZING THE VARIABLE USED FOR CONFIMATION PURCHASE DIALOG
-    val pendingBuy =  GemManager.pendingPackage
+    val pendingBuy = GemManager.pendingPackage
 
     var swipedPetIds by remember { mutableStateOf<List<String>>(emptyList()) }
     val currentUserId = authViewModel.currentUser?.uid ?: ""
 
+    //FOR NOTIFICATIONS
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (!isGranted) {
+            Log.e("NOTIF", "Permission Denied")
+        }
+    }
+
+// Request permission when the screen opens
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
     val homeViewModel: HomeViewModel = viewModel()
+    val notificationAlert by homeViewModel.newNotificationAlert.collectAsState()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val notifier = remember { NotificationHelper(context) }
     val tutorialPrefs = remember(context) {
         context.getSharedPreferences(
             "swipe_tutorial",
             android.content.Context.MODE_PRIVATE
         )
     }
+    LaunchedEffect(notificationAlert) {
+        notificationAlert?.let { alertString ->
+            // Split the string we built in ViewModel (Title: Message)
+            val parts = alertString.split(": ", limit = 2)
+            val title = parts.getOrNull(0) ?: "PawMate Update"
+            val message = parts.getOrNull(1) ?: alertString
+
+            // 🚀 TRIGGER SYSTEM NOTIFICATION
+            notifier.sendSubscriptionNotification(title, message)
+
+            // 🧹 Clear the alert so the Snackbar and Notification don't repeat
+            homeViewModel.clearNotificationAlert()
+        }
+    }
+
     val tutorialSeen = remember { tutorialPrefs.getBoolean("seen", false) }
     var showTutorial by remember { mutableStateOf(!tutorialSeen) }
     LaunchedEffect(showTutorial) {
@@ -263,8 +301,14 @@ fun PetSwipeScreen(navController: NavController) {
     }
     val gemCount by GemManager.gemCount.collectAsState()
     val currentTier by GemManager.currentTier.collectAsState()
+    val pawMatePink = if (isDarkMode) Color(0xFFFF9999) else Color(0xFFFFB6C1)
+
 
     var backPressedTime by remember { mutableLongStateOf(0L) }
+
+    //SUBSCRIPTION EXPIRY LOGIC
+    val showExpiryNotice by authViewModel.showExpiryDialog.collectAsState()
+
 
 
     LaunchedEffect(currentUserId) {
@@ -288,11 +332,13 @@ fun PetSwipeScreen(navController: NavController) {
             context.startActivity(intent)
         } else {
             backPressedTime = currentTime
-            android.widget.Toast.makeText(context, "Swipe again to exit PawMate", android.widget.Toast.LENGTH_SHORT).show()
+            android.widget.Toast.makeText(
+                context,
+                "Swipe again to exit PawMate",
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
         }
     }
-
-
 
 
     val configuration = LocalConfiguration.current
@@ -417,6 +463,20 @@ fun PetSwipeScreen(navController: NavController) {
     }
 
 
+    SubscriptionGuard(
+        onRenew = { showGemDialog = true }
+    )
+
+
+
+
+
+
+
+
+
+
+
     //This is the handler for a dialog that ask the user to upload or create their profile picture
     //without this the avatar icon wouldnt appear if they change it mid use
     ProfileRequirementDialog(
@@ -424,6 +484,19 @@ fun PetSwipeScreen(navController: NavController) {
         navController = navController,
         canShow = !showTutorial
     )
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     fun resetCardPosition() {
         if (isDragging || currentPetIndex >= filteredPets.size) return
@@ -517,6 +590,12 @@ fun PetSwipeScreen(navController: NavController) {
                                 // Update Firestore immediately with the new list
                                 firestoreRepo.updateChannelPetNames(uniqueChannelId, updatedList)
                                 Log.d("PetSwipe", "✅ Consolidated: $petNameToAdd added to $uniqueChannelId")
+
+                                firestoreRepo.triggerMatchNotification(
+                                    adopterName = adopterName,
+                                    shelterId = shelterId,
+                                    petName = petNameToAdd
+                                )
                             }
                         } else {
                             // ==========================================================
@@ -721,6 +800,10 @@ fun PetSwipeScreen(navController: NavController) {
                         .padding(horizontal = paddingSize, vertical = 16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+
+
+
+
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1012,8 +1095,9 @@ fun PetSwipeScreen(navController: NavController) {
                                             translationY = (1f - ep) * 10f * densityFloat
                                         }
                                 )
-                            } // Close Box
-                        } // Close AnimatedContent
+                            }
+                        }
+
                     } else {
                         Box(
                             modifier = Modifier
@@ -1203,9 +1287,32 @@ fun PetSwipeScreen(navController: NavController) {
                     shape = RoundedCornerShape(24.dp)
                 )
             }
-
-
-
+            if (showExpiryNotice) {
+                AlertDialog(
+                    onDismissRequest = { authViewModel.dismissExpiryDialog() },
+                    containerColor = cardColor,
+                    icon = { Icon(Icons.Default.Info, null, tint = pawMatePink, modifier = Modifier.size(40.dp)) },
+                    title = { Text("Subscription Expired", fontWeight = FontWeight.Bold, color = textColor) },
+                    text = { Text("Your Ultimate perks are now locked. Move back to Tier 2.", textAlign = TextAlign.Center, color = textColor) },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                authViewModel.dismissExpiryDialog()
+                                showGemDialog = true
+                            },
+                            colors = ButtonDefaults.buttonColors(pawMatePink)
+                        ) {
+                            Text("Renew Ultimate", color = Color.White)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { authViewModel.dismissExpiryDialog() }) {
+                            Text("Dismiss", color = Color.Gray)
+                        }
+                    },
+                    shape = RoundedCornerShape(24.dp)
+                )
+            }
 
 
             if (showGemDialog) {
@@ -1610,13 +1717,13 @@ fun SwipeablePetCard(
                         }
                     },
                     onLongPress = {
-                        if (userTier >= 2) {
+                        if (userTier >= 3) {
                             holdInfoActive = true
                             isBackFace = true
                         } else {
                             android.widget.Toast.makeText(
                                 context,
-                                "Detailed Info requires Tier 2 Unlock!",
+                                "Ultimate Subscription (Tier 3) required for Detailed Info!",
                                 android.widget.Toast.LENGTH_SHORT
                             ).show()
                             GemManager.openPurchaseDialog()
@@ -2527,6 +2634,27 @@ fun GCashMultiStepDialog(
                         Text("Waiting for GCash response...", textAlign = TextAlign.Center, color = pawMateText)
                     }
                     3 -> { // 🎉 STEP 3: SUCCESS
+                        val notifier = remember { NotificationHelper(context) }
+
+                        LaunchedEffect(Unit) {
+                            if (packageType == GemPackage.LARGE) {
+                                notifier.sendSubscriptionNotification(
+                                    "Ultimate Plan Activated! 🐾",
+                                    "Your perks are live until ${getExpiryDateString()}."
+                                )
+                            } else {
+                                notifier.sendSubscriptionNotification(
+                                    "Ultimate Plan Activated! 🐾",
+                                    "Your perks are live until ${getExpiryDateString()}."
+                                )
+                            }
+                        }
+
+
+
+
+
+
                         Icon(
                             Icons.Default.CheckCircle,
                             contentDescription = null,
@@ -2536,6 +2664,50 @@ fun GCashMultiStepDialog(
                         Spacer(modifier = Modifier.height(8.dp))
                         Text("Transaction Complete!", fontWeight = FontWeight.Bold, color = pawMateText)
                         Text("${packageType.gemAmount} Gems have been added to your account.", fontSize = 13.sp, textAlign = TextAlign.Center, color = pawMateText)
+
+
+                        if (packageType == GemPackage.LARGE) {
+                            // 💎 THE UPDATED TRANSPARENCY BLOCK
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "Ultimate Perks Activated!",
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = pawMatePink,
+                                    fontSize = 15.sp
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "Priority Inbox and Detailed Info are now unlocked.\n\n" +
+                                            "Your subscription is valid until:\n",
+                                    textAlign = TextAlign.Center,
+                                    fontSize = 13.sp,
+                                    color = pawMateText
+                                )
+                                // 📅 THE ACTUAL DATE DISPLAY
+                                Surface(
+                                    color = pawMatePink.copy(alpha = 0.15f),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text(
+                                        text = getExpiryDateString(),
+                                        fontWeight = FontWeight.Bold,
+                                        color = pawMatePink,
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(
+                                    text = "A notice will appear once it expires.",
+                                    fontSize = 11.sp,
+                                    color = Color.Gray
+                                )
+                            }
+                        } else {
+                            Text(
+                                "${packageType.gemAmount} Gems added to your account.",
+                                textAlign = TextAlign.Center
+                            )
+                        }
                     }
                 }
             }
@@ -2583,7 +2755,50 @@ fun GCashMultiStepDialog(
             }
         }
     )
+
+
 }
+@Composable
+fun SubscriptionGuard(onRenew: () -> Unit) {
+    val isDark = ThemeManager.isDarkMode
+    val pawMatePink = if (isDark) Color(0xFFFF9999) else Color(0xFFFFB6C1)
+
+    if (GemManager.showExpiryDialog) {
+        AlertDialog(
+            onDismissRequest = { GemManager.showExpiryDialog = false },
+            containerColor = if (isDark) Color(0xFF2A2A2A) else Color.White,
+            title = { Text("Subscription Expired", fontWeight = FontWeight.Bold) },
+            text = { Text("Your Ultimate perks have ended.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        GemManager.showExpiryDialog = false
+                        onRenew()
+                    },
+                    colors = ButtonDefaults.buttonColors(pawMatePink)
+                ) { Text("Renew Now") }
+            },
+            dismissButton = {
+                TextButton(onClick = { GemManager.showExpiryDialog = false }) {
+                    Text("Dismiss", color = Color.Gray)
+                }
+            },
+            shape = RoundedCornerShape(24.dp)
+        )
+    }
+}
+
+
+/** Helper to calculate the 30-day expiry string for the UI */
+fun getExpiryDateString(): String {
+    val calendar = java.util.Calendar.getInstance()
+    calendar.add(java.util.Calendar.DAY_OF_YEAR, 30) // Match backend 30-day logic
+    val format = java.text.SimpleDateFormat("MMMM dd, yyyy", java.util.Locale.getDefault())
+    return format.format(calendar.time)
+}
+
+
+
 
 
 

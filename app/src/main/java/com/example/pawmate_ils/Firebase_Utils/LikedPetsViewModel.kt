@@ -142,6 +142,7 @@ class LikedPetsViewModel : ViewModel() {
     fun addLikedPet(pet: PetData) {
         val userId = auth.currentUser?.uid ?: return
 
+        val adopterName = auth.currentUser?.displayName ?: "An Adopter"
         // 🔹 Convert PetData → LikedPet
         val likedPet = LikedPet(
             name = pet.name ?: "unknown",
@@ -164,7 +165,26 @@ class LikedPetsViewModel : ViewModel() {
                 .set(likedPet)
                 .addOnSuccessListener {
                     Log.d("LikedPetsVM", "Pet added successfully")
+                    if (likedPet.shelterId.isNotEmpty()) {
+                        viewModelScope.launch {
+                            firestoreRepo.triggerMatchNotification(
+                                adopterName = adopterName,
+                                shelterId = likedPet.shelterId,
+                                petName = likedPet.name
+                            )
+                        }
+                    }
+
+
+
+
                 }
+
+
+
+
+
+
                 .addOnFailureListener {
                     Log.e("LikedPetsVM", "Failed to add pet: ${it.message}")
                 }
@@ -212,7 +232,7 @@ class LikedPetsViewModel : ViewModel() {
                 val adopterName = auth.currentUser?.displayName ?: "An adopter"
 
 
-                GemManager.addGems(5)
+                //GemManager.addGems(5) TENTATIVE ATM PLEASE BRING BACK
 
                 // 2. Validation check
                 if (petId.isBlank()) {

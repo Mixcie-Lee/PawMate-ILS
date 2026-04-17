@@ -162,23 +162,27 @@ class HomeViewModel(
         db.collection("users")
             .document(currentUserId)
             .collection("notifications")
-            .orderBy("timestamp", Query.Direction.DESCENDING)
-            .limit(1) // We only care about the latest one
+            .whereEqualTo("isRead", false) // 🎯 Better efficiency: only get what's unread
             .addSnapshotListener { snapshot, e ->
-                if (e != null) return@addSnapshotListener
+                if (e != null) {
+                    Log.e("HOME_VM", "Notification Listen Failed", e)
+                    return@addSnapshotListener
+                }
 
-                val latestDoc = snapshot?.documents?.firstOrNull()
-                if (latestDoc != null) {
-                    val isRead = latestDoc.getBoolean("isRead") ?: true
-                    if (!isRead) {
-                        // 🔔 TRIGGER: This is where the magic happens!
-                        val title = latestDoc.getString("title") ?: "New Update"
-                        val message = latestDoc.getString("message") ?: ""
+                // 🚀 This is the reliable way to detect NEW notifications
+                snapshot?.documentChanges?.forEach { change ->
+                    if (change.type == com.google.firebase.firestore.DocumentChange.Type.ADDED) {
+                        val doc = change.document
 
+                        val title = doc.getString("title") ?: "New Update"
+                        val message = doc.getString("message") ?: ""
+
+                        // 🔔 This updates your Flow, which triggers the Snackbar in the UI
                         _newNotificationAlert.value = "$title: $message"
+                        Log.d("HOME_VM", "New Notification Alert set: $title")
 
-                        // Optional: Mark as read so it doesn't pop up again on next app start
-                        latestDoc.reference.update("isRead", true)
+                        // 🧹 Mark as read so it doesn't fire again on app restart
+                        doc.reference.update("isRead", true)
                     }
                 }
             }

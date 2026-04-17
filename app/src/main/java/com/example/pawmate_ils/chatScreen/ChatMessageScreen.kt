@@ -231,31 +231,39 @@ fun ChatScreen(
                     },
                     onSendClick = {
                         if (messageText.text.isNotBlank()) {
-                            val receiverId = if (currentUserId == adopterId) shelterId else adopterId
+                            // 🚀 SAFE ID RESOLUTION
+                            val currentChannel = chatViewModel.currentChannel.value
+                            val receiverId = if (currentChannel != null) {
+                                // If I am the adopter, send to the shelter. Otherwise, send to the adopter.
+                                if (currentUserId == currentChannel.adopterId) currentChannel.shelterId else currentChannel.adopterId
+                            } else {
+                                // Fallback to your local state if the flow is slow
+                                if (currentUserId == adopterId) shelterId else adopterId
+                            }
 
-                            // 🆕 Resolve the correct name for the reply bubble
-                            val resolvedReplyName = if (replyingTo != null) {
-                                if (replyingTo?.senderId == currentUserId) {
-                                    // Use your own name if replying to yourself
-                                    authViewModel.userData.value?.name ?: "Me"
-                                } else {
-                                    // Use the partner's name from the header state
-                                    chatPartnerName
-                                }
-                            } else null
+                            if (receiverId.isNotEmpty()) {
+                                val resolvedReplyName = if (replyingTo != null) {
+                                    if (replyingTo?.senderId == currentUserId) {
+                                        authViewModel.userData.value?.name ?: "Me"
+                                    } else {
+                                        chatPartnerName
+                                    }
+                                } else null
 
-                            // 🚀 Pass the resolvedReplyName to the ViewModel
-                            chatViewModel.sendMessage(
-                                channelId = channelId,
-                                messageText = messageText.text,
-                                receiverId = receiverId,
-                                replyMessage = replyingTo,
-                                replyName = resolvedReplyName
-                            )
+                                chatViewModel.sendMessage(
+                                    channelId = channelId,
+                                    messageText = messageText.text,
+                                    receiverId = receiverId, // 🎯 This is now guaranteed to be the partner
+                                    replyMessage = replyingTo,
+                                    replyName = resolvedReplyName
+                                )
 
-                            chatViewModel.setTypingStatus(channelId, false)
-                            messageText = TextFieldValue("")
-                            replyingTo = null
+                                chatViewModel.setTypingStatus(channelId, false)
+                                messageText = TextFieldValue("")
+                                replyingTo = null
+                            } else {
+                                Log.e("ChatScreen", "❌ Failed to send: ReceiverId is empty")
+                            }
                         }
                     },
                     onGalleryClick = {

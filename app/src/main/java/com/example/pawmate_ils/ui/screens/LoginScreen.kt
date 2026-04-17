@@ -50,20 +50,30 @@ fun LoginScreen(
     val context = LocalContext.current
 
     //ADDITIONAL SECURITY : FINGERPRINT
+    val prefs = remember { context.getSharedPreferences("auth_prefs", android.content.Context.MODE_PRIVATE) }
     val biometricHelper = remember { BiometricHelper(context) }
+
     LaunchedEffect(Unit) {
-        if (biometricHelper.isBiometricAvailable()) {
+        kotlinx.coroutines.delay(500)
+
+        val savedEmail = prefs.getString("saved_email", null)
+        val savedPassword = prefs.getString("saved_password", null)
+        if (!savedEmail.isNullOrBlank() && !savedPassword.isNullOrBlank() && biometricHelper.isBiometricAvailable()) {
             biometricHelper.showBiometricPrompt(
                 activity = context as FragmentActivity,
                 onSuccess = {
-                    if (authViewModel.currentUser != null) {
-                        onLoginSuccess()
-                    } else {
-                        android.widget.Toast.makeText(context, "Identity Verified!", android.widget.Toast.LENGTH_SHORT).show()
+                    isLoading = true
+                    authViewModel.signIn(context, savedEmail, savedPassword) { success, message ->
+                        isLoading = false
+                        if (success) {
+                            onLoginSuccess()
+                        } else {
+                            errorMessage = "Session expired. Please log in manually."
+                        }
                     }
                 },
                 onError = { error ->
-                    Log.e("BIO_AUTH", "Authentication Error: $error")
+                    Log.d("BIO_AUTH", "Biometric ignored, user must type: $error")
                 }
             )
         }
@@ -248,6 +258,11 @@ fun LoginScreen(
                     authViewModel.signIn(context,email, password) { success, message ->
                         isLoading = false
                         if (success) {
+                            prefs.edit().apply {
+                                putString("saved_email", email)
+                                putString("saved_password", password)
+                                apply()
+                            }
                             onLoginSuccess()
                         } else {
                             errorMessage = message
