@@ -2428,7 +2428,7 @@ fun GemPurchaseDialog(
                                 color = accent
                             )
                             Text(
-                                text = "Pick a gem pack for your tier — checkout unchanged.",
+                                text = "Pick a gem pack to upgrade",
                                 fontSize = 11.sp,
                                 color = muted,
                                 modifier = Modifier.padding(top = 2.dp)

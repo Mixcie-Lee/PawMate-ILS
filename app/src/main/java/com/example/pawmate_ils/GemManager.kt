@@ -325,9 +325,9 @@ private fun saveGemCount() {
  *
  */
 enum class GemPackage(val gemAmount: Int, val price: String) {
-    SMALL(10, "₱79 | offers swiping pets and chat with shelters"),
-    MEDIUM(25, "₱149 | top-up gems for more swipes and chat messages"),
-    LARGE(50, "₱349 | Ultimate: Full access to priority inbox and detailed pet info for 1 month"),
+    SMALL(10, "₱49 | offers swiping pets and chat with shelters"),
+    MEDIUM(25, "₱129 | top-up gems for more swipes and chat messages"),
+    LARGE(50, "₱249 | Ultimate: Full access to priority chats and detailed pet info for 1 month"),
 }
 
 
