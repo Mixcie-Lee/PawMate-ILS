@@ -20,6 +20,8 @@ class AdoptionCenterViewModel(
     private val authViewModel: AuthViewModel
 ) : ViewModel() {
     private val db = FirebaseFirestore.getInstance()
+    // Sa ilalim ng private val db = FirebaseFirestore.getInstance()
+    private val firestoreRepo = FirestoreRepository()
 
     private val _addPetStatus = MutableStateFlow<Result<String>?>(null)
     val addPetStatus: StateFlow<Result<String>?> = _addPetStatus
@@ -220,10 +222,42 @@ class AdoptionCenterViewModel(
                     petRef.set(petData).await()
                 }
 
-                _addPetStatus.value = Result.success("Pet profile created with ${uploadedSubUrls.size + 1} photos!")
+                _addPetStatus.value =
+                    Result.success("Pet profile created with ${uploadedSubUrls.size + 1} photos!")
             } catch (e: Exception) {
                 _addPetStatus.value = Result.failure(e)
                 Log.e("SHELTER_VM", "Multi-image upload failed", e)
+            }
+        }
+    }
+
+    fun deletePetWithReason(pet: PetData, reason: String) {
+        viewModelScope.launch {
+            try {
+                val petId = pet.petId ?: ""
+                val petName = pet.name ?: "A pet"
+
+
+                val affectedChannels = db.collection("channels")
+                    .whereArrayContains("petNames", petName)
+                    .get().await()
+
+                // 2. Padalhan sila ng notification tungkol sa deletion reason
+                affectedChannels.documents.forEach { doc ->
+                    val adopterId = doc.getString("adopterId") ?: ""
+                    if (adopterId.isNotEmpty()) {
+                        firestoreRepo.sendNotification(
+                            receiverId = adopterId,
+                            title = "Pet Availability Update 🐾",
+                            message = "$petName was removed. Reason: $reason"
+                        )
+                    }
+                }
+
+                // 3. I-delete ang main document
+                db.collection("pets").document(petId).delete().await()
+            } catch (e: Exception) {
+                Log.e("DELETE_LOGIC", "Error: ${e.message}")
             }
         }
     }

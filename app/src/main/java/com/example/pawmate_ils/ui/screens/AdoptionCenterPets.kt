@@ -3,6 +3,7 @@ package com.example.pawmate_ils.ui.screens
 import TinderLogic_PetSwipe.PetData
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -51,6 +52,9 @@ fun AdoptionCenterPets(
     val pets by viewModel.shelterPets.collectAsState()
     val scope = rememberCoroutineScope()
     var petToDelete by remember { mutableStateOf<PetData?>(null) }
+    var deleteReason by remember { mutableStateOf("") }
+    val deleteReasons = listOf("Pet already adopted", "Medical reasons", "Transferring to other shelter", "Other")
+    var customReason by remember { mutableStateOf("") }
 
     /*val pets = remember {
         mutableStateListOf(
@@ -158,27 +162,71 @@ fun AdoptionCenterPets(
     }
     if (petToDelete != null) {
         AlertDialog(
-            onDismissRequest = { petToDelete = null },
-            title = { Text("Remove ${petToDelete?.name}?", fontWeight = FontWeight.Bold) },
-            text = { Text("This will permanently remove this pet from the PawMate database.") },
+            onDismissRequest = {
+                petToDelete = null
+                deleteReason = ""
+                customReason = ""
+            },
+            title = { Text("Why are you removing ${petToDelete?.name}?", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Select a reason for deletion:", fontSize = 14.sp, color = Color.Gray)
+
+                    deleteReasons.forEach { preset ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { deleteReason = preset }
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = (deleteReason == preset),
+                                onClick = { deleteReason = preset },
+                                colors = RadioButtonDefaults.colors(selectedColor = Color(0xFFD67A7A))
+                            )
+                            Text(text = preset, fontSize = 14.sp)
+                        }
+                    }
+
+                    if (deleteReason == "Other") {
+                        OutlinedTextField(
+                            value = customReason,
+                            onValueChange = { customReason = it },
+                            placeholder = { Text("Enter specific reason...") },
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFFD67A7A))
+                        )
+                    }
+                }
+            },
             confirmButton = {
                 Button(
                     onClick = {
                         scope.launch {
-                            petToDelete?.petId?.let { id ->
-                                viewModel.deletePet(id)
-                                Toast.makeText(context, "Pet removed", Toast.LENGTH_SHORT).show()
+                            val finalReason = if (deleteReason == "Other") customReason else deleteReason
+                            petToDelete?.let { pet ->
+                                // 🎯 TAWAG SA VIEWMODEL MO (Kailangan mong i-add ito sa ViewModel)
+                                viewModel.deletePetWithReason(pet, finalReason)
+                                Toast.makeText(context, "Pet removed. Adopters notified.", Toast.LENGTH_SHORT).show()
                             }
-                            petToDelete = null // Close dialog
+                            petToDelete = null
+                            deleteReason = ""
+                            customReason = ""
                         }
                     },
+                    enabled = deleteReason.isNotBlank() && (deleteReason != "Other" || customReason.isNotBlank()),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD67A7A))
                 ) {
-                    Text("Delete", color = Color.White)
+                    Text("Confirm Delete", color = Color.White)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { petToDelete = null }) {
+                TextButton(onClick = {
+                    petToDelete = null
+                    deleteReason = ""
+                }) {
                     Text("Cancel", color = Color.Gray)
                 }
             },

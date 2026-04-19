@@ -12,12 +12,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlin.text.get
 
 class HomeViewModel(
     private val authViewModel: AuthViewModel = AuthViewModel()
 ) : ViewModel() {
 
     private val db = FirebaseFirestore.getInstance()
+    private val firestoreRepo = FirestoreRepository()
 
     private val _channels = MutableStateFlow<List<Channel>>(emptyList())
     val channels = _channels.asStateFlow()
@@ -50,8 +52,11 @@ class HomeViewModel(
                     Log.e("HOME_VM", "Adopter Listen Failed", error)
                     return@addSnapshotListener
                 }
-                adopterChannels = snapshot?.documents?.mapNotNull { it.toObject(Channel::class.java) } ?: emptyList()
-                combineAndSort()
+                val rawAdopterChannels = snapshot?.documents?.mapNotNull { it.toObject(Channel::class.java) } ?: emptyList()
+                viewModelScope.launch {
+                    adopterChannels = validateChannelsAndCleanup(rawAdopterChannels)
+                    combineAndSort()
+                }
             }
 
         // Listener for Shelter role
@@ -62,8 +67,13 @@ class HomeViewModel(
                     Log.e("HOME_VM", "Shelter Listen Failed", error)
                     return@addSnapshotListener
                 }
-                shelterChannels = snapshot?.documents?.mapNotNull { it.toObject(Channel::class.java) } ?: emptyList()
-                combineAndSort()
+                val rawShelterChannels = snapshot?.documents?.mapNotNull { it.toObject(Channel::class.java) } ?: emptyList()
+
+                // 🚀 I-wrap mo rin dito para malinis ang side ng Shelter
+                viewModelScope.launch {
+                    shelterChannels = validateChannelsAndCleanup(rawShelterChannels)
+                    combineAndSort()
+                }
             }
     }
 
@@ -118,8 +128,15 @@ class HomeViewModel(
     }
 
     fun deleteChannel(channel: Channel) {
-        // Deleting from Firestore triggers the addSnapshotListener automatically
-        db.collection("channels").document(channel.channelId).delete()
+        viewModelScope.launch {
+            try {
+                // Tinatawag ang repository function na ginawa natin kanina
+                firestoreRepo.deleteChannelCompletely(channel.adopterId, channel.shelterId)
+                Log.d("HOME_VM", "Channel ${channel.channelId} dismantled nuclear-style.")
+            } catch (e: Exception) {
+                Log.e("HOME_VM", "Nuclear delete failed: ${e.message}")
+            }
+        }
     }
 
     fun clearChannels() {
@@ -186,10 +203,53 @@ class HomeViewModel(
                     }
                 }
             }
-    }
 
+
+    }
     fun clearNotificationAlert() {
         _newNotificationAlert.value = null
     }
+    private suspend fun validateChannelsAndCleanup(channels: List<Channel>): List<Channel> {
+        val validatedList = mutableListOf<Channel>()
+
+        for (channel in channels) {
+            val updatedPetNames = mutableListOf<String>()
+            var needsUpdate = false
+
+            for (petName in channel.petNames) {
+                // Tinitignan kung exist pa ang pet na may ganitong pangalan sa shelter na ito
+                val petQuery = db.collection("pets")
+                    .whereEqualTo("shelterId", channel.shelterId)
+                    .whereEqualTo("name", petName)
+                    .get()
+                    .await()
+
+                if (!petQuery.isEmpty) {
+                    updatedPetNames.add(petName)
+                } else {
+                    needsUpdate = true
+                    Log.d("HOME_VM", "Pet $petName not found, flagging for removal from channel ${channel.channelId}")
+                }
+            }
+
+            if (needsUpdate) {
+                if (updatedPetNames.isEmpty()) {
+                    // Kung wala nang natirang pets, burahin na ang channel/application
+                    db.collection("channels").document(channel.channelId).delete().await()
+                    Log.d("HOME_VM", "Channel ${channel.channelId} deleted (No more active pets)")
+                } else {
+                    // I-update ang pet list sa Firestore
+                    db.collection("channels").document(channel.channelId)
+                        .update("petNames", updatedPetNames).await()
+                    validatedList.add(channel.copy(petNames = updatedPetNames))
+                }
+            } else {
+                validatedList.add(channel)
+            }
+        }
+        return validatedList
+    }
 
 }
+
+

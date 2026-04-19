@@ -47,6 +47,7 @@ fun EditPetScreen(
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
 
+
     // 1. Inherited State Variables
     var petName by remember { mutableStateOf("") }
     var petType by remember { mutableStateOf("dog") }

@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import com.example.pawmate_ils.GemManager
+import kotlinx.coroutines.tasks.await
 
 // Data model for each liked pet
 data class LikedPet(
@@ -110,7 +111,6 @@ class LikedPetsViewModel : ViewModel() {
         val userId = auth.currentUser?.uid ?: return
         Log.d("LikedPetsVM", "fetchLikedPets: userId=$userId")
 
-
         _isLoading.value = true
 
         firestore.collection("users")
@@ -118,20 +118,53 @@ class LikedPetsViewModel : ViewModel() {
             .collection("likedPets")
             .addSnapshotListener { snapshot, e ->
                 try {
-                    _isLoading.value = false
                     if (e != null) {
+                        _isLoading.value = false
                         Log.e("LikedPetsVM", "SnapshotListener error: ${e.message}")
                         return@addSnapshotListener
                     }
 
+                    // Eto yung original parsing mo
                     val pets = snapshot?.documents?.mapNotNull { doc ->
                         runCatching { doc.toLikedPetOrNull() }
                             .onFailure { Log.e("LikedPetsVM", "Doc parse: ${doc.id}", it) }
                             .getOrNull()
                     } ?: emptyList()
-                    Log.d("LikedPetsVM", "Fetched ${pets.size} liked pets")
-                    _likedPets.value = pets
+
+                    // 🚀 ADDED LOGIC: Verification Loop para sa Cascade Deletion
+                    viewModelScope.launch {
+                        val validatedPetsList = mutableListOf<LikedPet>()
+
+                        for (pet in pets) {
+                            // Gagamit tayo ng fallback ID logic base sa code mo
+                            val petIdToCheck = pet.petId.ifBlank { pet.documentId }
+
+                            try {
+                                // Tinitignan sa main gallery kung existing pa yung record
+                                val mainRegistryDoc = firestore.collection("pets").document(petIdToCheck).get().await()
+
+                                if (mainRegistryDoc.exists()) {
+                                    validatedPetsList.add(pet)
+                                } else {
+                                    // Kapag binura na ng Shelter, lilinisin natin ang "ghost record" sa user
+                                    Log.d("LikedPetsVM", "Detected deleted pet: ${pet.name}. Cleaning up favorites.")
+                                    firestore.collection("users").document(userId)
+                                        .collection("likedPets").document(pet.documentId).delete()
+                                }
+                            } catch (err: Exception) {
+                                Log.e("LikedPetsVM", "Error checking existence of ${pet.name}", err)
+                                validatedPetsList.add(pet) // Safe default: i-keep pag may connection error
+                            }
+                        }
+
+                        // Update the final state flow
+                        _likedPets.value = validatedPetsList
+                        _isLoading.value = false
+                        Log.d("LikedPetsVM", "Final validated list: ${validatedPetsList.size} pets")
+                    }
+
                 } catch (t: Throwable) {
+                    _isLoading.value = false
                     Log.e("LikedPetsVM", "Snapshot listener crashed", t)
                     _likedPets.value = emptyList()
                 }
@@ -174,9 +207,6 @@ class LikedPetsViewModel : ViewModel() {
                             )
                         }
                     }
-
-
-
 
                 }
 
@@ -247,6 +277,7 @@ class LikedPetsViewModel : ViewModel() {
                         title = "Match Withdrawn 💔",
                         message = "$adopterName is no longer interested in ${pet.name}."
                     )
+                    firestoreRepo.deleteChannelCompletely(adopterId, shelterId)
                     Log.d("Restore", "Notification sent to shelter: $shelterId")
                 }
 
@@ -257,11 +288,7 @@ class LikedPetsViewModel : ViewModel() {
                 // Remove from Swiped history so it reappears in the Swipe Screen
                 firestoreRepo.removePetFromSwipedHistory(adopterId, petId)
 
-                // Delete the Chat Channel to dismantle the match
-                if (shelterId.isNotEmpty()) {
-                    firestoreRepo.deleteChannel(adopterId, shelterId)
-                    Log.d("Restore", "Channel $adopterId-$shelterId deleted.")
-                }
+
 
                 Log.d("Restore", "Success: ${pet.name} (ID: $petId) is now back in the Discovery deck.")
 

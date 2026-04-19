@@ -532,5 +532,37 @@ class FirestoreRepository {
             Log.e("NOTIF_TRACE", "❌ EXCEPTION: ${e.message}")
         }
     }
+
+    suspend fun deleteChannelCompletely(adopterId: String, shelterId: String) {
+        val channelId = "${adopterId}-${shelterId}"
+        val channelRef = db.collection("channels").document(channelId)
+
+        try {
+            // 1. Kunin muna lahat ng messages sa loob ng subcollection
+            val messagesSnapshot = channelRef.collection("messages").get().await()
+
+            // 2. Gumamit ng Batch para sabay-sabay ang pagbura (Atomic Operation)
+            val batch = db.batch()
+
+            // I-add sa batch ang pag-delete ng bawat message
+            messagesSnapshot.documents.forEach { doc ->
+                batch.delete(doc.reference)
+            }
+
+            // 3. I-add sa batch ang pag-delete ng mismong Channel document
+            batch.delete(channelRef)
+
+            // 4. I-commit ang batch
+            batch.commit().await()
+
+            Log.d("FirestoreRepo", "Success: Channel $channelId and all messages destroyed.")
+        } catch (e: Exception) {
+            Log.e("FirestoreRepo", "Error destroying channel: ${e.message}")
+            throw e // I-throw pabalik para malaman ng ViewModel kung nag-fail
+        }
+    }
+
+
+
 }
 
