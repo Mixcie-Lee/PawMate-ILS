@@ -83,6 +83,9 @@ import com.example.pawmate_ils.ui.components.AdopterBottomBar
 import kotlinx.coroutines.delay
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -92,6 +95,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.pawmate_ils.Firebase_Utils.HomeViewModel
 import kotlinx.coroutines.launch
 import androidx.compose.material3.Snackbar
+import coil.compose.AsyncImage
+import com.example.pawmate_ils.R
 
 /**
  * [painterResource] only supports types that decode to a bitmap/vector.
@@ -140,6 +145,7 @@ fun AdopterLikeScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
     val firestoreRepo = remember { com.example.pawmate_ils.Firebase_Utils.FirestoreRepository() }
     val authViewModel: AuthViewModel = viewModel()
+    var selectedPetForDetails by remember { mutableStateOf<LikedPet?>(null) }
 
     LaunchedEffect(notificationAlert) {
         notificationAlert?.let { message ->
@@ -349,6 +355,9 @@ fun AdopterLikeScreen(navController: NavController) {
                             FavoriteListRow(
                                 pet = pet,
                                 isTablet = isTablet,
+                                modifier = Modifier.clickable {
+                                    selectedPetForDetails = pet
+                                },
                                 titleColor = titleColor,
                                 subtitleColor = subtitleColor,
                                 heartColor = heartColor,
@@ -364,6 +373,81 @@ fun AdopterLikeScreen(navController: NavController) {
                     }
                 }
             }
+            // --- PET DETAILS POP-UP GALLERY UPDATE ---
+            if (selectedPetForDetails != null) {
+                val pet = selectedPetForDetails!!
+                val allPhotos = remember(pet) {
+                    val list = mutableListOf<String>()
+                    if (pet.imageUrl.isNotBlank()) list.add(pet.imageUrl)
+                    list.addAll(pet.additionalImages)
+                    list
+                }
+
+                AlertDialog(
+                    onDismissRequest = { selectedPetForDetails = null },
+                    containerColor = surface,
+                    shape = RoundedCornerShape(24.dp),
+                    text = {
+                        Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                            if (allPhotos.isNotEmpty()) {
+                                // 🆕 Pager State setup
+                                val pagerState = rememberPagerState(pageCount = { allPhotos.size })
+
+                                Box(contentAlignment = Alignment.BottomCenter) {
+                                    // 🆕 HorizontalPager for swiping images
+                                    HorizontalPager(
+                                        state = pagerState,
+                                        modifier = Modifier
+                                            .size(300.dp)
+                                            .clip(RoundedCornerShape(16.dp))
+                                    ) { page ->
+                                        AsyncImage(
+                                            model = allPhotos[page],
+                                            contentDescription = "Pet Image",
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentScale = ContentScale.Crop,
+                                            placeholder = painterResource(id = R.drawable.petplaceholder),
+                                            error = painterResource(id = R.drawable.petplaceholder)
+                                        )
+                                    }
+
+                                    // 🆕 Indicator Dots Logic
+                                    if (allPhotos.size > 1) {
+                                        Row(
+                                            modifier = Modifier.padding(bottom = 8.dp),
+                                            horizontalArrangement = Arrangement.Center
+                                        ) {
+                                            repeat(allPhotos.size) { iteration ->
+                                                val color = if (pagerState.currentPage == iteration) pinkAccent else Color.LightGray.copy(alpha = 0.5f)
+                                                Box(
+                                                    modifier = Modifier
+                                                        .padding(2.dp)
+                                                        .size(8.dp)
+                                                        .clip(CircleShape)
+                                                        .background(color)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(text = pet.name, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = titleColor)
+                            Text(text = "${pet.gender} · ${pet.type} ·  ${pet.age}  · ${pet.breed}", color = pinkAccent)
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+                            Text(text = pet.description, textAlign = TextAlign.Center, color = subtitleColor)
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(onClick = { selectedPetForDetails = null }) {
+                            Text("Close", color = pinkAccent)
+                        }
+                    }
+                )
+            }
+
+
 
 
             // --- CONFIRMATION DIALOG ---
@@ -385,6 +469,10 @@ fun AdopterLikeScreen(navController: NavController) {
                                     onClick = {
                                         val pet = petToUnfavorite!!
                                         scope.launch {
+
+                                            GemManager.lockGems()
+                                            Log.d("GEM_LOCK", "Gems locked before unfavorite")
+
                                             // 1. Notify Shelter with preset reason
                                             val adopterName = authViewModel.currentUser?.displayName ?: "An adopter"
                                             firestoreRepo.sendNotification(
@@ -410,7 +498,7 @@ fun AdopterLikeScreen(navController: NavController) {
                                                     snackbarHostState.showSnackbar("Match with shelter fully dismantled.")
                                                 }
                                             }
-
+                                            delay(500)
                                             petToUnfavorite = null
                                         }
                                     },
@@ -423,6 +511,9 @@ fun AdopterLikeScreen(navController: NavController) {
                             }
 
                             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = subtitleColor.copy(alpha = 0.12f))
+
+
+
 
                             // --- CUSTOM INPUT ---
                             OutlinedTextField(
@@ -442,6 +533,8 @@ fun AdopterLikeScreen(navController: NavController) {
                                 onClick = {
                                     val pet = petToUnfavorite!!
                                     scope.launch {
+                                        GemManager.lockGems()
+
                                         val adopterName = authViewModel.currentUser?.displayName ?: "An adopter"
                                         firestoreRepo.sendNotification(
                                             receiverId = pet.shelterId,
@@ -505,50 +598,46 @@ fun AdopterLikeScreen(navController: NavController) {
             }
         }
     }
-}
 
+
+
+
+}
 @Composable
 private fun SafePetImage(
-    imageRes: Int,
+    imageUrl: String?,
     petName: String,
     size: Dp,
     circle: Boolean = true
 ) {
-    val context = LocalContext.current
-    var isValidResource by remember(imageRes) { mutableStateOf(false) }
-
-    LaunchedEffect(imageRes) {
-        isValidResource = context.canLoadDrawableAsComposePainter(imageRes)
-    }
-
     val shape = if (circle) CircleShape else RoundedCornerShape(12.dp)
-    if (isValidResource) {
-        Image(
-            painter = painterResource(id = imageRes),
+    val isDarkMode = ThemeManager.isDarkMode
+
+    Box(
+        modifier = Modifier
+            .size(size)
+            .clip(shape)
+            .background(if (isDarkMode) Color(0xFF262224) else Color(0xFFFFE4EE)),
+        contentAlignment = Alignment.Center
+    ) {
+        // 🚀 Gamitin lang ang AsyncImage. Burahin ang 'if (isValidResource)' block.
+        coil.compose.AsyncImage(
+            model = imageUrl,
             contentDescription = petName,
+            modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .size(size)
-                .clip(shape)
+            // Lalabas ito habang naglo-load o kung may mali sa URL
+            placeholder = painterResource(id = R.drawable.petplaceholder),
+            error = painterResource(id = R.drawable.petplaceholder)
         )
-    } else {
-        Box(
-            modifier = Modifier
-                .size(size)
-                .clip(shape)
-                .background(
-                    if (ThemeManager.isDarkMode)
-                        Color(0xFF5C2D3F).copy(alpha = 0.5f)
-                    else
-                        Color(0xFFFFE4EE)
-                ),
-            contentAlignment = Alignment.Center
-        ) {
+
+        // 🐾 Optional: Lalabas lang ang Paw icon kung talagang walang URL na binigay
+        if (imageUrl.isNullOrBlank()) {
             Icon(
                 imageVector = Icons.Filled.Pets,
-                contentDescription = petName,
-                tint = if (ThemeManager.isDarkMode) Color(0xFFFF7BA1) else Color(0xFFE84D7A),
-                modifier = Modifier.size(size * 0.5f)
+                contentDescription = null,
+                tint = if (isDarkMode) Color(0xFFFF7BA1) else Color(0xFFE84D7A),
+                modifier = Modifier.size(size * 0.4f)
             )
         }
     }
@@ -559,6 +648,7 @@ private fun FavoriteListRow(
     pet: LikedPet,
     isTablet: Boolean,
     titleColor: Color,
+    modifier: Modifier = Modifier,
     subtitleColor: Color,
     heartColor: Color,
     onUnfavorite: () -> Unit
@@ -572,13 +662,13 @@ private fun FavoriteListRow(
         else -> ""
     }
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         SafePetImage(
-            imageRes = pet.imageRes,
+            imageUrl = pet.imageUrl,
             petName = pet.name,
             size = avatarSize,
             circle = true

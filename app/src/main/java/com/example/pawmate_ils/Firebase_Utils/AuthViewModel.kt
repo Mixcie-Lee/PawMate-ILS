@@ -570,6 +570,12 @@
                     }
                     if (snapshot != null && snapshot.exists()) {
                         val user = snapshot.toObject(User::class.java)
+                        val cloudGems = snapshot.getLong("gems")?.toInt() ?: 10
+
+
+                        if (!GemManager.isAdjustmentLocked) {
+                            GemManager.setGemCount(cloudGems)
+                        }
 
                         val rawTier = snapshot.get("tier")
 
@@ -589,10 +595,9 @@
                             _userGems.value = user?.gems ?: 0
                             _likedPetsCount.value = user?.likedPetsCount ?: 0
 
-                            GemManager.setGemCount(it.gems ?: 10)
 
                             val tierInt = fixedTier.toIntOrNull() ?: 0
-                            GemManager.updateLocalTier(tierInt)
+                            GemManager.updateLocalTier( tierInt)
 
                             checkSubscriptionExpiry(it)
 

@@ -15,6 +15,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+ import kotlinx.coroutines.suspendCancellableCoroutine
+ import kotlin.coroutines.resume
 
 class ChatViewModel(
     private val authViewModel: AuthViewModel
@@ -143,8 +145,11 @@ class ChatViewModel(
         }
     }
 
-    fun sendImageMessage(channelId: String, imageUri: Uri, receiverId: String) {
-        val currentUserId = authViewModel.currentUser?.uid ?: return
+    suspend fun sendImageMessage(channelId: String, imageUri: Uri, receiverId: String) = suspendCancellableCoroutine<Unit> { continuation ->
+        val currentUserId = authViewModel.currentUser?.uid ?: run {
+            if (continuation.isActive) continuation.resume(Unit)
+            return@suspendCancellableCoroutine
+        }
         val currentUserName = authViewModel.currentUser?.displayName ?: "User"
 
         CloudinaryHelper.uploadImage(imageUri) { url ->
@@ -158,6 +163,7 @@ class ChatViewModel(
                     imageUrl = url,
                     createdAt = System.currentTimeMillis()
                 )
+
                 db.collection("channels").document(channelId)
                     .collection("messages").add(message)
                     .addOnSuccessListener {
@@ -167,22 +173,36 @@ class ChatViewModel(
                             "lastSenderId" to currentUserId,
                             "unreadCount" to com.google.firebase.firestore.FieldValue.increment(1)
                         )
+
                         db.collection("channels").document(channelId).update(updates)
+                            .addOnCompleteListener {
+                                // ✅ Dito lang mag-re-resume para mawala ang spinner sa screen
+                                if (continuation.isActive) continuation.resume(Unit)
+                            }
 
+                        // 🔔 Notification logic moved INSIDE success callback
                         viewModelScope.launch {
-                            val firestoreRepo = FirestoreRepository()
-                            firestoreRepo.sendNotification(
-                                receiverId = receiverId,
-                                title = "New Photo from ${currentUserName} 📷",
-                                message = "Sent a photo"
-                            )
+                            try {
+                                val firestoreRepo = FirestoreRepository()
+                                firestoreRepo.sendNotification(
+                                    receiverId = receiverId,
+                                    title = "New Photo from $currentUserName 📷",
+                                    message = "Sent a photo"
+                                )
+                            } catch (e: Exception) {
+                                Log.e("ChatViewModel", "Notification failed: ${e.message}")
+                            }
                         }
-
                     }
+                    .addOnFailureListener {
+                        if (continuation.isActive) continuation.resume(Unit)
+                    }
+            } else {
+                // Cloudinary failed
+                if (continuation.isActive) continuation.resume(Unit)
             }
         }
     }
-
     // 🟢 OPTIMIZED: Debounced Typing Status
     fun setTypingStatus(channelId: String, isTyping: Boolean, immediate: Boolean = false) {
         val currentUserId = authViewModel.currentUser?.uid ?: return

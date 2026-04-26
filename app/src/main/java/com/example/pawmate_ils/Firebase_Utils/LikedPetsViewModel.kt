@@ -21,8 +21,10 @@ data class LikedPet(
     val age: String = "",
     val description: String = "",
     val type: String = "",
-    val imageRes: Int = 0,
+    val gender: String = "",
+    val imageUrl: String = "",
     val shelterId: String = "", // 🎯 Added this
+    val additionalImages: List<String> = emptyList(),
     val petId: String = "",
     /** Subcollection document id — used for delete; not written to Firestore. */
     @get:Exclude
@@ -74,7 +76,9 @@ private fun DocumentSnapshot.toLikedPetOrNull(): LikedPet? {
             age = readFieldAsString("age"),
             description = readFieldAsString("description"),
             type = readFieldAsString("type"),
-            imageRes = readFieldAsInt("imageRes"),
+            gender = readFieldAsString("gender"),
+            imageUrl = readFieldAsString("imageUrl"),
+            additionalImages = get("additionalImages") as? List<String> ?: emptyList(),
             shelterId = readFieldAsString("shelterId"),
             petId = readFieldAsString("petId"),
             documentId = id
@@ -107,6 +111,7 @@ class LikedPetsViewModel : ViewModel() {
     }
 
     /** 🔹 Fetch liked pets for the currently logged-in user (real-time updates). */
+    /** 🔹 Fetch liked pets for the currently logged-in user (real-time updates). */
     fun fetchLikedPets() {
         val userId = auth.currentUser?.uid ?: return
         Log.d("LikedPetsVM", "fetchLikedPets: userId=$userId")
@@ -117,56 +122,47 @@ class LikedPetsViewModel : ViewModel() {
             .document(userId)
             .collection("likedPets")
             .addSnapshotListener { snapshot, e ->
-                try {
-                    if (e != null) {
-                        _isLoading.value = false
-                        Log.e("LikedPetsVM", "SnapshotListener error: ${e.message}")
-                        return@addSnapshotListener
-                    }
-
-                    // Eto yung original parsing mo
-                    val pets = snapshot?.documents?.mapNotNull { doc ->
-                        runCatching { doc.toLikedPetOrNull() }
-                            .onFailure { Log.e("LikedPetsVM", "Doc parse: ${doc.id}", it) }
-                            .getOrNull()
-                    } ?: emptyList()
-
-                    // 🚀 ADDED LOGIC: Verification Loop para sa Cascade Deletion
-                    viewModelScope.launch {
-                        val validatedPetsList = mutableListOf<LikedPet>()
-
-                        for (pet in pets) {
-                            // Gagamit tayo ng fallback ID logic base sa code mo
-                            val petIdToCheck = pet.petId.ifBlank { pet.documentId }
-
-                            try {
-                                // Tinitignan sa main gallery kung existing pa yung record
-                                val mainRegistryDoc = firestore.collection("pets").document(petIdToCheck).get().await()
-
-                                if (mainRegistryDoc.exists()) {
-                                    validatedPetsList.add(pet)
-                                } else {
-                                    // Kapag binura na ng Shelter, lilinisin natin ang "ghost record" sa user
-                                    Log.d("LikedPetsVM", "Detected deleted pet: ${pet.name}. Cleaning up favorites.")
-                                    firestore.collection("users").document(userId)
-                                        .collection("likedPets").document(pet.documentId).delete()
-                                }
-                            } catch (err: Exception) {
-                                Log.e("LikedPetsVM", "Error checking existence of ${pet.name}", err)
-                                validatedPetsList.add(pet) // Safe default: i-keep pag may connection error
-                            }
-                        }
-
-                        // Update the final state flow
-                        _likedPets.value = validatedPetsList
-                        _isLoading.value = false
-                        Log.d("LikedPetsVM", "Final validated list: ${validatedPetsList.size} pets")
-                    }
-
-                } catch (t: Throwable) {
+                if (e != null) {
                     _isLoading.value = false
-                    Log.e("LikedPetsVM", "Snapshot listener crashed", t)
-                    _likedPets.value = emptyList()
+                    Log.e("LikedPetsVM", "SnapshotListener error: ${e.message}")
+                    return@addSnapshotListener
+                }
+
+                // 1. IMMEDIATE PARSING: Kuhanin agad ang data mula sa snapshot.
+                val pets = snapshot?.documents?.mapNotNull { doc ->
+                    runCatching { doc.toLikedPetOrNull() }
+                        .onFailure { Log.e("LikedPetsVM", "Doc parse: ${doc.id}", it) }
+                        .getOrNull()
+                } ?: emptyList()
+
+                // 2. ✅ ATOMIC STATE UPDATE: I-update agad ang StateFlow.
+                // Dahil dito, ang Summary screen ay makakabasa agad ng tamang size, iwas NullPointerException.
+                _likedPets.value = pets
+                _isLoading.value = false
+                Log.d("LikedPetsVM", "UI State updated with ${pets.size} pets")
+
+                // 3. 🛡️ BACKGROUND VERIFICATION (Cascade Deletion Logic):
+                // Gumamit tayo ng hiwalay na launch para hindi maba-block ang UI response.
+                // Mananatiling buo ang logic mo na maglinis ng "ghost records".
+                viewModelScope.launch {
+                    val currentUserId = auth.currentUser?.uid ?: return@launch
+                    for (pet in pets) {
+                        val petIdToCheck = pet.petId.ifBlank { pet.documentId }
+                        try {
+                            // Check if the pet still exists in the main registry
+                            val mainRegistryDoc = firestore.collection("pets").document(petIdToCheck).get().await()
+
+                            if (!mainRegistryDoc.exists()) {
+                                // Kapag binura na ng Shelter, lilinisin natin ang ghost record sa user
+                                Log.d("LikedPetsVM", "Cleaning up ghost record for deleted pet: ${pet.name}")
+                                firestore.collection("users").document(currentUserId)
+                                    .collection("likedPets").document(pet.documentId).delete()
+                            }
+                        } catch (err: Exception) {
+                            Log.e("LikedPetsVM", "Existence check failed for ${pet.name}", err)
+                            // Note: We don't remove the pet from the list if the check fails (e.g. network error)
+                        }
+                    }
                 }
             }
     }
@@ -183,7 +179,9 @@ class LikedPetsViewModel : ViewModel() {
             age = pet.age ?: "undefined age",
             description = pet.description ?: "no description",
             type = pet.type ?: "undefined type",
-            imageRes = pet.imageRes,
+            gender = pet.gender ?: "unknown",
+            imageUrl = pet.imageUrl ?: "",
+            additionalImages = pet.additionalImages,
             shelterId = pet.shelterId ?: "",
             petId = pet.petId ?: ""
         )
@@ -255,14 +253,13 @@ class LikedPetsViewModel : ViewModel() {
     fun unfavoriteAndRestore(pet: LikedPet) {
         viewModelScope.launch {
             try {
+                GemManager.lockGems()
                 // 1. Setup IDs and Auth
                 val adopterId = auth.currentUser?.uid ?: return@launch
                 val petId = pet.petId.ifBlank { pet.documentId }
                 val shelterId = pet.shelterId
                 val adopterName = auth.currentUser?.displayName ?: "An adopter"
 
-
-                //GemManager.addGems(5) TENTATIVE ATM PLEASE BRING BACK
 
                 // 2. Validation check
                 if (petId.isBlank()) {
