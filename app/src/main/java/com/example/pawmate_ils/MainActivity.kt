@@ -197,56 +197,55 @@
                                 val currentUser = FirebaseAuth.getInstance().currentUser
                                 val currentRoute = navController.currentBackStackEntry?.destination?.route
 
-                                // [NEW FIX]: Prevent re-navigating if we are already on a Home screen
-                                if (currentRoute == "adoption_center_dashboard" || currentRoute == "pet_swipe") return@LaunchedEffect
-                               // if (currentRoute == "welcome_popup") return@LaunchedEffect
-
+                                // 🛡️ EXISTING GUARD: Email Verification Check
                                 if (currentUser != null) {
-                                    // [NEW FIX]: Force a fetch if the role is currently null
+                                    val isGoogleUser = currentUser.providerData.any { it.providerId == "google.com" }
+                                    if (!isGoogleUser && !currentUser.isEmailVerified) {
+                                        Log.d("NAV_DEBUG", "Email not verified. Staying on SignUp for Dialog.")
+                                        return@LaunchedEffect
+                                    }
+                                }
+
+                                // 🛡️ EXISTING FIX: Prevent re-navigating if we are already on a Home screen
+                                if (currentRoute == "adoption_center_dashboard" || currentRoute == "pet_swipe") return@LaunchedEffect
+
+                                // 🚀 PATH: Authenticated User Logic
+                                if (currentUser != null) {
                                     if (currentUserRole == null) {
                                         authViewModel.fetchUserRole()
                                     } else {
                                         if (currentRoute == "welcome_popup") {
-                                            // Matches the duration in your WelcomePopupScreen.kt
                                             delay(1800L)
                                         }
                                         handleRoleBasedNavigation(authViewModel, navController)
                                     }
                                 }
 
-                                if (currentUser == null && currentRoute != "login" && currentRoute != "signup") {
-                                    navController.navigate("login") {
-                                        popUpTo(0) { inclusive = true }
+                                // 🛑 THE FIX: Unauthenticated / Signed-Out Flow
+                                // Binago natin ito para isama ang 'seller_signup' sa whitelist
+                                if (currentUser == null) {
+                                    val isAtAuthScreen = currentRoute == "login" ||
+                                            currentRoute == "seller_login" ||
+                                            currentRoute == "signup" ||
+                                            currentRoute == "seller_signup" ||
+                                            currentRoute == "user_type" ||
+                                            currentRoute == "onboarding"
+
+                                    if (!isAtAuthScreen) {
+                                        Log.d("NAV_DEBUG", "User is null and not on auth screen. Redirecting to login.")
+                                        navController.navigate("login") {
+                                            popUpTo(0) { inclusive = true }
+                                        }
+                                    } else {
+                                        // Stay put kung nandoon na sa auth screens para lumabas ang dialog
+                                        Log.d("NAV_DEBUG", "Staying on $currentRoute. Dialog should be visible.")
                                     }
                                 }
                             }
 
 
 
-                            // Handle authenticated user navigation after NavHost is created
-                            /* LaunchedEffect(authState.value) {
-                                if (onboardingUtil.isOnboardingCompleted()) {
-                                    val currentUser = AuthViewModel.currentUser
-                                    if (currentUser != null) {
-                                        try {
-                                            val snapshot = db.usersCollection("users").document(currentUser.uid).get().await()
-                                            val role = snapshot.getString("role")
-                                            val destination = when (role) {
-                                                "adopter" -> "pet_swipe"
-                                                "shelter" -> "adoption_center_dashboard"
-                                                else -> "user_type"
-                                            }
-                                            if (destination != "user_type") {
-                                                navController.navigate(destination) {
-                                                    popUpTo("user_type") { inclusive = true }
-                                                }
-                                            }
-                                        } catch (e: Exception) {
-                                            // Stay on user_type if there's an error
-                                        }
-                                    }
-                                }
-                            }               */
+
                             LaunchedEffect(Unit) {
                                 FirebaseAuth.getInstance().currentUser?.let {
                                     authViewModel.fetchUserRole()

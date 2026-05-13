@@ -46,6 +46,7 @@ import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,6 +69,10 @@ fun SignUpScreen(
     var password by remember { mutableStateOf("") }
     var firstName by remember { mutableStateOf("") }
     var lastName by remember { mutableStateOf("") }
+
+    var monthlyIncome by remember { mutableStateOf("") }
+    var Occupation by remember { mutableStateOf("") }
+
     var mobileNumber by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
     var age by remember { mutableStateOf("") }
@@ -81,6 +86,18 @@ fun SignUpScreen(
     var gender by remember { mutableStateOf("") }
     var isGenderExpanded by remember { mutableStateOf(false) }
     val genderOptions = listOf("Male", "Female")
+
+    var isOccupationExpanded by remember { mutableStateOf(false) }
+    val occupationOptions = listOf(
+        "Employed",
+        "Self-Employed",
+        "Unemployed",
+        "Student",
+        "Retired",
+        "Freelancer"
+    )
+
+
 
     // 💎 ADDED: Dialog State
     var showVerificationDialog by remember { mutableStateOf(false) }
@@ -101,7 +118,7 @@ fun SignUpScreen(
                 isGoogleLoading = false
                 return@rememberLauncherForActivityResult
             }
-            authViewModel.signUpWithGoogle(context, idToken) { success, status ->
+            authViewModel.signUpWithGoogle(context, isLoginMode = false, idToken) { success, status ->
                 isGoogleLoading = false
                 if (success) {
                     if (status == "new") {
@@ -346,6 +363,58 @@ fun SignUpScreen(
                             }
                         }
                     }
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    OutlinedTextField(
+                        value = monthlyIncome,
+                        onValueChange = { monthlyIncome = it },
+                        label = { Text(text = "Monthly income") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(size = 28.dp),
+                        singleLine = true,
+                        placeholder = { Text(text = "e.g. 15,000, 16,000, 20,000, etc") }
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    @OptIn(ExperimentalMaterial3Api::class)
+                    ExposedDropdownMenuBox(
+                        expanded = isOccupationExpanded,
+                        onExpandedChange = { isOccupationExpanded = !isOccupationExpanded },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        OutlinedTextField(
+                            value = Occupation, // Ito yung state variable mo
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text(text = "Occupation") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isOccupationExpanded) },
+                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(
+                                focusedBorderColor = Color(0xFFFFB6C1),
+                                unfocusedBorderColor = Color.Gray.copy(alpha = 0.3f)
+                            ),
+                            shape = RoundedCornerShape(size = 28.dp),
+                            modifier = Modifier.menuAnchor().fillMaxWidth(),
+                            placeholder = { Text(text = "Select your status") }
+                        )
+
+                        ExposedDropdownMenu(
+                            expanded = isOccupationExpanded,
+                            onDismissRequest = { isOccupationExpanded = false },
+                            modifier = Modifier.background(Color.White)
+                        ) {
+                            occupationOptions.forEach { selectionOption ->
+                                DropdownMenuItem(
+                                    text = { Text(selectionOption) },
+                                    onClick = {
+                                        Occupation = selectionOption
+                                        isOccupationExpanded = false
+                                    },
+                                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                                )
+                            }
+                        }
+                    }
+
 
                     Spacer(modifier = Modifier.height(10.dp))
                     OutlinedTextField(
@@ -368,10 +437,22 @@ fun SignUpScreen(
                     // --- UPDATED COMPLETE SIGN UP BUTTON ---
                     Button(
                         onClick = {
-                            if (firstName.isBlank() || lastName.isBlank() || age.isBlank() || gender.isBlank() || mobileNumber.isBlank() || address.isBlank() || aboutMe.isBlank() ) {
+                            if (firstName.isBlank() || lastName.isBlank() || age.isBlank() ||
+                                gender.isBlank() || mobileNumber.isBlank() || address.isBlank() ||
+                                aboutMe.isBlank() || Occupation.isBlank() || monthlyIncome.isBlank()) {
+
                                 errorMessage = "Please fill in all fields"
                                 return@Button
                             }
+                            // 🎯 2. AGE CHECK: 18 years old and above only
+                            val ageInt = age.toIntOrNull() ?: 0
+                            if (ageInt < 18) {
+                                errorMessage = "You must be 18 years or older to use PawMate. 🐾"
+                                return@Button
+                            }
+
+
+
                             errorMessage = null
                             isLoading = true
 
@@ -398,6 +479,8 @@ fun SignUpScreen(
                                         Address = address,
                                         Age = age,
                                         aboutMe = aboutMe,
+                                        monthlyIncome = monthlyIncome,
+                                        Occupation = Occupation,
                                         role = "adopter",
                                         tier = "0",
                                         gems = if (isNewUser) 10 else 0,
@@ -425,41 +508,66 @@ fun SignUpScreen(
                                 authViewModel.signUp(email, password) { success, message ->
                                     if (success) {
                                         scope.launch {
-                                            val uid = FirebaseAuth.getInstance().currentUser?.uid
-                                            if (uid != null) {
-                                                val defaultAvatar = ProfilePhotoDefaults.photoUriForGender(context, gender)
-                                                val isNewUser = firestoreRepo.isNewUser(uid)
-                                                val user = User(
-                                                    id = uid,
-                                                    name = "$firstName $lastName",
-                                                    email = email,
-                                                    gender = gender,
-                                                    photoUri = defaultAvatar,
-                                                    MobileNumber = mobileNumber,
-                                                    Address = address,
-                                                    Age = age,
-                                                    aboutMe = aboutMe,
-                                                    role = "adopter",
-                                                    gems = if (isNewUser) 10 else 0,
-                                                    createdAt = System.currentTimeMillis()
-                                                )
+                                            val firebaseUser = FirebaseAuth.getInstance().currentUser
+                                            val uid = firebaseUser?.uid
+
+                                            if (firebaseUser != null && uid != null) {
                                                 try {
+                                                    // 1. Auth Profile Update (Tulad ng sa Seller)
+                                                    val profileUpdates = com.google.firebase.auth.userProfileChangeRequest {
+                                                        displayName = "$firstName $lastName"
+                                                    }
+                                                    firebaseUser.updateProfile(profileUpdates).await()
+
+                                                    val defaultAvatar = ProfilePhotoDefaults.photoUriForGender(context, gender)
+                                                    val isNewUser = firestoreRepo.isNewUser(uid)
+
+                                                    val user = User(
+                                                        id = uid,
+                                                        name = "$firstName $lastName",
+                                                        email = email,
+                                                        gender = gender,
+                                                        photoUri = defaultAvatar,
+                                                        MobileNumber = mobileNumber,
+                                                        Address = address,
+                                                        Age = age,
+                                                        aboutMe = aboutMe,
+                                                        monthlyIncome = monthlyIncome,
+                                                        Occupation = Occupation,
+                                                        role = "adopter",
+                                                        gems = if (isNewUser) 10 else 0,
+                                                        createdAt = System.currentTimeMillis()
+                                                    )
+
+                                                    // 2. 🛡️ DOUBLE-SAVE (Eto ang sikreto ni Seller!)
+                                                    // Save sa 'users' collection
                                                     firestoreRepo.addUser(user)
+                                                    // Save sa 'adopters' collection (Eto yung kulang mo paps)
+                                                    com.example.pawmate_ils.AdopShelDataStruc.AdopterRepository().addAdopter(user)
+                                                    // 3. Sync Settings
                                                     val settings = SettingsManager(context)
                                                     settings.setUsername("$firstName $lastName")
                                                     sharedViewModel.username.value = "$firstName $lastName"
 
-                                                    isLoading = false
-                                                    showVerificationDialog = true
+                                                    // 4. ✨ THE EXIT: Sign out AFTER saving
+                                                    authViewModel.signOut(context) {
+                                                        scope.launch(kotlinx.coroutines.Dispatchers.Main) {
+                                                            isLoading = false
+                                                            showVerificationDialog = true
+                                                            android.util.Log.d("SIGNUP_DEBUG", "Adopter fully saved and signed out.")
+                                                        }
+                                                    }
+
                                                 } catch (e: Exception) {
-                                                    errorMessage = e.message
                                                     isLoading = false
+                                                    errorMessage = "Database Error: ${e.message}"
+                                                    android.util.Log.e("SIGNUP_ERROR", "Failed: ${e.message}")
                                                 }
                                             }
                                         }
                                     } else {
-                                        errorMessage = message
                                         isLoading = false
+                                        errorMessage = message
                                     }
                                 }
                             }

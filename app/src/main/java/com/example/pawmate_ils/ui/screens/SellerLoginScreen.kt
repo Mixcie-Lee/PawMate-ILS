@@ -87,7 +87,7 @@
                 val account = task.getResult(ApiException::class.java)
                 val idToken = account?.idToken
                 if (idToken != null) {
-                    authViewModel.signUpWithGoogle(context,idToken) { success, message ->
+                    authViewModel.signUpWithGoogle(context,isLoginMode = true, idToken) { success, message ->
                         if (success) {
                             onLoginSuccess() // 💎 Navigate to pet_swipe
                         } else {

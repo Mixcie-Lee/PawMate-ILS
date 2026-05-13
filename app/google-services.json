@@ -1,6 +1,7 @@
 {
   "project_info": {
     "project_number": "116051120898",
+    "firebase_url": "https://pawmate---ils-new-default-rtdb.firebaseio.com",
     "project_id": "pawmate---ils-new",
     "storage_bucket": "pawmate---ils-new.firebasestorage.app"
   },
@@ -12,7 +13,28 @@
           "package_name": "com.example.pawmate_ils"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "116051120898-b63m0eh08e5sdpgc2apc4k79e1r4ks7d.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.pawmate_ils",
+            "certificate_hash": "6698f406bf2859764c172ad8da551726697a7fdc"
+          }
+        },
+        {
+          "client_id": "116051120898-i7f27m697aabdjk6obttimkqrlk9cjo0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.pawmate_ils",
+            "certificate_hash": "170cafbabcf9ffb8d55d8304a0949309bf592a77"
+          }
+        },
+        {
+          "client_id": "116051120898-b3nenvhuhbk07h1b0f8j8popjjpqgfit.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAmwJTiUunvfYDWyzQx5d2IJs4tId_Q5Gw"
@@ -20,10 +42,15 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "116051120898-b3nenvhuhbk07h1b0f8j8popjjpqgfit.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
-}
-],
-"configuration_version": "1"
+    }
+  ],
+  "configuration_version": "1"
 }

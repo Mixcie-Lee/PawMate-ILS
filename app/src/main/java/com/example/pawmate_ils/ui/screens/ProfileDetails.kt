@@ -224,7 +224,37 @@ fun ProfileDetailsScreen(
                         labelColor = labelColor,
                         valueColor = bodyText
                     )
+                    if (user.role == "adopter") {
+                        DetailItem(
+                            label = "Occupation",
+                            value = user.Occupation.ifBlank { "Not specified" },
+                            labelColor = labelColor,
+                            valueColor = bodyText
+                        )
 
+                        DetailItem(
+                            label = "Monthly Income",
+                            value = if (user.monthlyIncome.isNotBlank()) "P${user.monthlyIncome}" else "Not specified",
+                            labelColor = labelColor,
+                            valueColor = bodyText
+                        )
+
+                        // Age label para sa Adopter
+                        DetailItem(
+                            label = "Age",
+                            value = if (user.Age.isNotBlank()) "${user.Age} years old" else "Not specified",
+                            labelColor = labelColor,
+                            valueColor = bodyText
+                        )
+                    } else if (user.role == "shelter") {
+                        // 🏠 Para sa Shelter side: "Established Year" imbes na Age
+                        DetailItem(
+                            label = "Established Year",
+                            value = if (user.Age.isNotBlank()) user.Age else "Not specified",
+                            labelColor = labelColor,
+                            valueColor = bodyText
+                        )
+                    }
                     DetailItem(
                         label = if (user.role == "shelter") "About Us" else "About Me",
                         value = user.aboutMe.ifBlank { "This user hasn't added a bio yet." },

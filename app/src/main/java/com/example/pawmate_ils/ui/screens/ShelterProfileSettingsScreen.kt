@@ -1,6 +1,7 @@
 package com.example.pawmate_ils.ui.screens
 
 import android.net.Uri
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
@@ -35,6 +36,7 @@ import com.example.pawmate_ils.SettingsManager
 import com.example.pawmate_ils.ThemeManager
 import com.example.pawmate_ils.R
 import com.example.pawmate_ils.firebase_models.Channel
+import com.example.pawmate_ils.Firebase_Utils.GalleryPermissionHandler
 
 // --- 1. THE MAIN SCREEN (Stateful) ---
 @Composable
@@ -51,6 +53,7 @@ fun ShelterProfileScreen(
 
     val homeViewModel: com.example.pawmate_ils.Firebase_Utils.HomeViewModel = viewModel()
     val channels by homeViewModel.channels.collectAsState(initial = emptyList())
+    var showGalleryRequest by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         homeViewModel.listenToChannels()
@@ -62,6 +65,28 @@ fun ShelterProfileScreen(
 
     ShelterProfileContent(
         navController = navController,
+        showGalleryRequest = showGalleryRequest,
+        onToggleGalleryDialog = { showGalleryRequest = it },
+        onImageClick = {
+            val permissionStr = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                android.Manifest.permission.READ_MEDIA_IMAGES
+            } else {
+                android.Manifest.permission.READ_EXTERNAL_STORAGE
+            }
+
+            val isGranted = androidx.core.content.ContextCompat.checkSelfPermission(
+                context,
+                permissionStr
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+            if (isGranted) {
+                // Kung okay na, i-launch ang picker (kailangan nating ipasa ang launcher o gumamit ng result)
+                // Para mas malinis, i-trigger ang showGalleryRequest = true kung kailangan ng dialog
+                // Or gumamit ng interface callback.
+            } else {
+                showGalleryRequest = true
+            }
+        },
         shelterName = userOnlineData?.shelterName ?: settings.getUsername(),
         ownerName = userOnlineData?.ownerName ?: "",
         photoUri = userOnlineData?.photoUri,
@@ -103,6 +128,9 @@ fun ShelterProfileContent(
     photoUri: String?,
     petsCount: Int,
     onUpdateName: (String) -> Unit,
+    showGalleryRequest: Boolean,
+    onToggleGalleryDialog: (Boolean) -> Unit,
+    onImageClick: () -> Unit,
     onUploadPhoto: (Uri) -> Unit,
     onLogout: () -> Unit,
     authViewModel: AuthViewModel,
@@ -118,6 +146,10 @@ fun ShelterProfileContent(
                 editableName = data.shelterName
             }
         }
+    }
+
+    LaunchedEffect(Unit) {
+        authViewModel.startUserProfileListener()
     }
 
     var isDarkMode by remember { mutableStateOf(ThemeManager.isDarkMode) }
@@ -136,6 +168,30 @@ fun ShelterProfileContent(
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let { onUploadPhoto(it) }
     }
+
+    GalleryPermissionHandler(
+        showDialog = showGalleryRequest,
+        onDismiss = {
+            // 🎯 EXIT 1: Kapag clinick ang "Cancel" o labas ng dialog
+            onToggleGalleryDialog(false)
+        },
+        onPermissionGranted = {
+            // 🎯 EXIT 2: Isara agad ang dialog bago gawin ang susunod na step
+            onToggleGalleryDialog(false)
+
+            // 🚀 Saka mo i-launch ang gallery launcher mo
+            try {
+                // Kung GetContent ang gamit mo:
+                imagePicker.launch("image/*")
+                // O kung PickVisualMedia:
+                // photoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            } catch (e: Exception) {
+                Log.e("SHELTER_PROFILE", "Gallery launch failed: ${e.message}")
+            }
+        }
+    )
+
+
 
     Surface(modifier = Modifier.fillMaxSize(), color = backgroundColor) {
         Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
@@ -164,8 +220,28 @@ fun ShelterProfileContent(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Box(
-                            modifier = Modifier.size(72.dp).clickable { imagePicker.launch("image/*")
-                            }) {
+                            modifier = Modifier
+                                .size(72.dp)
+                                .clickable {
+                                    val permissionStr = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                                        android.Manifest.permission.READ_MEDIA_IMAGES
+                                    } else {
+                                        android.Manifest.permission.READ_EXTERNAL_STORAGE
+                                    }
+
+                                    val isGranted = androidx.core.content.ContextCompat.checkSelfPermission(
+                                        context,
+                                        permissionStr
+                                    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+                                    if (isGranted) {
+                                        // ✅ Kung allowed na, diretso gallery na!
+                                        imagePicker.launch("image/*")
+                                    } else {
+                                        // ❌ Kung hindi pa, doon pa lang natin tatawagin ang dialog
+                                        onImageClick()
+                                    }
+                                }) {
 
                             Box(
                                 modifier = Modifier.fillMaxSize()

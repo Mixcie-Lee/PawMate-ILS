@@ -59,6 +59,9 @@ import java.util.Date
 import java.util.Locale
 import android.widget.Toast
 import androidx.compose.material.icons.filled.Star
+import androidx.core.content.ContextCompat
+import com.example.pawmate_ils.Firebase_Utils.GalleryPermissionHandler
+import  android.content.pm.PackageManager
 
 
 @SuppressLint("SimpleDateFormat")
@@ -82,8 +85,8 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
     val settings = remember { SettingsManager(context) }
     var editableName by remember { mutableStateOf(settings.getUsername()) }
     var profilePhotoUri by remember { mutableStateOf(settings.getProfilePhotoUri()?.let { Uri.parse(it) }) }
-
     val userOnlineData by authViewModel.userData.collectAsState()
+    var showGalleryRequest by remember { mutableStateOf(false) }
 
     val isVip by remember(userOnlineData) {
         derivedStateOf {
@@ -132,6 +135,18 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
             }
         }
     }
+
+    GalleryPermissionHandler(
+        showDialog = showGalleryRequest,
+        onDismiss = { showGalleryRequest = false },
+        onPermissionGranted = {
+            showGalleryRequest = false // I-close ang dialog bago i-launch
+            imagePicker.launch("image/*")
+        }
+    )
+
+
+
 
     var showLogoutDialog by remember { mutableStateOf(false) }
     val likedPets by likedPetsViewModel.likedPets.collectAsState()
@@ -226,7 +241,26 @@ fun ProfileSettingsScreen(navController: NavController, username: String = "User
                         Box(
                             modifier = Modifier
                                 .size(72.dp)
-                                .clickable { imagePicker.launch("image/*") }
+                                .clickable {
+                                    val permissionStr = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                                        android.Manifest.permission.READ_MEDIA_IMAGES
+                                    } else {
+                                        android.Manifest.permission.READ_EXTERNAL_STORAGE
+                                    }
+
+                                    val isGranted = ContextCompat.checkSelfPermission(
+                                        context,
+                                        permissionStr
+                                    ) == PackageManager.PERMISSION_GRANTED
+
+                                    if (isGranted) {
+                                        // Kung allowed na, diretso gallery na tayo
+                                        imagePicker.launch("image/*")
+                                    } else {
+                                        // Kung hindi pa, doon pa lang natin i-te-trigger ang dialog
+                                        showGalleryRequest = true
+                                    }
+                                }
                         ) {
                             Box(
                                 modifier = Modifier

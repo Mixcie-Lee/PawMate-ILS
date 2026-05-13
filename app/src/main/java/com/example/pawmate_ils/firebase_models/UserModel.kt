@@ -30,6 +30,13 @@ data class User(
     @get:PropertyName("role")
     @set:PropertyName("role")
     var role: String = "",
+    @get:PropertyName("monthlyIncome")
+    @set:PropertyName("monthlyIncome")
+    var monthlyIncome: String = "",
+
+    @get:PropertyName("Occupation")
+    @set:PropertyName("Occupation")
+    var Occupation: String = "",
 
     @get:PropertyName("mobileNumber")
     @set:PropertyName("mobileNumber")
@@ -88,7 +95,6 @@ data class User(
     @get:PropertyName("shelterHours")
     @set:PropertyName("shelterHours")
      var shelterHours: String = "",
-
 
     @get:PropertyName("tierExpiry")
     @set:PropertyName("tierExpiry")

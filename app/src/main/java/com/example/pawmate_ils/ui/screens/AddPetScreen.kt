@@ -37,6 +37,9 @@ import com.example.pawmate_ils.Firebase_Utils.AdoptionCenterViewMdelFactory
 import com.example.pawmate_ils.Firebase_Utils.AdoptionCenterViewModel
 import com.example.pawmate_ils.Firebase_Utils.AuthViewModel
 import com.example.pawmate_ils.R
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
+import com.example.pawmate_ils.Firebase_Utils.GalleryPermissionHandler
 
 @Composable
 fun AddPetScreen(
@@ -51,11 +54,31 @@ fun AddPetScreen(
 
     val addPetStatus by adoptionViewModel.addPetStatus.collectAsState()
 
+    var showGalleryRequest by remember { mutableStateOf(false) }
+    var pendingPickerSource by remember { mutableStateOf <Int?>(null) }
+
+
     // Get stable data once here
-    val stableShelterName = userData?.shelterName ?: userData?.name ?: "PawMate Shelter"
+    val stableShelterName = (userData?.shelterName ?: userData?.name ?: "PawMate Shelter").let {
+        if (it.isBlank()) "PawMate Shelter" else it
+    }
+
+
     val stableOwnerName = userData?.ownerName ?: "Authorized Staff"
     val rawAddress = userData?.Address
     val stableAddress = if (rawAddress.isNullOrBlank()) "Binangonan, Rizal" else rawAddress
+
+    GalleryPermissionHandler(
+        showDialog = showGalleryRequest,
+        onDismiss = {
+            showGalleryRequest = false
+            pendingPickerSource = null // Reset kung kinansela
+        },
+        onPermissionGranted = {
+            showGalleryRequest = false // Trigger sa LaunchedEffect
+        }
+    )
+
 
     LaunchedEffect(addPetStatus) {
         addPetStatus?.let { result ->
@@ -73,6 +96,13 @@ fun AddPetScreen(
     Box(modifier = Modifier.fillMaxSize().background(Color.White)) {
         StatelessAddPet(
             navController = navController,
+            showGalleryRequest = showGalleryRequest,
+            onImageClick = { sourceId ->
+                pendingPickerSource = sourceId
+                showGalleryRequest = true
+            },
+            pendingPickerSource = pendingPickerSource,
+            onResetSource = { pendingPickerSource = null },
             onBackClick = { navController.popBackStack() },
             onSavePet = { name, type, breed, age, sex, desc, health, mainUri, subUris ->
                 adoptionViewModel.addPetWithImages(
@@ -99,7 +129,11 @@ fun AddPetScreen(
 @Composable
 private fun StatelessAddPet(
     navController: NavController,
+    showGalleryRequest: Boolean,
     onBackClick: () -> Unit,
+    onImageClick: (Int) -> Unit,
+    pendingPickerSource: Int?,
+    onResetSource: () -> Unit,
     onSavePet: (String, String, String, String, String, String, String, Uri?, List<Uri>) -> Unit
 ) {
     val context = LocalContext.current
@@ -124,6 +158,29 @@ private fun StatelessAddPet(
     val catBreeds = listOf("Puspin", "Siamese", "Persian", "Maine Coon", "Bengal", "British Shorthair")
     val currentBreeds = if (petType == "dog") dogBreeds else catBreeds
 
+    LaunchedEffect(showGalleryRequest) {
+        // 🛡️ Gagana lang ito kapag natapos na ang dialog (false) at may pinindot na card (not null)
+        if (!showGalleryRequest && pendingPickerSource != null) {
+            val permissionStr = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                android.Manifest.permission.READ_MEDIA_IMAGES
+            } else {
+                android.Manifest.permission.READ_EXTERNAL_STORAGE
+            }
+
+            val isGranted = ContextCompat.checkSelfPermission(context, permissionStr) == PackageManager.PERMISSION_GRANTED
+
+            if (isGranted) {
+                // ✅ Dito ilulunsad ang tamang picker base sa source index
+                when (pendingPickerSource) {
+                    0 -> mainPicker.launch("image/*")
+                    1 -> sub1Picker.launch("image/*")
+                    2 -> sub2Picker.launch("image/*")
+                }
+                onResetSource() // I-clear ang state pagkatapos ng launch para hindi mag-loop
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -141,7 +198,24 @@ private fun StatelessAddPet(
 
             // Main Photo Card
             Card(
-                modifier = Modifier.fillMaxWidth().height(180.dp).clickable { mainPicker.launch("image/*") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(180.dp)
+                    .clickable {
+                        val permissionStr = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                            android.Manifest.permission.READ_MEDIA_IMAGES
+                        } else {
+                            android.Manifest.permission.READ_EXTERNAL_STORAGE
+                        }
+
+                        if (ContextCompat.checkSelfPermission(context, permissionStr) == PackageManager.PERMISSION_GRANTED) {
+                            // Kung OK na ang permission, diretso gallery na
+                            mainPicker.launch("image/*")
+                        } else {
+                            // Kung hindi pa, doon pa lang tatawagin ang dialog via parent
+                            onImageClick(0)
+                        }
+                    },
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))
             ) {
@@ -152,16 +226,73 @@ private fun StatelessAddPet(
             }
 
             // Sub Photos Row
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                listOf(subImage1Uri to sub1Picker, subImage2Uri to sub2Picker).forEach { (uri, picker) ->
-                    Card(
-                        modifier = Modifier.weight(1f).height(90.dp).clickable { picker.launch("image/*") },
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))
-                    ) {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            if (uri != null) AsyncImage(model = uri, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-                            else Icon(Icons.Default.Add, null, tint = Color.Gray)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Shared permission string para sa dalawang cards
+                val permissionStr = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                    android.Manifest.permission.READ_MEDIA_IMAGES
+                } else {
+                    android.Manifest.permission.READ_EXTERNAL_STORAGE
+                }
+
+                // --- SUB IMAGE 1 (Index 1) ---
+                Card(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(90.dp)
+                        .clickable {
+                            // Check muna kung granted na ang permission
+                            if (androidx.core.content.ContextCompat.checkSelfPermission(context, permissionStr) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                                sub1Picker.launch("image/*") // Bukas agad gallery
+                            } else {
+                                onImageClick(1) // Labas dialog para sa Sub 1
+                            }
+                        },
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))
+                ) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        if (subImage1Uri != null) {
+                            AsyncImage(
+                                model = subImage1Uri,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            Icon(Icons.Default.Add, null, tint = Color.Gray)
+                        }
+                    }
+                }
+
+                // --- SUB IMAGE 2 (Index 2) ---
+                Card(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(90.dp)
+                        .clickable {
+                            // Check muna kung granted na ang permission
+                            if (androidx.core.content.ContextCompat.checkSelfPermission(context, permissionStr) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                                sub2Picker.launch("image/*") // Bukas agad gallery
+                            } else {
+                                onImageClick(2) // Labas dialog para sa Sub 2
+                            }
+                        },
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))
+                ) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        if (subImage2Uri != null) {
+                            AsyncImage(
+                                model = subImage2Uri,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            Icon(Icons.Default.Add, null, tint = Color.Gray)
                         }
                     }
                 }
@@ -224,8 +355,10 @@ private fun StatelessAddPet(
 
             Button(
                 onClick = {
-                    if (petName.isBlank() || mainImageUri == null) {
-                        Toast.makeText(context, "Fill Name and Main Photo", Toast.LENGTH_SHORT).show()
+                    if (petName.isBlank() || mainImageUri == null || subImage1Uri == null || subImage2Uri == null ||
+                        petType.isBlank() || petBreed.isBlank() || petAge.isBlank() || petSex.isBlank() ||
+                        petDescription.isBlank() || healthStatus.isBlank()) {
+                        Toast.makeText(context, "Please fill in all the fields, don't leave anything blank", Toast.LENGTH_SHORT).show()
                     } else {
                         onSavePet(petName, petType, petBreed, petAge, petSex, petDescription, healthStatus, mainImageUri, listOfNotNull(subImage1Uri, subImage2Uri))
                     }

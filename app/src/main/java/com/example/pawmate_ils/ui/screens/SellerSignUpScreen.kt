@@ -96,7 +96,7 @@
                     return@rememberLauncherForActivityResult
                 }
     
-                authViewModel.signUpWithGoogle(context, idToken) { success, message ->
+                authViewModel.signUpWithGoogle(context, isLoginMode = false, idToken) { success, message ->
                     isGoogleLoading = false
                     if (success) {
                         currentStep = 2 // Move to details
@@ -333,6 +333,7 @@
                                             val user = User(
                                                 id = uid,
                                                 name = "$shelterName $OwnerName",
+                                                ownerName = OwnerName,
                                                 email = firebaseUser.email ?: "",
                                                 MobileNumber = mobileNumber,
                                                 Address = address,
@@ -354,7 +355,7 @@
 
                                                 isLoading = false
                                                 // 🎯 ELEMENT ADDED: Navigate home for Google (No verification needed)
-                                                navController.navigate("shelter_home") {
+                                                navController.navigate("adoption_center_dashboard") {
                                                     popUpTo("seller_signup") { inclusive = true }
                                                 }
                                             } catch (e: Exception) {
@@ -368,48 +369,60 @@
                                     authViewModel.signUp(email, password) { success, message ->
                                         if (success) {
                                             scope.launch {
-                                                val firebaseuser =
-                                                    FirebaseAuth.getInstance().currentUser
-                                                val uid =
-                                                    FirebaseAuth.getInstance().currentUser?.uid
+                                                // Kunin ang fresh instance ng user pagkatapos ng sign up
+                                                val firebaseuser = FirebaseAuth.getInstance().currentUser
+                                                val uid = firebaseuser?.uid
+
                                                 if (firebaseuser != null && uid != null) {
-                                                    val profileUpdates =
-                                                        com.google.firebase.auth.userProfileChangeRequest {
+                                                    try {
+                                                        // 1. Update Firebase Auth Profile (DisplayName)
+                                                        val profileUpdates = com.google.firebase.auth.userProfileChangeRequest {
                                                             displayName = "$shelterName $OwnerName"
                                                         }
-                                                    firebaseuser.updateProfile(profileUpdates)
-                                                        .await()
-                                                    val defaultShelterPhoto =
-                                                        "android.resource://${context.packageName}/${R.drawable.shelter}"
+                                                        firebaseuser.updateProfile(profileUpdates).await()
 
-                                                    val user = User(
-                                                        id = uid,
-                                                        name = "$shelterName $OwnerName",
-                                                        email = email,
-                                                        MobileNumber = mobileNumber,
-                                                        Address = address,
-                                                        Age = establishedYear,
-                                                        role = "shelter",
-                                                        shelterHours = shelterHours,
-                                                        photoUri = defaultShelterPhoto,
-                                                        gems = 10,
-                                                        likedPetsCount = 0
-                                                    )
-                                                    try {
+                                                        // 2. Prepare Shelter Data (Untampered)
+                                                        val defaultShelterPhoto = "android.resource://${context.packageName}/${R.drawable.shelter}"
+                                                        val user = User(
+                                                            id = uid,
+                                                            name = shelterName,
+                                                            shelterName = shelterName,
+                                                            ownerName = OwnerName,
+                                                            email = email,
+                                                            MobileNumber = mobileNumber,
+                                                            Address = address,
+                                                            Age = establishedYear,
+                                                            aboutMe = aboutMe,
+                                                            role = "shelter",
+                                                            shelterHours = shelterHours,
+                                                            photoUri = defaultShelterPhoto,
+                                                            gems = 10,
+                                                            likedPetsCount = 0
+                                                        )
+
+                                                        // 3. Save to Firestore and Repository (Habang may Permissions pa)
                                                         firestoreRepo.addUser(user)
                                                         ShelterRepository().addShelter(user)
 
+                                                        // 4. Update Local Settings
                                                         val settings = SettingsManager(context)
                                                         settings.setUsername("$shelterName $OwnerName")
-                                                        sharedViewModel.username.value =
-                                                            "$shelterName $OwnerName"
+                                                        sharedViewModel.username.value = "$shelterName $OwnerName"
 
-                                                        authViewModel.startUserProfileListener()
-                                                        showVerificationDialog = true
+                                                        // 🎯 THE FINAL PIECE: Sign out AFTER saving, then show Dialog
+                                                        authViewModel.signOut(context) {
+                                                            // Siguraduhing bumalik sa Main thread para sa UI updates
+                                                            scope.launch(kotlinx.coroutines.Dispatchers.Main) {
+                                                                isLoading = false
+                                                                showVerificationDialog = true
+                                                                android.util.Log.d("SIGNUP_DEBUG", "Data saved & signed out successfully.")
+                                                            }
+                                                        }
 
                                                     } catch (e: Exception) {
-                                                        errorMessage = e.message
                                                         isLoading = false
+                                                        errorMessage = "Database Error: ${e.message}"
+                                                        android.util.Log.e("SIGNUP_ERROR", "Error: ${e.message}")
                                                     }
                                                 }
                                             }
@@ -495,10 +508,8 @@
                     confirmButton = {
                         Button(
                             onClick = {
-                                authViewModel.signOut(context) {
                                     showVerificationDialog = false
                                     onLoginClick()
-                                }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFB6C1)),
                             modifier = Modifier.fillMaxWidth(),

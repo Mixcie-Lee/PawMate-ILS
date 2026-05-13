@@ -69,8 +69,8 @@ class AdoptionCenterViewModel(
     fun addPet(newPet: PetData) {
         val currentUser = authViewModel.currentUser ?: return
         val shelterId = currentUser.uid
-        val shelterName = currentUser.displayName ?: "Unknown Shelter"
-        val petRef = db.collection("pets").document()
+        val userData = authViewModel.userData.value
+        val shelterName = userData?.shelterName ?: userData?.name ?: currentUser.displayName ?: "PawMate Shelter";        val petRef = db.collection("pets").document()
         val petId = db.collection("pets").document().id
 
         val petWithOwner = newPet.copy(
@@ -181,6 +181,19 @@ class AdoptionCenterViewModel(
                 // 🔹 Set a "Loading" state so the UI knows we're working
                 _addPetStatus.value = null
 
+                var finalShelterName = shelterName
+                if (finalShelterName.isNullOrBlank() || finalShelterName == "PawMate Shelter") {
+                    try {
+                        val userDoc = db.collection("users").document(shelterId).get().await()
+                        finalShelterName = userDoc.getString("shelterName")
+                            ?: userDoc.getString("name")
+                                    ?: "PawMate Shelter"
+                    } catch (e: Exception) {
+                        finalShelterName = "PawMate Shelter"
+                    }
+                }
+
+
                 // 1. Upload Main Image to Cloudinary
                 var uploadedMainUrl: String? = null
                 if (mainImageUri != null) {
@@ -211,7 +224,7 @@ class AdoptionCenterViewModel(
                     imageUrl = uploadedMainUrl,
                     additionalImages = uploadedSubUrls, // Now a List<String>
                     shelterId = shelterId,
-                    shelterName = shelterName,
+                    shelterName = finalShelterName,
                     shelterAddress = shelterAddress,
                     shelterIsOnline = true,
                     shelterLastActive = System.currentTimeMillis()
