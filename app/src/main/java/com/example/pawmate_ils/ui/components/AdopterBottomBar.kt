@@ -49,6 +49,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.example.pawmate_ils.FeatureFlags
 import com.example.pawmate_ils.ThemeManager
 
 @Composable
@@ -65,7 +66,7 @@ fun AdopterBottomBar(
         "Home" -> "pet_swipe"
         "Favorites" -> "adopter_home"
         "Education" -> "educational"
-        "Shop" -> "shop"
+        "Shop" -> if (FeatureFlags.shopEnabled) "shop" else ""
         "Message" -> "chat_home"
         "Profile" -> "profile_settings"
         else -> ""
@@ -73,6 +74,7 @@ fun AdopterBottomBar(
     val lastNavAt = remember { mutableLongStateOf(0L) }
 
     fun navigate(route: String) {
+        if (route == "shop" && !FeatureFlags.shopEnabled) return
         if (route == selectedRoute) return
         val now = SystemClock.elapsedRealtime()
         if (now - lastNavAt.longValue < 500L) return
@@ -150,15 +152,22 @@ fun AdopterBottomBar(
                     }
                 }
 
-                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.BottomCenter) {
-                    AdopterBottomBarItem("Shop", selectedTab == "Shop", accent, { navigate("shop") }) { tint, selected ->
-                        BottomBarIcon(
-                            contentDescription = "Shop",
-                            tint = tint,
-                            selected = selected,
-                            selectedIcon = Icons.Default.ShoppingCart,
-                            unselectedIcon = Icons.Outlined.ShoppingCart
-                        )
+                if (FeatureFlags.shopEnabled) {
+                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.BottomCenter) {
+                        AdopterBottomBarItem(
+                            "Shop",
+                            selectedTab == "Shop",
+                            accent,
+                            { navigate("shop") }
+                        ) { tint, selected ->
+                            BottomBarIcon(
+                                contentDescription = "Shop",
+                                tint = tint,
+                                selected = selected,
+                                selectedIcon = Icons.Default.ShoppingCart,
+                                unselectedIcon = Icons.Outlined.ShoppingCart
+                            )
+                        }
                     }
                 }
                 Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.BottomCenter) {

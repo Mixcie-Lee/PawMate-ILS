@@ -1,39 +1,40 @@
 package com.example.pawmate_ils.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.navigation.NavController
 import com.example.pawmate_ils.R
 import com.example.pawmate_ils.ThemeManager
 import com.example.pawmate_ils.ui.components.AdopterBottomBar
 import com.example.pawmate_ils.ui.components.PawMateSectionTitle
-import com.example.pawmate_ils.ui.theme.DarkBrown
 
 data class EducationalArticle(
     val id: Int,
@@ -143,45 +144,94 @@ fun EducationalScreen(navController: NavController) {
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 24.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(bottom = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
                 ) {
-                    PawMateSectionTitle(
-                        title = "Education",
-                        subtitle = "Pet care tips and guides",
-                        color = Color(0xFFFF9999)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        PawMateSectionTitle(
+                            title = "Education",
+                            subtitle = "Pet care tips and guides",
+                            color = Color(0xFFFF9999)
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Learn something pawsome today \u2728",
+                            fontSize = 13.sp,
+                            color = textColor.copy(alpha = 0.65f)
+                        )
+                    }
                     IconButton(
                         onClick = { showTutorial = true },
-                        modifier = Modifier.size(40.dp)
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(
+                                Color(0xFFFF9999).copy(alpha = if (isDarkMode) 0.18f else 0.14f)
+                            )
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Info,
                             contentDescription = "Show Tutorial",
                             tint = Color(0xFFFF9999),
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                     }
                 }
             }
 
-
-            items(filteredArticles) { article ->
-                ArticleCard(
-                    article = article,
+            item {
+                EducationSearchBar(
+                    query = searchQuery,
+                    onQueryChange = { searchQuery = it },
+                    isDarkMode = isDarkMode,
                     cardColor = cardColor,
-                    textColor = textColor,
-                    onClick = {
-                        navController.navigate("educational_detail/${article.id}")
-                    }
+                    textColor = textColor
                 )
+            }
+
+            item {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(horizontal = 2.dp, vertical = 4.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(categories) { category ->
+                        CategoryChip(
+                            label = category,
+                            isSelected = selectedCategory == category,
+                            onClick = { selectedCategory = category }
+                        )
+                    }
+                }
+            }
+
+            if (filteredArticles.isEmpty()) {
+                item {
+                    EducationEmptyState(
+                        textColor = textColor,
+                        onClearFilters = {
+                            searchQuery = ""
+                            selectedCategory = "All"
+                        }
+                    )
+                }
+            } else {
+                items(filteredArticles) { article ->
+                    ArticleCard(
+                        article = article,
+                        cardColor = cardColor,
+                        textColor = textColor,
+                        onClick = {
+                            navController.navigate("educational_detail/${article.id}")
+                        }
+                    )
+                }
             }
 
             item {
@@ -294,29 +344,40 @@ fun CategoryChip(
     onClick: () -> Unit
 ) {
     val isDarkMode = ThemeManager.isDarkMode
-    
+    val accent = Color(0xFFFFB6C1)
+    val borderColor = Color(0xFFFF9999).copy(alpha = if (isDarkMode) 0.35f else 0.25f)
+    val containerColor = when {
+        isSelected -> accent
+        isDarkMode -> Color(0xFF2F2F33)
+        else -> Color.White
+    }
+
     Card(
         onClick = onClick,
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) 
-                Color(0xFFFFB6C1) 
-            else if (isDarkMode) 
-                Color(0xFF3A3A3A) 
-            else 
-                Color.LightGray.copy(alpha = 0.3f)
-        ),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = containerColor),
+        border = if (isSelected) null else BorderStroke(1.dp, borderColor),
         elevation = CardDefaults.cardElevation(
-            defaultElevation = if (isSelected) 3.dp else 1.dp
+            defaultElevation = if (isSelected) 4.dp else 0.dp
         )
     ) {
-        Text(
-            text = label,
-            color = if (isSelected) Color.White else if (isDarkMode) Color.LightGray else Color.Gray,
-            fontSize = 13.sp,
-            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-        )
+        Box(
+            modifier = Modifier
+                .height(36.dp)
+                .padding(horizontal = 16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = label,
+                color = when {
+                    isSelected -> Color.White
+                    isDarkMode -> Color.White.copy(alpha = 0.78f)
+                    else -> Color(0xFF6B6B6B)
+                },
+                fontSize = 13.sp,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+            )
+        }
     }
 }
 
@@ -328,12 +389,15 @@ fun ArticleCard(
     onClick: () -> Unit
 ) {
     val isDarkMode = ThemeManager.isDarkMode
-    
+    val tileColor = categoryTileColor(article.category, isDarkMode)
+    val badgeColor = categoryBadgeColor(article.category)
+    val emoji = categoryEmoji(article.category)
+
     Card(
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
-            .height(120.dp),
+            .heightIn(min = 140.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (isDarkMode) Color(0xFF2A2A2A) else Color.White
         ),
@@ -343,49 +407,205 @@ fun ArticleCard(
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(
-                modifier = Modifier.weight(1f)
+            Box(
+                modifier = Modifier
+                    .size(84.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(tileColor),
+                contentAlignment = Alignment.Center
             ) {
                 Text(
+                    text = emoji,
+                    fontSize = 40.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(
+                            badgeColor.copy(alpha = if (isDarkMode) 0.28f else 0.18f)
+                        )
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = article.category,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = badgeColor,
+                        letterSpacing = 0.4.sp
+                    )
+                }
+
+                Text(
                     text = article.title,
-                    fontSize = 20.sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = if (isDarkMode) Color.White else Color.Black,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    lineHeight = 20.sp
+                )
+
+                Text(
+                    text = article.description,
+                    fontSize = 12.sp,
+                    color = if (isDarkMode) Color.LightGray else Color.Gray,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
 
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
-                    text = article.description,
-                    fontSize = 13.sp,
-                    color = if (isDarkMode) Color.LightGray else Color.Gray,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    lineHeight = 18.sp
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Schedule,
+                        contentDescription = null,
+                        tint = if (isDarkMode) Color.LightGray else Color.Gray,
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Text(
+                        text = article.readTime,
+                        fontSize = 11.sp,
+                        color = if (isDarkMode) Color.LightGray else Color.Gray,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
 
-            Box(
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = Color(0xFFFF9999),
                 modifier = Modifier
-                    .size(80.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(
-                        if (isDarkMode) Color(0xFFFF9999).copy(alpha = 0.2f) else Color(0xFFFFD6E0)
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "🦴",
-                    fontSize = 40.sp
-                )
-            }
+                    .padding(start = 4.dp)
+                    .size(22.dp)
+            )
         }
     }
+}
+
+@Composable
+private fun EducationSearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    isDarkMode: Boolean,
+    cardColor: Color,
+    textColor: Color
+) {
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        modifier = Modifier.fillMaxWidth(),
+        placeholder = {
+            Text(
+                text = "Search articles, tips, breeds\u2026",
+                fontSize = 14.sp
+            )
+        },
+        leadingIcon = {
+            Icon(
+                imageVector = Icons.Filled.Search,
+                contentDescription = "Search",
+                tint = Color(0xFFFF9999)
+            )
+        },
+        trailingIcon = {
+            if (query.isNotEmpty()) {
+                IconButton(onClick = { onQueryChange("") }) {
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = "Clear search",
+                        tint = if (isDarkMode) Color.LightGray else Color.Gray
+                    )
+                }
+            }
+        },
+        singleLine = true,
+        shape = RoundedCornerShape(28.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = Color(0xFFFFB6C1),
+            unfocusedBorderColor = Color.Gray.copy(alpha = 0.3f),
+            cursorColor = Color(0xFFFF9999),
+            focusedContainerColor = cardColor,
+            unfocusedContainerColor = cardColor,
+            focusedTextColor = textColor,
+            unfocusedTextColor = textColor
+        )
+    )
+}
+
+@Composable
+private fun EducationEmptyState(
+    textColor: Color,
+    onClearFilters: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(text = "\uD83D\uDC3E", fontSize = 56.sp)
+        Text(
+            text = "No articles match your search",
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = textColor
+        )
+        Text(
+            text = "Try a different keyword or category.",
+            fontSize = 13.sp,
+            color = textColor.copy(alpha = 0.65f)
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        TextButton(
+            onClick = onClearFilters,
+            colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFFF9999))
+        ) {
+            Text("Clear filters", fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+private fun categoryEmoji(category: String): String = when (category) {
+    "Dog Care" -> "\uD83D\uDC15"
+    "Cat Care" -> "\uD83D\uDC08"
+    "Health" -> "\uD83E\uDE7A"
+    "Training" -> "\uD83C\uDF93"
+    "Nutrition" -> "\uD83E\uDD63"
+    else -> "\uD83E\uDDB4"
+}
+
+private fun categoryTileColor(category: String, isDarkMode: Boolean): Color {
+    val base = when (category) {
+        "Dog Care" -> Color(0xFFFFE2D1)
+        "Cat Care" -> Color(0xFFE9DCFB)
+        "Health" -> Color(0xFFD6F1E0)
+        "Training" -> Color(0xFFD7ECFB)
+        "Nutrition" -> Color(0xFFFFF1C9)
+        else -> Color(0xFFFFD6E0)
+    }
+    return if (isDarkMode) base.copy(alpha = 0.18f) else base
+}
+
+private fun categoryBadgeColor(category: String): Color = when (category) {
+    "Dog Care" -> Color(0xFFE08A4D)
+    "Cat Care" -> Color(0xFF8A6FC7)
+    "Health" -> Color(0xFF3FA46A)
+    "Training" -> Color(0xFF4A90D9)
+    "Nutrition" -> Color(0xFFC79A2E)
+    else -> Color(0xFFFF7A95)
 }
 

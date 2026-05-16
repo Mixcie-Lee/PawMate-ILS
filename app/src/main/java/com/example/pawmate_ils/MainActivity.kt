@@ -465,7 +465,15 @@
                                     EducationalScreen(navController = navController)
                                 }
                                 composable("shop") {
-                                    ShopScreen(navController = navController)
+                                    if (FeatureFlags.shopEnabled) {
+                                        ShopScreen(navController = navController)
+                                    } else {
+                                        LaunchedEffect(Unit) {
+                                            navController.navigate("pet_swipe") {
+                                                popUpTo("shop") { inclusive = true }
+                                            }
+                                        }
+                                    }
                                 }
                                 composable(
                                     route = "educational_detail/{articleId}",
