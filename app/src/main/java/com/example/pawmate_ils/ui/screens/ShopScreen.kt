@@ -19,9 +19,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -174,11 +176,36 @@ private fun buildShopItems(): List<MerchandiseItem> {
         MerchandiseItem(
             name = "PawMate Pet Toys Set",
             category = "Accessories",
-            price = "PHP 449.00",
+            price = "PHP 50.00",
             badge = "New",
-            description = "Play kit for pets — supports shelter missions.",
-            variants = listOf(MerchandiseVariant(R.drawable.toys, "")),
-            imageRes = R.drawable.toys
+            description = "Play kit for pets — supports shelter missions. Collect all these cute, premium variations for your furry friend!",
+            variants = listOf(
+                MerchandiseVariant(R.drawable.miceballs, "Mice Balls"),
+                MerchandiseVariant(R.drawable.eggyplant, "Eggplant"),
+                MerchandiseVariant(R.drawable.chickenleg, "Chicken Leg"),
+                MerchandiseVariant(R.drawable.donat, "Donut"),
+                MerchandiseVariant(R.drawable.avocado, "Avocado"),
+                MerchandiseVariant(R.drawable.rainbowbone, "Rainbow Bone")
+            ),
+            imageRes = R.drawable.miceballs
+        ),
+        MerchandiseItem(
+            name = "Pet Disposable Gloves",
+            category = "Accessories",
+            price = "PHP 50.00",
+            badge = "Essential",
+            description = "Premium disposable gloves for pet grooming, cleaning, and sanitizing. Safe, durable, and highly protective.",
+            variants = listOf(MerchandiseVariant(R.drawable.petdisposablegloves, "")),
+            imageRes = R.drawable.petdisposablegloves
+        ),
+        MerchandiseItem(
+            name = "Pet Sanitizing Spray",
+            category = "Accessories",
+            price = "PHP 50.00",
+            badge = "Popular",
+            description = "Safe and non-toxic pet sanitizing spray to keep your pet and surroundings fresh, germ-free, and clean.",
+            variants = listOf(MerchandiseVariant(R.drawable.spray, "")),
+            imageRes = R.drawable.spray
         ),
         MerchandiseItem(
             name = "I Found My Way Home — Campaign Tee",
@@ -277,12 +304,10 @@ private fun ProductImagePagerContent(
         initialPage = 0,
         pageCount = { variants.size }
     )
-    Column(modifier = modifier.fillMaxWidth()) {
+    Box(modifier = modifier.fillMaxWidth().aspectRatio(1f)) {
         HorizontalPager(
             state = pagerState,
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(1f),
+            modifier = Modifier.fillMaxSize(),
             verticalAlignment = Alignment.CenterVertically
         ) { page ->
             Image(
@@ -297,16 +322,18 @@ private fun ProductImagePagerContent(
         if (showDots && variants.size > 1) {
             Row(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 2.dp, bottom = 8.dp),
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 8.dp)
+                    .background(Color.Black.copy(alpha = 0.3f), RoundedCornerShape(10.dp))
+                    .padding(horizontal = 6.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 repeat(variants.size) { i ->
                     Box(
                         modifier = Modifier
-                            .padding(horizontal = 3.dp)
-                            .size(if (pagerState.currentPage == i) 6.dp else 5.dp)
+                            .padding(horizontal = 2.5.dp)
+                            .size(if (pagerState.currentPage == i) 5.5.dp else 4.5.dp)
                             .background(
                                 dotColor.copy(
                                     alpha = if (pagerState.currentPage == i) 1f else inactiveDotAlpha
@@ -355,8 +382,8 @@ private fun ShopCartOverlay(
     onDismiss: () -> Unit,
     onOrderNow: (totalFormatted: String, checkoutIndices: List<Int>) -> Unit,
 ) {
-    val pink = if (isDarkMode) Color(0xFFFF7BA1) else Color(0xFFE84D7A)
-    val pinkSoft = if (isDarkMode) Color(0xFFFFB3C9) else Color(0xFFFFE4EE)
+    val pink = Color(0xFFC16565)
+    val pinkSoft = if (isDarkMode) Color(0xFF3D2529) else Color(0xFFFFE4EE)
     val pageBg = if (isDarkMode) Color(0xFF121212) else Color(0xFFF5F5F5)
     val surface = if (isDarkMode) Color(0xFF1E1E1E) else Color.White
     val barBg = if (isDarkMode) Color(0xFF252525) else Color.White
@@ -1227,21 +1254,58 @@ fun ShopScreen(navController: NavController) {
 
                 item {
                     Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = Color.Transparent), modifier = Modifier.fillMaxWidth()) {
-                        Box(modifier = Modifier.fillMaxWidth().height(if (isTablet) 140.dp else 110.dp).background(Brush.horizontalGradient(listOf(Color(0xFFDCCBFF), Color(0xFFD8F2FF), Color(0xFFF7DDFD))), RoundedCornerShape(18.dp)).padding(horizontal = 14.dp, vertical = 10.dp)) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(if (isTablet) 140.dp else 110.dp)
+                                .background(
+                                    Brush.horizontalGradient(
+                                        listOf(
+                                            Color(0xFFFFD2D8),
+                                            Color(0xFFFDDCF7),
+                                            Color(0xFFE2C2FF)
+                                        )
+                                    ),
+                                    RoundedCornerShape(18.dp)
+                                )
+                                .padding(horizontal = 16.dp, vertical = 10.dp)
+                        ) {
                             Column(modifier = Modifier.align(Alignment.CenterStart), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                Text(text = "50% OFF", fontSize = if (isTablet) 46.sp else 42.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF9A8AD8))
-                                Text(text = "Limited PawMate merch deals", fontSize = if (isTablet) 14.sp else 12.sp, color = Color(0xFF7D77CF))
+                                Text(text = "50% OFF", fontSize = if (isTablet) 46.sp else 42.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF8C4F4F))
+                                Text(text = "Limited PawMate merch deals", fontSize = if (isTablet) 14.sp else 12.sp, color = Color(0xFF8C4F4F).copy(alpha = 0.8f))
                             }
-                            Text(text = "💎 GEMS", fontSize = if (isTablet) 30.sp else 28.sp, fontWeight = FontWeight.Bold, color = Color(0xFF7D77CF), modifier = Modifier.align(Alignment.CenterEnd))
+                            Text(
+                                text = "💎 GEMS",
+                                fontSize = if (isTablet) 30.sp else 28.sp,
+                                fontWeight = FontWeight.Black,
+                                color = Color(0xFF8C4F4F).copy(alpha = 0.9f),
+                                modifier = Modifier.align(Alignment.CenterEnd)
+                            )
                         }
                     }
                 }
 
                 item {
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = PaddingValues(vertical = 4.dp)
+                    ) {
                         items(categories) { category ->
                             val selected = selectedCategory == category
-                            AssistChip(onClick = { selectedCategory = category }, label = { Text(if (category == "All") "New" else category) }, colors = AssistChipDefaults.assistChipColors(containerColor = if (selected) Color(0xFFFFCDD9) else Color(0xFFF7E6EA), labelColor = Color(0xFFC56D7D)))
+                            val chipContainer = if (selected) Color(0xFFC16565) else (if (isDarkMode) Color(0xFF2C2527) else Color(0xFFFFEFF2))
+                            val chipLabelColor = if (selected) Color.White else (if (isDarkMode) Color(0xFFF8F0F3) else Color(0xFFC16565))
+                            val chipBorder = if (selected) BorderStroke(1.dp, Color(0xFFC16565)) else BorderStroke(1.dp, Color(0xFFC16565).copy(alpha = 0.2f))
+                            
+                            AssistChip(
+                                onClick = { selectedCategory = category },
+                                label = { Text(category, fontSize = 12.sp, fontWeight = FontWeight.SemiBold) },
+                                colors = AssistChipDefaults.assistChipColors(
+                                    containerColor = chipContainer,
+                                    labelColor = chipLabelColor
+                                ),
+                                border = chipBorder,
+                                shape = RoundedCornerShape(20.dp)
+                            )
                         }
                     }
                 }
@@ -1257,34 +1321,113 @@ fun ShopScreen(navController: NavController) {
                 }
 
                 items(filtered.chunked(if (isTablet) 3 else 2)) { rowItems ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    val cardBg = if (isDarkMode) Color(0xFF262224) else Color(0xFFFFFBFC)
+                    val cardBorder = BorderStroke(1.dp, if (isDarkMode) Color(0xFFC16565).copy(alpha = 0.18f) else Color(0xFFC16565).copy(alpha = 0.12f))
+                    val textColor = if (isDarkMode) Color(0xFFF8F0F3) else Color(0xFF3D2C32)
+                    val priceColor = Color(0xFFC16565)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(IntrinsicSize.Max)
+                    ) {
                         rowItems.forEach { product ->
-                            Card(modifier = Modifier.weight(1f).clickable { selectedProduct = product }, colors = CardDefaults.cardColors(containerColor = Color(0xFFFFC9BF)), shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)) {
-                                Column(modifier = Modifier.padding(6.dp)) {
-                                    Card(shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = if (isDarkMode) Color(0xFF333333) else Color(0xFFF4F4F4))) {
-                                        ProductImagePager(
-                                            variants = product.effectiveVariants(),
-                                            modifier = Modifier.fillMaxWidth(),
-                                            imagePadding = 8.dp,
-                                            showDots = product.effectiveVariants().size > 1,
-                                            dotColor = Color.White,
-                                            inactiveDotAlpha = 0.42f
+                            Card(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                                    .clickable { selectedProduct = product },
+                                colors = CardDefaults.cardColors(containerColor = cardBg),
+                                shape = RoundedCornerShape(18.dp),
+                                elevation = CardDefaults.cardElevation(defaultElevation = if (isDarkMode) 2.dp else 4.dp),
+                                border = cardBorder
+                            ) {
+                                Column(modifier = Modifier.fillMaxHeight().padding(8.dp)) {
+                                    Card(
+                                        shape = RoundedCornerShape(14.dp),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = if (isDarkMode) Color(0xFF33292D) else Color(0xFFFFF5F7)
                                         )
+                                    ) {
+                                        Box(modifier = Modifier.fillMaxWidth()) {
+                                            ProductImagePager(
+                                                variants = product.effectiveVariants(),
+                                                modifier = Modifier.fillMaxWidth(),
+                                                imagePadding = 8.dp,
+                                                showDots = product.effectiveVariants().size > 1,
+                                                dotColor = if (isDarkMode) Color.White else Color(0xFFC16565),
+                                                inactiveDotAlpha = 0.42f
+                                            )
+                                            if (product.badge.isNotEmpty()) {
+                                                Card(
+                                                    shape = RoundedCornerShape(topStart = 14.dp, bottomEnd = 14.dp),
+                                                    colors = CardDefaults.cardColors(
+                                                        containerColor = if (product.badge == "New" || product.badge == "Popular") Color(0xFFC16565) else Color(0xFF4CAF50)
+                                                    ),
+                                                    modifier = Modifier.align(Alignment.TopStart)
+                                                ) {
+                                                    Text(
+                                                        text = product.badge.uppercase(Locale.US),
+                                                        color = Color.White,
+                                                        fontSize = 9.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
                                     }
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                    Text(
-                                        text = product.name,
-                                        color = Color.White,
-                                        fontWeight = FontWeight.Medium,
-                                        fontSize = 13.sp,
-                                        lineHeight = 16.sp,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    if (promoApplied) {
-                                        Text(text = product.price, color = Color.White.copy(alpha = 0.7f), fontSize = 11.sp, textDecoration = TextDecoration.LineThrough)
-                                        Text(text = discountedPriceLabel(product.price, true), color = Color(0xFFDB3049), fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                                    } else { Text(text = product.price, color = Color.White.copy(alpha = 0.95f), fontSize = 12.sp) }
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .weight(1f),
+                                        verticalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            text = product.name,
+                                            color = textColor,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp,
+                                            lineHeight = 17.sp,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.padding(horizontal = 4.dp)
+                                        )
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 4.dp)
+                                        ) {
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            if (promoApplied) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                ) {
+                                                    Text(
+                                                        text = product.price,
+                                                        color = textColor.copy(alpha = 0.4f),
+                                                        fontSize = 11.sp,
+                                                        textDecoration = TextDecoration.LineThrough
+                                                    )
+                                                    Text(
+                                                        text = discountedPriceLabel(product.price, true),
+                                                        color = priceColor,
+                                                        fontWeight = FontWeight.Black,
+                                                        fontSize = 13.sp
+                                                    )
+                                                }
+                                            } else {
+                                                Text(
+                                                    text = product.price,
+                                                    color = priceColor,
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 13.sp
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
